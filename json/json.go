@@ -15,14 +15,13 @@ import (
 // JSONTagName is the name of the `"json"` tag.
 const JSONTagName = "json"
 
-// Decoder ..
+// Decoder is a decoder that know how to work with text encoded in JSON
 type Decoder struct {
 }
 
 // Decode is a decoder that decodes the JSON from an io.Reader into the
 // appropriate struct.
 func (d *Decoder) Decode(r io.Reader, t *dials.Type) (reflect.Value, error) {
-	// decoder := json.NewDecoder(r)
 	jsonBytes, err := ioutil.ReadAll(r)
 	if err != nil {
 		return reflect.Value{}, fmt.Errorf("error reading JSON: %s", err)
