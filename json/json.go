@@ -15,7 +15,7 @@ import (
 // JSONTagName is the name of the `"json"` tag.
 const JSONTagName = "json"
 
-// Decoder is a decoder that know how to work with text encoded in JSON
+// Decoder is a decoder that knows how to work with text encoded in JSON
 type Decoder struct {
 }
 
