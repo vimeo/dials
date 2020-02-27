@@ -37,7 +37,7 @@ func TestYAML(t *testing.T) {
 	assert.Equal(t, 42, c.Val2)
 }
 
-func TestMoreYAML(t *testing.T) {
+func TestShallowlyNestedYAML(t *testing.T) {
 	type testConfig struct {
 		DatabaseName    string `dials:"database_name"`
 		DatabaseAddress string `dials:"database_address"`
