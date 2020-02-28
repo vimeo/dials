@@ -9,6 +9,7 @@ import (
 	"github.com/vimeo/dials"
 	"github.com/vimeo/dials/tagformat"
 	"github.com/vimeo/dials/transform"
+
 	"gopkg.in/yaml.v2"
 )
 
