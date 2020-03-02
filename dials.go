@@ -26,12 +26,14 @@ func Config(ctx context.Context, t interface{}, sources ...Source) (*View, error
 	typeInstance := &Type{ptrify.Pointerify(typeOfT.Elem(), tVal.Elem())}
 	someoneWatching := false
 	for _, source := range sources {
+		s := source
+
 		v, err := source.Value(typeInstance)
 		if err != nil {
 			return nil, err
 		}
 		computed = append(computed, sourceValue{
-			source: source,
+			source: s,
 			value:  v,
 		})
 
@@ -40,7 +42,7 @@ func Config(ctx context.Context, t interface{}, sources ...Source) (*View, error
 			err = w.Watch(ctx, typeInstance, func(ctx context.Context, v reflect.Value) {
 				select {
 				case <-ctx.Done():
-				case watcherChan <- &watchTab{source: source, value: v}:
+				case watcherChan <- &watchTab{source: s, value: v}:
 				}
 			})
 			if err != nil {
