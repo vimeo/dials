@@ -207,6 +207,7 @@ func (t *Transformer) TranslateType() (reflect.Type, error) {
 
 		t.mState[manglerNum] = layerState
 	}
+
 	return reflect.StructOf(layerFields), nil
 }
 
