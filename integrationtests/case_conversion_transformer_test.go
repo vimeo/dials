@@ -22,23 +22,28 @@ func TestReformatDialsTags(t *testing.T) {
 		IPAddress       net.IP `dials:"ip_address"`
 	}
 
-	data := `{
-		"databaseName": "something",
-		"databaseAddress": "127.0.0.1",
-		"ipAddress":"127.0.0.1"
-	}`
-
 	testCases := []struct {
 		description string
 		decoder     dials.Decoder
+		data        string
 	}{
 		{
 			description: "JSON",
 			decoder:     &json.Decoder{},
+			data: `{
+				"databaseName": "something",
+				"databaseAddress": "127.0.0.1",
+				"ipAddress":"127.0.0.1"
+			}`,
 		},
 		{
 			description: "YAML",
 			decoder:     &yaml.Decoder{},
+			data: `{
+				"databaseName": "something",
+				"databaseAddress": "127.0.0.1",
+				"ipAddress":"127.0.0.1"
+			}`,
 		},
 	}
 
@@ -51,7 +56,7 @@ func TestReformatDialsTags(t *testing.T) {
 			view, err := dials.Config(
 				context.Background(),
 				myConfig,
-				tagformat.ReformatDialsTagSource(&static.StringSource{Data: data, Decoder: tc.decoder}, tagformat.DecodeLowerSnakeCase, tagformat.EncodeLowerCamelCase),
+				tagformat.ReformatDialsTagSource(&static.StringSource{Data: tc.data, Decoder: tc.decoder}, tagformat.DecodeLowerSnakeCase, tagformat.EncodeLowerCamelCase),
 			)
 			require.NoError(t, err)
 
@@ -80,32 +85,46 @@ func TestReformatDialsTagsInNestedStruct(t *testing.T) {
 		} `dials:"database_user"`
 	}
 
-	data := `{
-		"databaseName": "something",
-		"databaseAddress": "127.0.0.1",
-		"databaseUser": {
-			"username": "test",
-			"password": "password",
-			"otherStuff": {
-				"something": {
-					"anotherField": "asdf",
-					"ipAddress":"127.0.0.1"
-				}
-			}
-		}
-	}`
-
 	testCases := []struct {
 		description string
 		decoder     dials.Decoder
+		data        string
 	}{
 		{
 			description: "JSON",
 			decoder:     &json.Decoder{},
+			data: `{
+				"databaseName": "something",
+				"databaseAddress": "127.0.0.1",
+				"databaseUser": {
+					"username": "test",
+					"password": "password",
+					"otherStuff": {
+						"something": {
+							"anotherField": "asdf",
+							"ipAddress":"127.0.0.1"
+						}
+					}
+				}
+			}`,
 		},
 		{
 			description: "YAML",
 			decoder:     &yaml.Decoder{},
+			data: `{
+				"databaseName": "something",
+				"databaseAddress": "127.0.0.1",
+				"databaseUser": {
+					"username": "test",
+					"password": "password",
+					"otherStuff": {
+						"something": {
+							"anotherField": "asdf",
+							"ipAddress":"127.0.0.1"
+						}
+					}
+				}
+			}`,
 		},
 	}
 
@@ -118,7 +137,7 @@ func TestReformatDialsTagsInNestedStruct(t *testing.T) {
 			view, err := dials.Config(
 				context.Background(),
 				myConfig,
-				tagformat.ReformatDialsTagSource(&static.StringSource{Data: data, Decoder: tc.decoder}, tagformat.DecodeLowerSnakeCase, tagformat.EncodeLowerCamelCase),
+				tagformat.ReformatDialsTagSource(&static.StringSource{Data: tc.data, Decoder: tc.decoder}, tagformat.DecodeLowerSnakeCase, tagformat.EncodeLowerCamelCase),
 			)
 			require.NoError(t, err)
 
