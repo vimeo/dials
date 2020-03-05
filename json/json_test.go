@@ -2,13 +2,13 @@ package json
 
 import (
 	"context"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vimeo/dials"
 	"github.com/vimeo/dials/static"
-	"github.com/vimeo/dials/tagformat"
 )
 
 func TestJSON(t *testing.T) {
@@ -42,8 +42,9 @@ func TestShallowlyNestedJSON(t *testing.T) {
 		DatabaseName    string `dials:"database_name"`
 		DatabaseAddress string `dials:"database_address"`
 		DatabaseUser    struct {
-			Username string `dials:"username"`
-			Password string `dials:"password"`
+			Username  string `dials:"username"`
+			Password  string `dials:"password"`
+			IPAddress net.IP `dials:"ip_address"`
 		} `dials:"database_user"`
 	}
 
@@ -52,7 +53,8 @@ func TestShallowlyNestedJSON(t *testing.T) {
 		"database_address": "127.0.0.1",
 		"database_user": {
 			"username": "test",
-			"password": "password"
+			"password": "password",
+			"ip_address": "123.10.11.121"
 		}
     }`
 
@@ -70,6 +72,7 @@ func TestShallowlyNestedJSON(t *testing.T) {
 	assert.Equal(t, "something", c.DatabaseName)
 	assert.Equal(t, "test", c.DatabaseUser.Username)
 	assert.Equal(t, "password", c.DatabaseUser.Password)
+	assert.Equal(t, net.IPv4(123, 10, 11, 121), c.DatabaseUser.IPAddress)
 }
 
 func TestDeeplyNestedJSON(t *testing.T) {
@@ -81,6 +84,7 @@ func TestDeeplyNestedJSON(t *testing.T) {
 			Password   string `dials:"password"`
 			OtherStuff struct {
 				Something string `dials:"something"`
+				IPAddress net.IP `dials:"ip_address"`
 			} `dials:"other_stuff"`
 		} `dials:"database_user"`
 	}
@@ -92,7 +96,8 @@ func TestDeeplyNestedJSON(t *testing.T) {
 			"username": "test",
 			"password": "password",
 			"other_stuff": {
-				"something": "asdf"
+				"something": "asdf",
+				"ip_address": "123.10.11.121"
 			}
 		}
 	}`
@@ -112,6 +117,8 @@ func TestDeeplyNestedJSON(t *testing.T) {
 	assert.Equal(t, "test", c.DatabaseUser.Username)
 	assert.Equal(t, "password", c.DatabaseUser.Password)
 	assert.Equal(t, "asdf", c.DatabaseUser.OtherStuff.Something)
+	assert.Equal(t, net.IPv4(123, 10, 11, 121), c.DatabaseUser.OtherStuff.IPAddress)
+
 }
 
 func TestMoreDeeplyNestedJSON(t *testing.T) {
@@ -124,6 +131,7 @@ func TestMoreDeeplyNestedJSON(t *testing.T) {
 			OtherStuff struct {
 				Something struct {
 					AnotherField string `dials:"another_field"`
+					IPAddress    net.IP `dials:"ip_address"`
 				} `dials:"something"`
 			} `dials:"other_stuff"`
 		} `dials:"database_user"`
@@ -137,7 +145,8 @@ func TestMoreDeeplyNestedJSON(t *testing.T) {
 			"password": "password",
 			"other_stuff": {
 				"something": {
-					"another_field": "asdf"
+					"another_field": "asdf",
+					"ip_address": "123.10.11.121"
 				}
 			}
 		}
@@ -158,75 +167,6 @@ func TestMoreDeeplyNestedJSON(t *testing.T) {
 	assert.Equal(t, "test", c.DatabaseUser.Username)
 	assert.Equal(t, "password", c.DatabaseUser.Password)
 	assert.Equal(t, "asdf", c.DatabaseUser.OtherStuff.Something.AnotherField)
-}
+	assert.Equal(t, net.IPv4(123, 10, 11, 121), c.DatabaseUser.OtherStuff.Something.IPAddress)
 
-func TestReformatdialsToJSONTags(t *testing.T) {
-	type testConfig struct {
-		DatabaseName    string `dials:"database_name"`
-		DatabaseAddress string `dials:"database_address"`
-	}
-	jsonData := `{
-        "databaseName": "something",
-        "databaseAddress": "127.0.0.1"
-    }`
-
-	myConfig := &testConfig{}
-	view, err := dials.Config(
-		context.Background(),
-		myConfig,
-		tagformat.ReformatdialsTagSource(&static.StringSource{Data: jsonData, Decoder: &Decoder{}}, tagformat.DecodeLowerSnakeCase, tagformat.EncodeLowerCamelCase),
-	)
-	require.NoError(t, err)
-
-	c, ok := view.Get().(*testConfig)
-	assert.True(t, ok)
-
-	assert.Equal(t, "something", c.DatabaseName)
-	assert.Equal(t, "127.0.0.1", c.DatabaseAddress)
-}
-
-func TestReformatdialsTagsInNestedJSON(t *testing.T) {
-	type testConfig struct {
-		DatabaseName    string `dials:"database_name"`
-		DatabaseAddress string `dials:"database_address"`
-		DatabaseUser    struct {
-			Username   string `dials:"username"`
-			Password   string `dials:"password"`
-			OtherStuff struct {
-				Something struct {
-					AnotherField string `dials:"another_field"`
-				} `dials:"something"`
-			} `dials:"other_stuff"`
-		} `dials:"database_user"`
-	}
-
-	jsonData := `{
-	    "databaseName": "something",
-		"databaseAddress": "127.0.0.1",
-		"databaseUser": {
-			"username": "test",
-			"password": "password",
-			"otherStuff": {
-				"something": {
-					"anotherField": "asdf"
-				}
-			}
-		}
-	}`
-
-	myConfig := &testConfig{}
-	view, err := dials.Config(
-		context.Background(),
-		myConfig,
-		tagformat.ReformatdialsTagSource(&static.StringSource{Data: jsonData, Decoder: &Decoder{}}, tagformat.DecodeLowerSnakeCase, tagformat.EncodeLowerCamelCase),
-	)
-	require.NoError(t, err)
-
-	c, ok := view.Get().(*testConfig)
-	assert.True(t, ok)
-
-	assert.Equal(t, "something", c.DatabaseName)
-	assert.Equal(t, "test", c.DatabaseUser.Username)
-	assert.Equal(t, "password", c.DatabaseUser.Password)
-	assert.Equal(t, "asdf", c.DatabaseUser.OtherStuff.Something.AnotherField)
 }
