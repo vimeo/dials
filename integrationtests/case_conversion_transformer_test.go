@@ -27,6 +27,7 @@ func TestReformatDialsTags(t *testing.T) {
 		description string
 		decoder     dials.Decoder
 		data        string
+		ignoreIPv4  bool // needed to skip the IPv4 check for toml because toml currently only supports primitives
 	}{
 		{
 			description: "JSON",
@@ -53,6 +54,7 @@ func TestReformatDialsTags(t *testing.T) {
 				databaseName = "something"
 				databaseAddress = "127.0.0.1"
 			`,
+			ignoreIPv4: true,
 		},
 	}
 
@@ -73,7 +75,7 @@ func TestReformatDialsTags(t *testing.T) {
 			assert.True(t, ok)
 			assert.Equal(t, "something", c.DatabaseName)
 			assert.Equal(t, "127.0.0.1", c.DatabaseAddress)
-			if tc.description != "TOML" { // toml cannot unmarshal into net.IPv4 because it only supports primitive types
+			if !tc.ignoreIPv4 {
 				assert.Equal(t, net.IPv4(127, 0, 0, 1), c.IPAddress)
 			}
 		})
@@ -100,6 +102,7 @@ func TestReformatDialsTagsInNestedStruct(t *testing.T) {
 		description string
 		decoder     dials.Decoder
 		data        string
+		ignoreIPv4  bool
 	}{
 		{
 			description: "JSON",
@@ -149,6 +152,7 @@ func TestReformatDialsTagsInNestedStruct(t *testing.T) {
 					[databaseUser.otherStuff.something]
 						anotherField = "asdf"
 		`,
+			ignoreIPv4: true,
 		},
 	}
 
@@ -171,7 +175,7 @@ func TestReformatDialsTagsInNestedStruct(t *testing.T) {
 			assert.Equal(t, "test", c.DatabaseUser.Username)
 			assert.Equal(t, "password", c.DatabaseUser.Password)
 			assert.Equal(t, "asdf", c.DatabaseUser.OtherStuff.Something.AnotherField)
-			if tc.description != "TOML" { // toml cannot unmarshal into net.IPv4 because it only supports primitive types
+			if !tc.ignoreIPv4 {
 				assert.Equal(t, net.IPv4(127, 0, 0, 1), c.DatabaseUser.OtherStuff.Something.IPAddress)
 			}
 		})
