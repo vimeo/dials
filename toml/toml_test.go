@@ -71,7 +71,7 @@ func TestShallowlyNestedTOML(t *testing.T) {
 	assert.Equal(t, "password", c.DatabaseUser.Password)
 }
 
-func TestDeeplyNestedJSON(t *testing.T) {
+func TestDeeplyNestedTOML(t *testing.T) {
 	type testConfig struct {
 		DatabaseName    string `dials:"database_name"`
 		DatabaseAddress string `dials:"database_address"`
@@ -111,7 +111,7 @@ func TestDeeplyNestedJSON(t *testing.T) {
 	assert.Equal(t, "asdf", c.DatabaseUser.OtherStuff.Something)
 }
 
-func TestMoreDeeplyNestedJSON(t *testing.T) {
+func TestMoreDeeplyNestedTOML(t *testing.T) {
 	type testConfig struct {
 		DatabaseName    string `dials:"database_name"`
 		DatabaseAddress string `dials:"database_address"`
