@@ -9,6 +9,7 @@ import (
 	"github.com/vimeo/dials/json"
 	"github.com/vimeo/dials/static"
 	"github.com/vimeo/dials/tagformat"
+	"github.com/vimeo/dials/toml"
 	"github.com/vimeo/dials/yaml"
 
 	"github.com/stretchr/testify/assert"
@@ -45,6 +46,14 @@ func TestReformatDialsTags(t *testing.T) {
 				"ipAddress":"127.0.0.1"
 			}`,
 		},
+		{
+			description: "TOML",
+			decoder:     &toml.Decoder{},
+			data: `
+				databaseName = "something"
+				databaseAddress = "127.0.0.1"
+			`,
+		},
 	}
 
 	for _, testcase := range testCases {
@@ -64,7 +73,9 @@ func TestReformatDialsTags(t *testing.T) {
 			assert.True(t, ok)
 			assert.Equal(t, "something", c.DatabaseName)
 			assert.Equal(t, "127.0.0.1", c.DatabaseAddress)
-			assert.Equal(t, net.IPv4(127, 0, 0, 1), c.IPAddress)
+			if tc.description != "TOML" { // toml cannot unmarshal into net.IPv4 because it only supports primitive types
+				assert.Equal(t, net.IPv4(127, 0, 0, 1), c.IPAddress)
+			}
 		})
 	}
 }
@@ -126,6 +137,19 @@ func TestReformatDialsTagsInNestedStruct(t *testing.T) {
 				}
 			}`,
 		},
+		{
+			description: "TOML",
+			decoder:     &toml.Decoder{},
+			data: `
+				databaseName = "something"
+				databaseAddress = "127.0.0.1"
+				[databaseUser]
+					username = "test"
+					password = "password"
+					[databaseUser.otherStuff.something]
+						anotherField = "asdf"
+		`,
+		},
 	}
 
 	for _, testcase := range testCases {
@@ -147,7 +171,9 @@ func TestReformatDialsTagsInNestedStruct(t *testing.T) {
 			assert.Equal(t, "test", c.DatabaseUser.Username)
 			assert.Equal(t, "password", c.DatabaseUser.Password)
 			assert.Equal(t, "asdf", c.DatabaseUser.OtherStuff.Something.AnotherField)
-			assert.Equal(t, net.IPv4(127, 0, 0, 1), c.DatabaseUser.OtherStuff.Something.IPAddress)
+			if tc.description != "TOML" { // toml cannot unmarshal into net.IPv4 because it only supports primitive types
+				assert.Equal(t, net.IPv4(127, 0, 0, 1), c.DatabaseUser.OtherStuff.Something.IPAddress)
+			}
 		})
 	}
 }
