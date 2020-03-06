@@ -23,6 +23,7 @@ func TestReformatDialsTags(t *testing.T) {
 		IPAddress       net.IP `dials:"ip_address"`
 	}
 
+	// TODO: remove the ignoreIPv4 field once TextMarshal mangler is created and inserted into TOML decoder
 	testCases := []struct {
 		description string
 		decoder     dials.Decoder
@@ -98,6 +99,7 @@ func TestReformatDialsTagsInNestedStruct(t *testing.T) {
 		} `dials:"database_user"`
 	}
 
+	// TODO: remove the ignoreIPv4 field once TextMarshal mangler is created and inserted into TOML decoder
 	testCases := []struct {
 		description string
 		decoder     dials.Decoder
