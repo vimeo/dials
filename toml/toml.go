@@ -28,7 +28,8 @@ func (d *Decoder) Decode(r io.Reader, t *dials.Type) (reflect.Value, error) {
 		return reflect.Value{}, fmt.Errorf("error reading TOML: %s", err)
 	}
 
-	// If there aren't any toml tags, copy over from any dials tags.
+	// Use the TagCopyingMangler to copy over TOML tags from dials tags if TOML
+	// tags aren't specified.
 	tfmr := transform.NewTransformer(t.Type(),
 		&tagformat.TagCopyingMangler{
 			SrcTag: tagformat.DialsTagName, NewTag: TOMLTagName})
