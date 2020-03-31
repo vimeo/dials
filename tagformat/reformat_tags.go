@@ -86,12 +86,12 @@ func (k *TagReformattingMangler) ShouldRecurse(_ reflect.StructField) bool {
 	return true
 }
 
-// ReformatdialsTagSource is a convenience function that provides a source
+// ReformatDialsTagSource is a convenience function that provides a source
 // that first reformats `dials` tags on the passed type for a dials
 // config struct, changing the casing as specified (e.g., from lowerCamelCase
 // into snake_case), then calls Value on the wrapped source with the modified
 // struct type passed in.
-func ReformatdialsTagSource(inner dials.Source, encodeFunc DecodeCasingFunc, decodeFunc EncodeCasingFunc) dials.Source {
+func ReformatDialsTagSource(inner dials.Source, encodeFunc DecodeCasingFunc, decodeFunc EncodeCasingFunc) dials.Source {
 	return sourcewrap.NewTransformingSource(inner, &TagReformattingMangler{
 		tag:              DialsTagName,
 		decodeCasingFunc: encodeFunc,
