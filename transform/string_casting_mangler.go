@@ -1,8 +1,6 @@
 package transform
 
 import (
-	"encoding"
-	"fmt"
 	"reflect"
 
 	"github.com/vimeo/dials/parsestring"
@@ -36,28 +34,6 @@ func (*StringCastingMangler) Unmangle(sf reflect.StructField, vs []FieldValueTup
 		return reflect.Zero(sf.Type), nil
 	}
 	str := *(strPtrInterface.(*string))
-
-	// Handle StructField types that implement the TextUnmarshaler interface
-	// (defining their own way for an object to unmarshal a textual
-	// representation of itself).
-	textUnmarshalerType := reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
-	if reflect.PtrTo(sf.Type).Implements(textUnmarshalerType) { // If type is concrete type implementing TextUnmarshaler, e.g. net.IP
-		textUnmarshalerPtr := reflect.New(sf.Type)
-		val := textUnmarshalerPtr.Interface().(encoding.TextUnmarshaler)
-		err := val.UnmarshalText([]byte(str))
-		if err != nil {
-			return reflect.Value{}, fmt.Errorf("Error unmarshaling text into type %+v", sf.Type)
-		}
-		return textUnmarshalerPtr.Elem(), nil
-	} else if sf.Type.Implements(textUnmarshalerType) { // If type is pointer to type implementing TextUnmarshaler, e.g. *net.IP
-		textUnmarshalerPtr := reflect.New(sf.Type.Elem())
-		val := textUnmarshalerPtr.Interface().(encoding.TextUnmarshaler)
-		err := val.UnmarshalText([]byte(str))
-		if err != nil {
-			return reflect.Value{}, fmt.Errorf("Error unmarshaling text into type %+v", sf.Type)
-		}
-		return textUnmarshalerPtr, nil
-	}
 
 	// If the StructField type wasn't a TextUnmarshaler, set what type we'll be
 	// casting to. All types in these StructFields from user-defined config

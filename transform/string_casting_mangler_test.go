@@ -1,7 +1,6 @@
 package transform
 
 import (
-	"net"
 	"reflect"
 	"testing"
 	"time"
@@ -319,20 +318,6 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 				}
 				actual := i.(map[string]struct{})
 				assert.True(t, reflect.DeepEqual(expected, actual))
-			},
-		},
-		"TextUnmarshaler": {
-			StructFieldType: reflect.TypeOf(net.IP{}),
-			StringValue:     `0.0.0.0`,
-			AssertFunc: func(i interface{}) {
-				assert.Equal(t, net.ParseIP(`0.0.0.0`), i.(net.IP))
-			},
-		},
-		"*TextUnmarshaler": {
-			StructFieldType: reflect.TypeOf(&net.IP{}),
-			StringValue:     `0.0.0.0`,
-			AssertFunc: func(i interface{}) {
-				assert.Equal(t, net.ParseIP(`0.0.0.0`), *(i.(*net.IP)))
 			},
 		},
 	}
