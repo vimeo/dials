@@ -278,28 +278,34 @@ func (t *Transformer) unmangleField(
 	return unmangledVal, nil
 }
 
+// UnmangleError represents an error in unmangling.
 type UnmangleError struct {
 	Err       error
 	ErrString string
 }
 
+// Error implements the Error interface.
 func (e *UnmangleError) Error() string {
 	return e.ErrString
 }
 
+// Unwrap returns in the inner error.
 func (e *UnmangleError) Unwrap() error {
 	return e.Err
 }
 
+// ReverseTranslateError represents an error in reverse translation.
 type ReverseTranslateError struct {
 	Err       error
 	ErrString string
 }
 
+// Error implements the Error interface.
 func (e *ReverseTranslateError) Error() string {
 	return e.ErrString
 }
 
+// Unwrap returns the inner error.
 func (e *ReverseTranslateError) Unwrap() error {
 	return e.Err
 }
