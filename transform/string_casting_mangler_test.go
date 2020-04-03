@@ -288,7 +288,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 					"c":    complex128(3 + 5i),
 				}
 				actual := i.(map[string]complex128)
-				assert.True(t, reflect.DeepEqual(expected, actual))
+				assert.EqualValues(t, expected, actual)
 			},
 		},
 		"complex_bool_map": {
@@ -340,9 +340,6 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 	for n, c := range cases {
 		name := n
 		testCase := c
-		if name[0] != '+' {
-			continue
-		}
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
