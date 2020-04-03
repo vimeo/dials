@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 )
 
 var (
@@ -43,32 +42,24 @@ func ParseString(str string, t reflect.Type) (reflect.Value, error) {
 		reflect.Complex64, reflect.Complex128:
 		return parseNumber(str, t)
 	case reflect.Slice:
-		switch t {
-		case stringSliceType:
-			converted, err := ParseStringSlice(str)
-			if err != nil {
-				return reflect.Value{}, err
-			}
-			return reflect.ValueOf(converted), nil
-		case boolSliceType, intSliceType, int8SliceType, int16SliceType,
-			int32SliceType, int64SliceType, uintSliceType, uint8SliceType,
-			uint16SliceType, uint32SliceType, float32SliceType, float64SliceType,
-			complex64SliceType, complex128SliceType:
-			strVals := strings.Split(str, ",")
-			castSlice := reflect.MakeSlice(t, 0, len(strVals))
-
-			for _, strVal := range strVals {
-				castVal, err := ParseString(strings.TrimSpace(strVal), t)
-				if err != nil {
-					return reflect.Value{}, err
-				}
-				castSlice = reflect.Append(castSlice, castVal.Elem())
-			}
-
-			return castSlice, nil
-		default:
-			return reflect.Value{}, fmt.Errorf("Unsupported slice type: %+v", t)
+		converted, err := ParseStringSlice(str)
+		if err != nil {
+			return reflect.Value{}, err
 		}
+		convertedVal := reflect.ValueOf(converted)
+		if convertedVal.Type() == t {
+			return convertedVal, nil
+		}
+		castSlice := reflect.MakeSlice(t, 0, len(converted))
+		for idx, strVal := range converted {
+			castVal, parseErr := ParseString(strVal, t.Elem())
+			if parseErr != nil {
+				return reflect.Value{}, fmt.Errorf("parse error of item %d %q: %s", idx, strVal, parseErr)
+			}
+			castSlice = reflect.Append(castSlice, castVal.Elem())
+		}
+		return castSlice, nil
+
 	case reflect.Map:
 		switch t {
 		case reflect.TypeOf(map[string][]string{}):

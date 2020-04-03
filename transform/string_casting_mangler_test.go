@@ -194,7 +194,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		},
 		"complex128_slice": {
 			StructFieldType: reflect.TypeOf([]complex128{}),
-			StringValue:     `10 + 3i, 5 + 2i, 3 + 3i`,
+			StringValue:     `"10 + 3i", "5 + 2i", "3 + 3i"`,
 			AssertFunc: func(i interface{}) {
 				expected := []complex128{10 + 3i, 5 + 2i, 3 + 3i}
 				actual := i.([]complex128)
@@ -280,7 +280,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		},
 		"str_complex_map": {
 			StructFieldType: reflect.TypeOf(map[string]complex128{}),
-			StringValue:     `"asdf": 3+5i, "b": 3+5i, "c": 3+5i`,
+			StringValue:     `"asdf": "3+5i", "b": "3+5i", "c": "3+5i"`,
 			AssertFunc: func(i interface{}) {
 				expected := map[string]complex128{
 					"asdf": complex128(3 + 5i),
@@ -288,12 +288,12 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 					"c":    complex128(3 + 5i),
 				}
 				actual := i.(map[string]complex128)
-				assert.True(t, reflect.DeepEqual(expected, actual))
+				assert.EqualValues(t, expected, actual)
 			},
 		},
 		"complex_bool_map": {
 			StructFieldType: reflect.TypeOf(map[complex64]bool{}),
-			StringValue:     `3+5i: true, 10+5i: false, 1+2i: true`,
+			StringValue:     `"3+5i": true, "10+5i": false, "1+2i": true`,
 			AssertFunc: func(i interface{}) {
 				expected := map[complex64]bool{
 					complex64(3 + 5i):  true,
@@ -340,9 +340,6 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 	for n, c := range cases {
 		name := n
 		testCase := c
-		if name[0] != '+' {
-			continue
-		}
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
