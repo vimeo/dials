@@ -4,6 +4,8 @@ import (
 	"encoding"
 	"fmt"
 	"reflect"
+
+	"github.com/vimeo/dials/helper"
 )
 
 var (
@@ -24,9 +26,26 @@ func (*TextUnmarshalerMangler) Mangle(sf reflect.StructField) ([]reflect.StructF
 	return []reflect.StructField{sf}, nil
 }
 
-// Unmangle casts the string value in the mangled config struct to the type in
-// the original struct.
+// Unmangle unmangles.
 func (*TextUnmarshalerMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) (reflect.Value, error) {
+	return helper.OnImplements(sf.Type, textUnmarshalerType, vs[0].Value, func(input reflect.Value, v reflect.Value) (reflect.Value, error) {
+		strPtr := input.Interface().(*string)
+		if strPtr == nil {
+			return v, nil
+		}
+		val := v.Interface().(encoding.TextUnmarshaler)
+		err := val.UnmarshalText([]byte(*strPtr))
+		if err != nil {
+			return reflect.Value{}, fmt.Errorf("Error unmarshaling text into type %+v", sf.Type)
+		}
+		return v, nil
+	})
+	// return reflect.Value{}, nil
+}
+
+// OldUnmangle casts the string value in the mangled config struct to the type in
+// the original struct.
+func (*TextUnmarshalerMangler) OldUnmangle(sf reflect.StructField, vs []FieldValueTuple) (reflect.Value, error) {
 
 	if reflect.PtrTo(sf.Type).Implements(textUnmarshalerType) { // If type is concrete type implementing TextUnmarshaler, e.g. net.IP
 		strVal := *(vs[0].Value.Interface().(*string))
