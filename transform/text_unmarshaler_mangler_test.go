@@ -31,6 +31,14 @@ func TestTextUnmarshalerManglerUnmangle(t *testing.T) {
 				assert.Equal(t, net.ParseIP("10.0.0.2"), *(i.(*net.IP)))
 			},
 		},
+		"TextUnmarshalerNil": {
+			StructFieldType: reflect.TypeOf(net.IP{}),
+			StringValue:     "",
+			AssertFunc: func(i interface{}) {
+				var ip net.IP
+				assert.Equal(t, ip, i)
+			},
+		},
 		"NotTextUnmarshaler": {
 			StructFieldType: reflect.TypeOf(map[string]interface{}{}),
 			StringValue:     "",
@@ -57,9 +65,7 @@ func TestTextUnmarshalerManglerUnmangle(t *testing.T) {
 			require.NoError(t, err)
 
 			if len(testCase.StringValue) > 0 {
-				nv := reflect.New(val.Field(0).Type())
-				nv.Elem().Set(reflect.ValueOf(&testCase.StringValue))
-				val.Field(0).Set(nv.Elem())
+				val.Field(0).Set(reflect.ValueOf(&testCase.StringValue))
 			}
 
 			unmangledVal, err := tfmr.ReverseTranslate(val)

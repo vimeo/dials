@@ -1,6 +1,8 @@
 package helper
 
-import "reflect"
+import (
+	"reflect"
+)
 
 const (
 	doesNotImplement = iota
@@ -23,15 +25,15 @@ type TransformFunc func(input reflect.Value, v reflect.Value) (reflect.Value, er
 func OnImplements(t reflect.Type, iface reflect.Type, input reflect.Value, op TransformFunc) (reflect.Value, error) {
 	implemented := doesNotImplement
 	var newVal reflect.Value
-	if t.Implements(iface) {
+
+	switch {
+	case t.Implements(iface):
 		implemented = implementsAsConcrete
 		newVal = reflect.New(t.Elem())
-	} else if reflect.PtrTo(t).Implements(iface) {
+	case reflect.PtrTo(t).Implements(iface):
 		implemented = implementsAsPointer
 		newVal = reflect.New(t)
-	}
-
-	if implemented == doesNotImplement {
+	default:
 		return input, nil
 	}
 

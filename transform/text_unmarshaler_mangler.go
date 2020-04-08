@@ -31,7 +31,7 @@ func (*TextUnmarshalerMangler) Unmangle(sf reflect.StructField, vs []FieldValueT
 	return helper.OnImplements(sf.Type, textUnmarshalerType, vs[0].Value, func(input reflect.Value, v reflect.Value) (reflect.Value, error) {
 		strPtr := input.Interface().(*string)
 		if strPtr == nil {
-			return v, nil
+			return reflect.Zero(v.Type()), nil
 		}
 		val := v.Interface().(encoding.TextUnmarshaler)
 		err := val.UnmarshalText([]byte(*strPtr))
@@ -40,7 +40,6 @@ func (*TextUnmarshalerMangler) Unmangle(sf reflect.StructField, vs []FieldValueT
 		}
 		return v, nil
 	})
-	// return reflect.Value{}, nil
 }
 
 // OldUnmangle casts the string value in the mangled config struct to the type in
