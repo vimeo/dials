@@ -26,10 +26,17 @@ func OnImplements(t reflect.Type, iface reflect.Type, input reflect.Value, op Tr
 	implemented := doesNotImplement
 	var newVal reflect.Value
 
+	wasPointer := false
+
+	if t.Kind() == reflect.Ptr {
+		wasPointer = true
+		t = t.Elem()
+	}
+
 	switch {
 	case t.Implements(iface):
 		implemented = implementsAsConcrete
-		newVal = reflect.New(t.Elem())
+		newVal = reflect.New(t).Elem()
 	case reflect.PtrTo(t).Implements(iface):
 		implemented = implementsAsPointer
 		newVal = reflect.New(t)
@@ -42,7 +49,11 @@ func OnImplements(t reflect.Type, iface reflect.Type, input reflect.Value, op Tr
 		return input, err
 	}
 
-	if implemented == implementsAsPointer {
+	if v.IsNil() {
+		return reflect.Zero(t), nil
+	}
+
+	if implemented == implementsAsPointer && !wasPointer {
 		return v.Elem(), nil
 	}
 
