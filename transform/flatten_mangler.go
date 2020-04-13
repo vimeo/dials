@@ -157,7 +157,7 @@ func (f *FlattenMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) 
 func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex int) (int, error) {
 
 	if !originalVal.CanSet() {
-		return inputIndex, fmt.Errorf("Error unmangling %s. Need addressable type, actual %q", originalVal.String(), originalVal.Type().Kind())
+		return inputIndex, fmt.Errorf("Error unmangling %s. Need addressable type, actual %q", originalVal, originalVal.Type().Kind())
 	}
 
 	kind, vt := getUnderlyingKindType(originalVal.Type())
@@ -185,7 +185,7 @@ func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex 
 				}
 			default:
 				if !nestedVal.CanSet() {
-					return inputIndex, fmt.Errorf("Nested value %s under %s cannot be set", nestedVal.String(), originalVal.String())
+					return inputIndex, fmt.Errorf("Nested value %s under %s cannot be set", nestedVal, originalVal)
 				}
 
 				if !vs[inputIndex].Value.Type().AssignableTo(nestedVal.Type()) {
