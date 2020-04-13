@@ -31,7 +31,7 @@ func TestMangler(t *testing.T) {
 	testCases := []struct {
 		name       string
 		testStruct interface{}
-		// modify will fill the value after the
+		// modify will fill the flatten struct value after Mangling
 		modify    func(reflect.Value)
 		assertion func(interface{})
 	}{
@@ -135,7 +135,7 @@ func TestMangler(t *testing.T) {
 				val.Field(2).Set(reflect.ValueOf(&i))
 			},
 			assertion: func(i interface{}) {
-				// all the fields are pointerified because of pointerification code
+				// all the fields are pointerified because of call to Pointerify
 				s1 := "test"
 				s2 := "here"
 				i1 := 64
