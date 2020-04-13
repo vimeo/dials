@@ -10,8 +10,8 @@ type FlattenMangler struct{}
 
 // Mangle goes through each StructField and flattens the structure
 func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, error) {
-	// Make sure we're pointerized (or nilable). Should have called pointerify before
-	// calling this function
+	// Make sure we're pointerized (or nilable). Should have called pointerify
+	// before calling this function
 	switch sf.Type.Kind() {
 	case reflect.Ptr, reflect.Map, reflect.Slice:
 	default:
@@ -71,8 +71,8 @@ func flattenStruct(prefix string, sf reflect.StructField) []reflect.StructField 
 	return out
 }
 
-// Unmangle goes through the struct and populates the values that come from the
-// populated flattened struct
+// Unmangle goes through the struct and populates the values of the struct
+// that come from the populated flattened struct fields
 func (f *FlattenMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) (reflect.Value, error) {
 
 	t := reflect.StructOf([]reflect.StructField{sf})
@@ -84,7 +84,7 @@ func (f *FlattenMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) 
 	}
 
 	if output != len(vs) {
-		return val, fmt.Errorf("Error unflattening. Number of input values %d not equal to number of struct fields that need values %d", len(vs), output)
+		return val, fmt.Errorf("Error unmangling %v. Number of input values %d not equal to number of struct fields that need values %d", sf, len(vs), output)
 	}
 
 	return val, nil
@@ -105,8 +105,8 @@ func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex 
 		val := setVal.Elem()
 
 		for i := 0; i < val.NumField(); i++ {
-			// remove pointers to get the underlying type/kind
 			nestedVal := val.Field(i)
+			// remove pointers to get the underlying kind. Ignoring the type
 			kind, _ := getUnderlyingKindType(nestedVal.Type())
 
 			switch kind {
@@ -118,11 +118,11 @@ func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex 
 				}
 			default:
 				if !nestedVal.CanSet() {
-					return inputIndex, fmt.Errorf("Nested value %s cannot be set", nestedVal.String())
+					return inputIndex, fmt.Errorf("Nested value %s under %s cannot be set", nestedVal.String(), originalVal.String())
 				}
 
 				if vs[inputIndex].Value.Type() != nestedVal.Type() {
-					return inputIndex, fmt.Errorf("Error unflattening. Expected type %s. Actual type %s", vs[inputIndex].Value.Type(), nestedVal.Type())
+					return inputIndex, fmt.Errorf("Error unmangling. Expected type %s. Actual type %s", vs[inputIndex].Value.Type(), nestedVal.Type())
 				}
 				nestedVal.Set(vs[inputIndex].Value)
 				inputIndex++
