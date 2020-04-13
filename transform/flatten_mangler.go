@@ -15,7 +15,7 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 	switch sf.Type.Kind() {
 	case reflect.Ptr, reflect.Map, reflect.Slice:
 	default:
-		return []reflect.StructField{}, fmt.Errorf("flag: programmer error: expected pointerized fields, got %s",
+		return []reflect.StructField{}, fmt.Errorf("FlattenMangler: programmer error: expected pointerized fields, got %s",
 			sf.Type)
 	}
 
@@ -48,11 +48,12 @@ func flattenStruct(prefix string, sf reflect.StructField) []reflect.StructField 
 	out := []reflect.StructField{}
 
 	for i := 0; i < ft.NumField(); i++ {
-		// get the underlying type after removing pointer for each member
-		// of the struct
 		nestedsf := ft.Field(i)
+		// get the underlying type after removing pointer for each member
+		// of the struct. Ignoring type
 		nestedK, _ := getUnderlyingKindType(nestedsf.Type)
 
+		// concatenates the outerlayer names with the current member name
 		name := prefix + "_" + nestedsf.Name
 		switch nestedK {
 		case reflect.Struct:
@@ -100,10 +101,13 @@ func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex 
 
 	switch kind {
 	case reflect.Struct:
-		// the originalVal is a pointer and to go through the fields, we need the concrete type so create a new struct and remove the pointer
+		// the originalVal is a pointer and to go through the fields, we need
+		// the concrete type so create a new struct and remove the pointer
 		setVal := reflect.New(vt)
 		val := setVal.Elem()
 
+		// go through each member in the struct and populate. Recurse if one of
+		// the members is a nested struct. Otherwise populate the field
 		for i := 0; i < val.NumField(); i++ {
 			nestedVal := val.Field(i)
 			// remove pointers to get the underlying kind. Ignoring the type
