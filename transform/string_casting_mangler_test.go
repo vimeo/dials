@@ -217,8 +217,8 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			StringValue:     `"Origin": "foobar", "Origin": "foobat", "Referer": "fimbat"`,
 			AssertFunc: func(i interface{}) {
 				expected := map[string][]string{
-					"Origin":  []string{"foobar", "foobat"},
-					"Referer": []string{"fimbat"},
+					"Origin":  {"foobar", "foobat"},
+					"Referer": {"fimbat"},
 				}
 				actual := i.(map[string][]string)
 				assert.True(t, reflect.DeepEqual(expected, actual))
@@ -313,8 +313,8 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			StringValue:     `"a", "b"`,
 			AssertFunc: func(i interface{}) {
 				expected := map[string]struct{}{
-					"a": struct{}{},
-					"b": struct{}{},
+					"a": {},
+					"b": {},
 				}
 				actual := i.(map[string]struct{})
 				assert.True(t, reflect.DeepEqual(expected, actual))
