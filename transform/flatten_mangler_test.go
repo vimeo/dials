@@ -11,13 +11,14 @@ import (
 
 func TestFlattenMangler(t *testing.T) {
 	type foo struct {
-		Location    string
-		Coordinates int
+		Location    string `dials:"Location"`
+		Coordinates int    `dials:"Coordinates"`
 	}
 
 	type bar struct {
-		Name   string
-		Foobar *foo
+		Name         string `dials:"Name"`
+		Foobar       *foo   `dials:"Foobar"`
+		AnotherField int    `dials:"AnotherField"`
 	}
 
 	b := bar{
@@ -26,6 +27,7 @@ func TestFlattenMangler(t *testing.T) {
 			Location:    "here",
 			Coordinates: 64,
 		},
+		AnotherField: 42,
 	}
 
 	testCases := []struct {
@@ -39,6 +41,7 @@ func TestFlattenMangler(t *testing.T) {
 			name:       "one member in struct of type int",
 			testStruct: 32,
 			modify: func(val reflect.Value) {
+				assert.EqualValues(t, `dials:"ConfigField"`, val.Type().Field(0).Tag)
 				i := 32
 				val.Field(0).Set(reflect.ValueOf(&i))
 			},
@@ -50,6 +53,7 @@ func TestFlattenMangler(t *testing.T) {
 			name:       "one member in struct of type map",
 			testStruct: map[string]string{},
 			modify: func(val reflect.Value) {
+				assert.EqualValues(t, `dials:"ConfigField"`, val.Type().Field(0).Tag)
 				m := map[string]string{
 					"hello":   "world",
 					"flatten": "unflatten",
@@ -84,9 +88,9 @@ func TestFlattenMangler(t *testing.T) {
 		{
 			name: "one level nested struct exposed fields",
 			testStruct: struct {
-				TestInt    int
-				TestString string
-				TestBool   bool
+				TestInt    int    `dials:"TestInt"`
+				TestString string `dials:"TestString"`
+				TestBool   bool   `dials:"TestBool"`
 			}{
 				TestInt:    42,
 				TestString: "hello world",
@@ -97,6 +101,10 @@ func TestFlattenMangler(t *testing.T) {
 				s := "hello world"
 				b := true
 
+				assert.EqualValues(t, `dials:"ConfigField_TestInt"`, val.Type().Field(0).Tag)
+				assert.EqualValues(t, `dials:"ConfigField_TestString"`, val.Type().Field(1).Tag)
+				assert.EqualValues(t, `dials:"ConfigField_TestBool"`, val.Type().Field(2).Tag)
+
 				val.Field(0).Set(reflect.ValueOf(&i))
 				val.Field(1).Set(reflect.ValueOf(&s))
 				val.Field(2).Set(reflect.ValueOf(&b))
@@ -106,20 +114,16 @@ func TestFlattenMangler(t *testing.T) {
 				s := "hello world"
 				b := true
 
-				st := struct {
-					TestInt    *int
-					TestString *string
-					TestBool   *bool
+				st := &struct {
+					TestInt    *int    `dials:"TestInt"`
+					TestString *string `dials:"TestString"`
+					TestBool   *bool   `dials:"TestBool"`
 				}{
 					TestInt:    &in,
 					TestString: &s,
 					TestBool:   &b,
 				}
-				assert.Equal(t, st, *i.(*struct {
-					TestInt    *int
-					TestString *string
-					TestBool   *bool
-				}))
+				assert.Equal(t, st, i)
 			},
 		},
 		{
@@ -128,32 +132,42 @@ func TestFlattenMangler(t *testing.T) {
 			modify: func(val reflect.Value) {
 				s1 := "test"
 				s2 := "here"
-				i := 64
+				i1 := 64
+				i2 := 42
+
+				assert.EqualValues(t, `dials:"ConfigField_Name"`, val.Type().Field(0).Tag)
+				assert.EqualValues(t, `dials:"ConfigField_Foobar_Location"`, val.Type().Field(1).Tag)
+				assert.EqualValues(t, `dials:"ConfigField_Foobar_Coordinates"`, val.Type().Field(2).Tag)
+				assert.EqualValues(t, `dials:"ConfigField_AnotherField"`, val.Type().Field(3).Tag)
 
 				val.Field(0).Set(reflect.ValueOf(&s1))
 				val.Field(1).Set(reflect.ValueOf(&s2))
-				val.Field(2).Set(reflect.ValueOf(&i))
+				val.Field(2).Set(reflect.ValueOf(&i1))
+				val.Field(3).Set(reflect.ValueOf(&i2))
 			},
 			assertion: func(i interface{}) {
 				// all the fields are pointerified because of call to Pointerify
 				s1 := "test"
 				s2 := "here"
 				i1 := 64
+				i2 := 42
 				b := struct {
-					Name   *string
+					Name   *string `dials:"Name"`
 					Foobar *struct {
-						Location    *string
-						Coordinates *int
-					}
+						Location    *string `dials:"Location"`
+						Coordinates *int    `dials:"Coordinates"`
+					} `dials:"Foobar"`
+					AnotherField *int `dials:"AnotherField"`
 				}{
 					Name: &s1,
 					Foobar: &struct {
-						Location    *string
-						Coordinates *int
+						Location    *string `dials:"Location"`
+						Coordinates *int    `dials:"Coordinates"`
 					}{
 						Location:    &s2,
 						Coordinates: &i1,
 					},
+					AnotherField: &i2,
 				}
 				assert.Equal(t, &b, i)
 			},
@@ -169,7 +183,7 @@ func TestFlattenMangler(t *testing.T) {
 			configStructType := reflect.StructOf([]reflect.StructField{sf})
 
 			ptrifiedConfigType := ptrify.Pointerify(configStructType, reflect.New(configStructType).Elem())
-			f := &FlattenMangler{}
+			f := DefaultFlattenMangler
 			tfmr := NewTransformer(ptrifiedConfigType, f)
 			val, err := tfmr.Translate()
 			require.NoError(t, err)
