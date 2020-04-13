@@ -1,7 +1,6 @@
 package transform
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -11,9 +10,9 @@ import (
 )
 
 func TestMangler(t *testing.T) {
-	// TODO: figure out what to do with pointers for non structs (don't use the elem fieldType)
 	type foo struct {
-		Location string
+		Location    string
+		Coordinates int
 	}
 
 	type bar struct {
@@ -24,7 +23,8 @@ func TestMangler(t *testing.T) {
 	b := bar{
 		Name: "test",
 		Foobar: &foo{
-			Location: "here",
+			Location:    "here",
+			Coordinates: 64,
 		},
 	}
 
@@ -36,44 +36,125 @@ func TestMangler(t *testing.T) {
 		assertion func(interface{})
 	}{
 		{
-			name:       "basic one layer struct",
+			name:       "one member in struct of type int",
 			testStruct: 32,
 			modify: func(val reflect.Value) {
 				i := 32
 				val.Field(0).Set(reflect.ValueOf(&i))
 			},
 			assertion: func(i interface{}) {
-				fmt.Println("interface", i)
 				assert.Equal(t, 32, *i.(*int))
 			},
 		},
 		{
-			name:       "nested struct",
+			name:       "one member in struct of type map",
+			testStruct: map[string]string{},
+			modify: func(val reflect.Value) {
+				m := map[string]string{
+					"hello":   "world",
+					"flatten": "unflatten",
+				}
+				val.Field(0).Set(reflect.ValueOf(m))
+			},
+			assertion: func(i interface{}) {
+				m := map[string]string{
+					"hello":   "world",
+					"flatten": "unflatten",
+				}
+				assert.Equal(t, m, i.(map[string]string))
+			},
+		},
+		{
+			name: "one level nested struct unexposed fields",
+			testStruct: struct {
+				testInt    int
+				testString string
+				testBool   bool
+			}{
+				testInt:    42,
+				testString: "hello world",
+				testBool:   true,
+			},
+			modify: func(val reflect.Value) {},
+			assertion: func(i interface{}) {
+				// should be empty struct since none of the fields are exposed
+				assert.Equal(t, struct{}{}, *i.(*struct{}))
+			},
+		},
+		{
+			name: "one level nested struct exposed fields",
+			testStruct: struct {
+				TestInt    int
+				TestString string
+				TestBool   bool
+			}{
+				TestInt:    42,
+				TestString: "hello world",
+				TestBool:   true,
+			},
+			modify: func(val reflect.Value) {
+				i := 42
+				s := "hello world"
+				b := true
+
+				val.Field(0).Set(reflect.ValueOf(&i))
+				val.Field(1).Set(reflect.ValueOf(&s))
+				val.Field(2).Set(reflect.ValueOf(&b))
+			},
+			assertion: func(i interface{}) {
+				in := 42
+				s := "hello world"
+				b := true
+
+				st := struct {
+					TestInt    *int
+					TestString *string
+					TestBool   *bool
+				}{
+					TestInt:    &in,
+					TestString: &s,
+					TestBool:   &b,
+				}
+				assert.Equal(t, st, *i.(*struct {
+					TestInt    *int
+					TestString *string
+					TestBool   *bool
+				}))
+			},
+		},
+		{
+			name:       "multilevel nested struct",
 			testStruct: b,
 			modify: func(val reflect.Value) {
 				s1 := "test"
 				s2 := "here"
+				i := 64
 
 				val.Field(0).Set(reflect.ValueOf(&s1))
 				val.Field(1).Set(reflect.ValueOf(&s2))
+				val.Field(2).Set(reflect.ValueOf(&i))
 			},
 			assertion: func(i interface{}) {
+				// all the fields are pointerified because of pointerification code
 				s1 := "test"
 				s2 := "here"
+				i1 := 64
 				b := struct {
 					Name   *string
 					Foobar *struct {
-						Location *string
+						Location    *string
+						Coordinates *int
 					}
 				}{
 					Name: &s1,
 					Foobar: &struct {
-						Location *string
+						Location    *string
+						Coordinates *int
 					}{
-						Location: &s2,
+						Location:    &s2,
+						Coordinates: &i1,
 					},
 				}
-
 				assert.Equal(t, &b, i)
 			},
 		},
@@ -82,7 +163,7 @@ func TestMangler(t *testing.T) {
 	for _, testcase := range testCases {
 		tc := testcase
 		t.Run(tc.name, func(t *testing.T) {
-			//t.Parallel()
+			t.Parallel()
 			itype := reflect.TypeOf(tc.testStruct)
 			sf := reflect.StructField{Name: "ConfigField", Type: itype}
 			configStructType := reflect.StructOf([]reflect.StructField{sf})
@@ -93,21 +174,15 @@ func TestMangler(t *testing.T) {
 			val, err := tfmr.Translate()
 			require.NoError(t, err)
 
-			fmt.Printf("Mangled %+v %s \n", val.Interface(), val.String())
-
+			// populate the flattened struct
 			tc.modify(val)
-
-			fmt.Printf("Modified val %+v \n", val.Interface())
 
 			revVal, err := tfmr.ReverseTranslate(val)
 			require.NoError(t, err)
-			fmt.Printf("Reverse Translated Val %+v %s\n", revVal, revVal.String())
 
+			// check the returned value of the struct matches what is expected
 			rv := revVal.FieldByName("ConfigField")
-			fmt.Printf("rv %+v %s", rv, rv.String())
-			fmt.Printf("rv.Interface() %+v %s", rv.Interface(), rv.String())
 			tc.assertion(rv.Interface())
-
 		})
 	}
 }

@@ -48,7 +48,8 @@ func flattenStruct(prefix string, sf reflect.StructField) []reflect.StructField 
 	out := []reflect.StructField{}
 
 	for i := 0; i < ft.NumField(); i++ {
-		// get the underlying type after removing pointer
+		// get the underlying type after removing pointer for each member
+		// of the struct
 		nestedsf := ft.Field(i)
 		nestedK, _ := getUnderlyingKindType(nestedsf.Type)
 
@@ -70,7 +71,8 @@ func flattenStruct(prefix string, sf reflect.StructField) []reflect.StructField 
 	return out
 }
 
-// Unmangle ...
+// Unmangle goes through the struct and populates the values that come from the
+// populated flattened struct
 func (f *FlattenMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) (reflect.Value, error) {
 
 	t := reflect.StructOf([]reflect.StructField{sf})
@@ -80,8 +82,9 @@ func (f *FlattenMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) 
 	if err != nil {
 		return val, err
 	}
+
 	if output != len(vs) {
-		return val, fmt.Errorf("Error unflattening. Number of input values %d not equal to bound struct fields %d", len(vs), output)
+		return val, fmt.Errorf("Error unflattening. Number of input values %d not equal to number of struct fields that need values %d", len(vs), output)
 	}
 
 	return val, nil
@@ -89,16 +92,18 @@ func (f *FlattenMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) 
 
 func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex int) (int, error) {
 
-	if originalVal.Type().Kind() != reflect.Ptr {
-		return inputIndex, fmt.Errorf("Error unmangling %s. Need addressable struct, actual %q", originalVal.String(), originalVal.Type().Kind().String())
+	if !originalVal.CanSet() {
+		return inputIndex, fmt.Errorf("Error unmangling %s. Need addressable type, actual %q", originalVal.String(), originalVal.Type().Kind().String())
 	}
 
 	kind, vt := getUnderlyingKindType(originalVal.Type())
-	setVal := reflect.New(vt)
-	val := setVal.Elem()
 
 	switch kind {
 	case reflect.Struct:
+		// the originalVal is a pointer and to go through the fields, we need the concrete type so create a new struct and remove the pointer
+		setVal := reflect.New(vt)
+		val := setVal.Elem()
+
 		for i := 0; i < val.NumField(); i++ {
 			// remove pointers to get the underlying type/kind
 			nestedVal := val.Field(i)
