@@ -9,7 +9,7 @@ import (
 	"github.com/vimeo/dials/ptrify"
 )
 
-func TestMangler(t *testing.T) {
+func TestFlattenMangler(t *testing.T) {
 	type foo struct {
 		Location    string
 		Coordinates int

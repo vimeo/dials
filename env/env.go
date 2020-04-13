@@ -6,6 +6,7 @@ import (
 
 	"github.com/vimeo/dials"
 	"github.com/vimeo/dials/tagformat"
+	"github.com/vimeo/dials/tagformat/caseconversion"
 	"github.com/vimeo/dials/transform"
 )
 
@@ -62,11 +63,11 @@ func envVarName(prefix string, field reflect.StructField) (string, error) {
 }
 
 func envVarNameFromFieldName(prefix, fieldName string) (string, error) {
-	words, err := tagformat.DecodeGolangCamelCase(fieldName)
+	words, err := caseconversion.DecodeGolangCamelCase(fieldName)
 	if err != nil {
 		return "", err
 	}
-	key := tagformat.EncodeUpperSnakeCase(words)
+	key := caseconversion.EncodeUpperSnakeCase(words)
 	if prefix != "" {
 		key = prefix + "_" + key
 	}

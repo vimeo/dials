@@ -3,17 +3,28 @@ package transform
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/vimeo/dials/tagformat/caseconversion"
 )
 
 // FlattenMangler implements the Mangler interface
-type FlattenMangler struct{}
+type FlattenMangler struct {
+	nameEncodeCasing caseconversion.EncodeCasingFunc
+	tagEncodeCasing  caseconversion.EncodeCasingFunc
+}
+
+// DefaultFlattenMangler takes the
+var DefaultFlattenMangler = &FlattenMangler{
+	nameEncodeCasing: caseconversion.EncodeLowerCamelCase,
+	tagEncodeCasing:  caseconversion.EncodeLowerCamelCase,
+}
 
 // Mangle goes through each StructField and flattens the structure
 func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, error) {
 	// Make sure we're pointerized (or nilable). Should have called pointerify
 	// before calling this function
 	switch sf.Type.Kind() {
-	case reflect.Ptr, reflect.Map, reflect.Slice:
+	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Interface:
 	default:
 		return []reflect.StructField{}, fmt.Errorf("FlattenMangler: programmer error: expected pointerized fields, got %s",
 			sf.Type)
@@ -26,15 +37,14 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 
 	switch k {
 	case reflect.Struct:
-		flattenedStruct := flattenStruct(sf.Name, sf)
-		out = append(out, flattenedStruct...)
+		out = flattenStruct(sf.Name, sf)
 	default:
 		newsf := reflect.StructField{
 			Name: sf.Name,
 			Type: sf.Type,
 			Tag:  sf.Tag,
 		}
-		out = append(out, newsf)
+		out = []reflect.StructField{newsf}
 	}
 
 	return out, nil
@@ -45,7 +55,7 @@ func flattenStruct(prefix string, sf reflect.StructField) []reflect.StructField 
 	// get underlying type after removing pointers. Ignoring the kind
 	_, ft := getUnderlyingKindType(sf.Type)
 
-	out := []reflect.StructField{}
+	out := make([]reflect.StructField, 0, ft.NumField())
 
 	for i := 0; i < ft.NumField(); i++ {
 		nestedsf := ft.Field(i)
@@ -54,6 +64,7 @@ func flattenStruct(prefix string, sf reflect.StructField) []reflect.StructField 
 		nestedK, _ := getUnderlyingKindType(nestedsf.Type)
 
 		// concatenates the outerlayer names with the current member name
+		// name := tagformat.EncodeCasingFunc()
 		name := prefix + "_" + nestedsf.Name
 		switch nestedK {
 		case reflect.Struct:
@@ -76,8 +87,7 @@ func flattenStruct(prefix string, sf reflect.StructField) []reflect.StructField 
 // that come from the populated flattened struct fields
 func (f *FlattenMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) (reflect.Value, error) {
 
-	t := reflect.StructOf([]reflect.StructField{sf})
-	val := reflect.New(t).Elem().Field(0)
+	val := reflect.New(sf.Type).Elem()
 
 	output, err := populateStruct(val, vs, 0)
 	if err != nil {
@@ -94,7 +104,7 @@ func (f *FlattenMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) 
 func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex int) (int, error) {
 
 	if !originalVal.CanSet() {
-		return inputIndex, fmt.Errorf("Error unmangling %s. Need addressable type, actual %q", originalVal.String(), originalVal.Type().Kind().String())
+		return inputIndex, fmt.Errorf("Error unmangling %s. Need addressable type, actual %q", originalVal, originalVal.Type().Kind())
 	}
 
 	kind, vt := getUnderlyingKindType(originalVal.Type())
@@ -122,10 +132,10 @@ func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex 
 				}
 			default:
 				if !nestedVal.CanSet() {
-					return inputIndex, fmt.Errorf("Nested value %s under %s cannot be set", nestedVal.String(), originalVal.String())
+					return inputIndex, fmt.Errorf("Nested value %s under %s cannot be set", nestedVal, originalVal)
 				}
 
-				if vs[inputIndex].Value.Type() != nestedVal.Type() {
+				if !vs[inputIndex].Value.Type().AssignableTo(nestedVal.Type()) {
 					return inputIndex, fmt.Errorf("Error unmangling. Expected type %s. Actual type %s", vs[inputIndex].Value.Type(), nestedVal.Type())
 				}
 				nestedVal.Set(vs[inputIndex].Value)

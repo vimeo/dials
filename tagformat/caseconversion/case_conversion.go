@@ -1,4 +1,4 @@
-package tagformat
+package caseconversion
 
 import (
 	"fmt"
@@ -6,6 +6,21 @@ import (
 	"unicode"
 	"unicode/utf8"
 )
+
+// DecodeCasingFunc takes in an identifier in a case such as camelCase or
+// snake_case and splits it up into a DecodedIdentifier for encoding by an
+// EncodeCasingFunc into a different case.
+type DecodeCasingFunc func(string) (DecodedIdentifier, error)
+
+// EncodeCasingFunc combines the contents of a DecodedIdentifier into an
+// identifier in a case such as camelCase or snake_case.
+type EncodeCasingFunc func(DecodedIdentifier) string
+
+// DecodedIdentifier is an slice of lowercase words (e.g., []string{"test",
+// "string"}) produced by a DecodeCasingFunc, which can be encoded by an
+// EncodeCasingFunc into a string in the specified case (e.g., with
+// EncodeLowerCamelCase, "testString").
+type DecodedIdentifier []string
 
 func decodeCamelCase(typeName, s string) (DecodedIdentifier, error) {
 	words := []string{}
