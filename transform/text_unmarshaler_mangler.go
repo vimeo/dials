@@ -42,34 +42,6 @@ func (*TextUnmarshalerMangler) Unmangle(sf reflect.StructField, vs []FieldValueT
 	})
 }
 
-// OldUnmangle casts the string value in the mangled config struct to the type in
-// the original struct.
-func (*TextUnmarshalerMangler) OldUnmangle(sf reflect.StructField, vs []FieldValueTuple) (reflect.Value, error) {
-
-	if reflect.PtrTo(sf.Type).Implements(textUnmarshalerType) { // If type is concrete type implementing TextUnmarshaler, e.g. net.IP
-		strVal := *(vs[0].Value.Interface().(*string))
-		textUnmarshalerPtr := reflect.New(sf.Type)
-		val := textUnmarshalerPtr.Interface().(encoding.TextUnmarshaler)
-		err := val.UnmarshalText([]byte(strVal))
-		if err != nil {
-			return reflect.Value{}, fmt.Errorf("Error unmarshaling text into type %+v", sf.Type)
-		}
-		return textUnmarshalerPtr.Elem(), nil
-	} else if sf.Type.Implements(textUnmarshalerType) { // If type is pointer to type implementing TextUnmarshaler, e.g. *net.IP
-		strVal := *(vs[0].Value.Interface().(*string))
-		textUnmarshalerPtr := reflect.New(sf.Type.Elem())
-		val := textUnmarshalerPtr.Interface().(encoding.TextUnmarshaler)
-		err := val.UnmarshalText([]byte(strVal))
-		if err != nil {
-			return reflect.Value{}, fmt.Errorf("Error unmarshaling text into type %+v", sf.Type)
-		}
-		return textUnmarshalerPtr, nil
-	}
-
-	// it's not a TextUnmarshaler, so just return an get out...
-	return vs[0].Value, nil
-}
-
 // ShouldRecurse always returns true in order to walk nested structs.
 func (*TextUnmarshalerMangler) ShouldRecurse(reflect.StructField) bool {
 	return true

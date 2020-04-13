@@ -53,7 +53,7 @@ func TestTextUnmarshalerManglerUnmangle(t *testing.T) {
 			StringValue:     "foo",
 			AssertFunc: func(t testing.TB, i interface{}) {
 				stm, ok := i.(*simpleTextUnmarshaler)
-				assert.True(t, ok)
+				require.True(t, ok)
 				assert.Equal(t, "foo", stm.Val)
 			},
 		},
