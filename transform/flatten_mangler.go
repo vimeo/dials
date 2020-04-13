@@ -57,9 +57,9 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 			return out, err
 		}
 	default:
-		layeredName := []string{sf.Name}
-		name := f.nameEncodeCasing(layeredName)
-		tag, tagErr := f.getTag(layeredName, sf.Tag)
+		flattenedName := []string{sf.Name}
+		name := f.nameEncodeCasing(flattenedName)
+		tag, tagErr := f.getTag(flattenedName, sf.Tag)
 		if tagErr != nil {
 			return out, tagErr
 		}
@@ -87,20 +87,20 @@ func (f *FlattenMangler) flattenStruct(prefix []string, sf reflect.StructField) 
 		// of the struct. Ignoring type
 		nestedK, _ := getUnderlyingKindType(nestedsf.Type)
 
-		// concatenates the outerlayer names with the current member name
-		layeredName := make([]string, len(prefix), len(prefix)+1)
-		copy(layeredName, prefix)
-		layeredName = append(layeredName, nestedsf.Name)
+		// add the current member name to the list of nested names needed for flattening
+		flattenedNames := make([]string, len(prefix), len(prefix)+1)
+		copy(flattenedNames, prefix)
+		flattenedNames = append(flattenedNames, nestedsf.Name)
 		switch nestedK {
 		case reflect.Struct:
-			flattened, err := f.flattenStruct(layeredName, nestedsf)
+			flattened, err := f.flattenStruct(flattenedNames, nestedsf)
 			if err != nil {
 				return out, err
 			}
 			out = append(out, flattened...)
 		default:
-			name := f.nameEncodeCasing(layeredName)
-			tag, tagErr := f.getTag(layeredName, sf.Tag)
+			name := f.nameEncodeCasing(flattenedNames)
+			tag, tagErr := f.getTag(flattenedNames, sf.Tag)
 			if tagErr != nil {
 				return out, tagErr
 			}
@@ -117,7 +117,7 @@ func (f *FlattenMangler) flattenStruct(prefix []string, sf reflect.StructField) 
 }
 
 // getTag creates a new tag based on the configured EncodingCasing function and
-// the new layered field names and returns the new StructTag
+// the new flattened field name and returns the new StructTag
 func (f *FlattenMangler) getTag(fieldName []string, st reflect.StructTag) (reflect.StructTag, error) {
 	tagVal := f.tagEncodeCasing(fieldName)
 
