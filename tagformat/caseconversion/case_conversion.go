@@ -83,6 +83,9 @@ func lastCharOfInitialismAtEOS(s string, i int) bool {
 	return i+1 == len(s) && unicode.IsUpper(rune(s[i]))
 }
 
+// TODO: Add EncodeGolangCamelCase function and set as default name encoder in
+// FlattenMangler
+
 // DecodeGolangCamelCase decodes UpperCamelCase and lowerCamelCase strings with fully capitalized acronyms (e.g., "jsonAPIDocs") into a slice of lower-cased sub-strings
 func DecodeGolangCamelCase(s string) (DecodedIdentifier, error) {
 	words := []string{}

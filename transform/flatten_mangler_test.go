@@ -172,6 +172,20 @@ func TestFlattenMangler(t *testing.T) {
 				assert.Equal(t, &b, i)
 			},
 		},
+		{
+			name: "multilevel nested with different struct tags",
+			testStruct: struct {
+				HeyJude      string `dials:"hello_jude"`
+				ComeTogether int    `dials:"here_comes_THE_sun"`
+				Blackbird    struct {
+					Hello   int // doesn't have a tag on purpose
+					GoodBye struct {
+						Penny bool
+						Lane  int64
+					}
+				} `dials:"YESTERDAY"`
+			}{},
+		},
 	}
 
 	for _, testcase := range testCases {

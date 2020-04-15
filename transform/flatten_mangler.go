@@ -52,7 +52,7 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 	switch k {
 	case reflect.Struct:
 		var err error
-		out, err = f.flattenStruct([]string{sf.Name}, sf)
+		out, err = f.flattenStruct([]string{sf.Name}, []string{sf.Tag}, sf)
 		if err != nil {
 			return out, err
 		}
@@ -74,7 +74,7 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 	return out, nil
 }
 
-func (f *FlattenMangler) flattenStruct(prefix []string, sf reflect.StructField) ([]reflect.StructField, error) {
+func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf reflect.StructField) ([]reflect.StructField, error) {
 
 	// get underlying type after removing pointers. Ignoring the kind
 	_, ft := getUnderlyingKindType(sf.Type)
