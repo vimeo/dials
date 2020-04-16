@@ -224,7 +224,15 @@ func EncodeKebabCase(words DecodedIdentifier) string {
 
 // EncodeLowerSnakeCase encodes a slice of words into lower_snake_case
 func EncodeLowerSnakeCase(words DecodedIdentifier) string {
-	return strings.Join(words, "_")
+	b := strings.Builder{}
+	b.Grow(aggregateStringLen(words) + len(words) - 1)
+	for i, w := range words {
+		b.WriteString(strings.ToLower(w))
+		if i != len(words)-1 {
+			b.WriteRune('_')
+		}
+	}
+	return b.String()
 }
 
 // EncodeUpperSnakeCase encodes a slice of words into UPPER_SNAKE_CASE (AKA
@@ -239,4 +247,9 @@ func EncodeUpperSnakeCase(words DecodedIdentifier) string {
 		}
 	}
 	return b.String()
+}
+
+// EncodeCasePreservingSnakeCase encodes a slice of words into case_Preserving_snake_case
+func EncodeCasePreservingSnakeCase(words DecodedIdentifier) string {
+	return strings.Join(words, "_")
 }
