@@ -17,11 +17,11 @@ type FlattenMangler struct {
 	tagEncodeCasing  caseconversion.EncodeCasingFunc
 }
 
-// DefaultFlattenMangler takes the
+// DefaultFlattenMangler is the default FlattenMangler
 var DefaultFlattenMangler = &FlattenMangler{
 	tag:              dialsTag,
 	nameEncodeCasing: caseconversion.EncodeUpperCamelCase,
-	tagEncodeCasing:  caseconversion.EncodeLowerSnakeCase,
+	tagEncodeCasing:  caseconversion.EncodeCasePreservingSnakeCase,
 }
 
 // NewFlattenMangler is the constructor for FlattenMangler
@@ -49,20 +49,22 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 
 	out := []reflect.StructField{}
 
+	tag, prefixTag, tagErr := f.getTag(sf.Name, nil, sf.Tag)
+	if tagErr != nil {
+		return out, tagErr
+	}
+
 	switch k {
 	case reflect.Struct:
 		var err error
-		out, err = f.flattenStruct([]string{sf.Name}, []string{}, sf)
+		out, err = f.flattenStruct([]string{sf.Name}, prefixTag, sf)
 		if err != nil {
 			return out, err
 		}
 	default:
 		flattenedName := []string{sf.Name}
 		name := f.nameEncodeCasing(flattenedName)
-		tag, tagErr := f.getTag(sf.Name, nil, sf.Tag)
-		if tagErr != nil {
-			return out, tagErr
-		}
+
 		newsf := reflect.StructField{
 			Name: name,
 			Type: sf.Type,
@@ -83,25 +85,26 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf refle
 
 	for i := 0; i < ft.NumField(); i++ {
 		nestedsf := ft.Field(i)
-		// get the underlying type after removing pointer for each member
-		// of the struct. Ignoring type
-		nestedK, _ := getUnderlyingKindType(nestedsf.Type)
 
 		// add the current member name to the list of nested names needed for flattening
 		flattenedNames := make([]string, len(fieldPrefix), len(fieldPrefix)+1)
 		copy(flattenedNames, fieldPrefix)
 		flattenedNames = append(flattenedNames, nestedsf.Name)
 
+		// get the tag for the current field name
 		flattenedTags := make([]string, len(tagPrefix), len(tagPrefix)+1)
 		copy(flattenedTags, tagPrefix)
-		tag, tagErr := f.getTag(nestedsf.Name, tagPrefix, sf.Tag)
+		tag, newFlattenedTags, tagErr := f.getTag(nestedsf.Name, flattenedTags, nestedsf.Tag)
 		if tagErr != nil {
 			return out, tagErr
 		}
-		// TODO: look into tags here when it's a struct
+
+		// get the underlying type after removing pointer for each member
+		// of the struct. Ignoring type
+		nestedK, _ := getUnderlyingKindType(nestedsf.Type)
 		switch nestedK {
 		case reflect.Struct:
-			flattened, err := f.flattenStruct(flattenedNames, tagPrefix, nestedsf)
+			flattened, err := f.flattenStruct(flattenedNames, newFlattenedTags, nestedsf)
 			if err != nil {
 				return out, err
 			}
@@ -120,30 +123,25 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf refle
 	return out, nil
 }
 
-// getTag creates a new tag based on the configured EncodingCasing function and
-// the new flattened field name and returns the new StructTag
-func (f *FlattenMangler) getTag(fieldName string, tagsPrefix []string, st reflect.StructTag) (reflect.StructTag, error) {
+// getTag uses the tag if one already exist or creates one based on the
+// configured EncodingCasing function and fieldName. It returns the new parsed
+// StructTag, the updated slice of tags, and any error encountered
+func (f *FlattenMangler) getTag(fieldName string, tags []string, st reflect.StructTag) (reflect.StructTag, []string, error) {
 	tag, ok := st.Lookup(f.tag)
 
-	// tag already exists so use the existing tag and append to the tagsPrefix
+	// tag already exists so use the existing tag and append to prefix tags
 	if ok {
-		tagsPrefix = append(tagsPrefix, tag)
+		tags = append(tags, tag)
 	} else {
-		// tag doesn't already exist so use the field name and split it using the
-		// DecodeGolangCamelCase and add it to the tags slice
-		decodedFieldName, err := caseconversion.DecodeGolangCamelCase(fieldName)
-		if err != nil {
-			return st, err
-		}
-
-		tagsPrefix = append(tagsPrefix, decodedFieldName...)
+		// tag doesn't already exist so use the field name
+		tags = append(tags, fieldName)
 	}
 
-	tagVal := f.tagEncodeCasing(tagsPrefix)
+	tagVal := f.tagEncodeCasing(tags)
 
 	parsedTag, parseErr := structtag.Parse(string(st))
 	if parseErr != nil {
-		return st, parseErr
+		return st, tags, parseErr
 	}
 
 	parsedTag.Set(&structtag.Tag{
@@ -152,7 +150,7 @@ func (f *FlattenMangler) getTag(fieldName string, tagsPrefix []string, st reflec
 		Options: []string{},
 	})
 
-	return reflect.StructTag(parsedTag.String()), nil
+	return reflect.StructTag(parsedTag.String()), tags, nil
 }
 
 // Unmangle goes through the struct and populates the values of the struct
@@ -160,7 +158,6 @@ func (f *FlattenMangler) getTag(fieldName string, tagsPrefix []string, st reflec
 func (f *FlattenMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) (reflect.Value, error) {
 
 	val := reflect.New(sf.Type).Elem()
-
 	output, err := populateStruct(val, vs, 0)
 	if err != nil {
 		return val, err

@@ -97,13 +97,20 @@ func TestFlattenMangler(t *testing.T) {
 				TestBool:   true,
 			},
 			modify: func(val reflect.Value) {
+
+				expectedTags := []string{
+					`dials:"ConfigField_TestInt"`,
+					`dials:"ConfigField_TestString"`,
+					`dials:"ConfigField_TestBool"`,
+				}
+
+				for i := 0; i < len(expectedTags); i++ {
+					assert.EqualValues(t, expectedTags[i], val.Type().Field(i).Tag)
+				}
+
 				i := 42
 				s := "hello world"
 				b := true
-
-				assert.EqualValues(t, `dials:"ConfigField_TestInt"`, val.Type().Field(0).Tag)
-				assert.EqualValues(t, `dials:"ConfigField_TestString"`, val.Type().Field(1).Tag)
-				assert.EqualValues(t, `dials:"ConfigField_TestBool"`, val.Type().Field(2).Tag)
 
 				val.Field(0).Set(reflect.ValueOf(&i))
 				val.Field(1).Set(reflect.ValueOf(&s))
@@ -130,15 +137,22 @@ func TestFlattenMangler(t *testing.T) {
 			name:       "multilevel nested struct",
 			testStruct: b,
 			modify: func(val reflect.Value) {
+
+				expectedTags := []string{
+					`dials:"ConfigField_Name"`,
+					`dials:"ConfigField_Foobar_Location"`,
+					`dials:"ConfigField_Foobar_Coordinates"`,
+					`dials:"ConfigField_AnotherField"`,
+				}
+
+				for i := 0; i < len(expectedTags); i++ {
+					assert.EqualValues(t, expectedTags[i], val.Type().Field(i).Tag)
+				}
+
 				s1 := "test"
 				s2 := "here"
 				i1 := 64
 				i2 := 42
-
-				assert.EqualValues(t, `dials:"ConfigField_Name"`, val.Type().Field(0).Tag)
-				assert.EqualValues(t, `dials:"ConfigField_Foobar_Location"`, val.Type().Field(1).Tag)
-				assert.EqualValues(t, `dials:"ConfigField_Foobar_Coordinates"`, val.Type().Field(2).Tag)
-				assert.EqualValues(t, `dials:"ConfigField_AnotherField"`, val.Type().Field(3).Tag)
 
 				val.Field(0).Set(reflect.ValueOf(&s1))
 				val.Field(1).Set(reflect.ValueOf(&s2))
@@ -172,7 +186,7 @@ func TestFlattenMangler(t *testing.T) {
 				assert.Equal(t, &b, i)
 			},
 		},
-		/* 	{
+		{
 			name: "multilevel nested with different struct tags",
 			testStruct: struct {
 				HeyJude      string `dials:"hello_jude"`
@@ -184,8 +198,80 @@ func TestFlattenMangler(t *testing.T) {
 						Lane  int64
 					}
 				} `dials:"YESTERDAY"`
+				DayTripper bool
 			}{},
-		}, */
+			modify: func(val reflect.Value) {
+				expectedTags := []string{
+					`dials:"ConfigField_hello_jude"`,
+					`dials:"ConfigField_here_comes_THE_sun"`,
+					`dials:"ConfigField_YESTERDAY_Hello"`,
+					`dials:"ConfigField_YESTERDAY_GoodBye_Penny"`,
+					`dials:"ConfigField_YESTERDAY_GoodBye_Lane"`,
+					`dials:"ConfigField_DayTripper"`,
+				}
+
+				for i := 0; i < len(expectedTags); i++ {
+					assert.EqualValues(t, expectedTags[i], val.Type().Field(i).Tag)
+				}
+
+				s1 := "The Beatles"
+				i1 := 4
+				i2 := 1900
+				b1 := true
+				i3 := int64(2020)
+				b2 := false
+
+				val.Field(0).Set(reflect.ValueOf(&s1))
+				val.Field(1).Set(reflect.ValueOf(&i1))
+				val.Field(2).Set(reflect.ValueOf(&i2))
+				val.Field(3).Set(reflect.ValueOf(&b1))
+				val.Field(4).Set(reflect.ValueOf(&i3))
+				val.Field(5).Set(reflect.ValueOf(&b2))
+			},
+			assertion: func(i interface{}) {
+				s1 := "The Beatles"
+				i1 := 4
+				i2 := 1900
+				b1 := true
+				i3 := int64(2020)
+				b2 := false
+
+				s := struct {
+					HeyJude      *string `dials:"hello_jude"`
+					ComeTogether *int    `dials:"here_comes_THE_sun"`
+					Blackbird    *struct {
+						Hello   *int
+						GoodBye *struct {
+							Penny *bool
+							Lane  *int64
+						}
+					} `dials:"YESTERDAY"`
+					DayTripper *bool
+				}{
+					HeyJude:      &s1,
+					ComeTogether: &i1,
+					Blackbird: &struct {
+						Hello   *int
+						GoodBye *struct {
+							Penny *bool
+							Lane  *int64
+						}
+					}{
+						Hello: &i2,
+						GoodBye: &struct {
+							Penny *bool
+							Lane  *int64
+						}{
+							Penny: &b1,
+							Lane:  &i3,
+						},
+					},
+					DayTripper: &b2,
+				}
+
+				assert.Equal(t, &s, i)
+			},
+		},
 	}
 
 	for _, testcase := range testCases {
