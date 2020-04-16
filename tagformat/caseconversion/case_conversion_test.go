@@ -78,8 +78,9 @@ var encodeCases = []struct {
 	{[]string{"upper", "camel", "case"}, "UpperCamelCase", EncodeUpperCamelCase},
 	{[]string{"lower", "camel", "case"}, "lowerCamelCase", EncodeLowerCamelCase},
 	{[]string{"kebab", "case", "string"}, "kebab-case-string", EncodeKebabCase},
-	{[]string{"lower", "snake", "case"}, "lower_snake_case", EncodeLowerSnakeCase},
+	{[]string{"loweR", "SNAKE", "Case"}, "lower_snake_case", EncodeLowerSnakeCase},
 	{[]string{"upper", "snake", "case"}, "UPPER_SNAKE_CASE", EncodeUpperSnakeCase},
+	{[]string{"case", "PRESERVING", "Snake"}, "case_PRESERVING_Snake", EncodeCasePreservingSnakeCase},
 }
 
 func TestEncode(t *testing.T) {
