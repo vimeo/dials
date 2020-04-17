@@ -79,7 +79,7 @@ func TestTransformer(t *testing.T) {
 			unmangleVal: struct{ F int }{F: 42},
 			fm: fakeMangler{
 				fieldNameMods: map[string][]reflect.StructField{
-					"I": []reflect.StructField{
+					"I": {
 						{
 							Name:      "F",
 							PkgPath:   "",
@@ -111,7 +111,7 @@ func TestTransformer(t *testing.T) {
 			unmangleVal: struct{ F int }{F: 42},
 			fm: fakeMangler{
 				fieldNameMods: map[string][]reflect.StructField{
-					"I": []reflect.StructField{
+					"I": {
 						{
 							Name:      "F",
 							PkgPath:   "",
@@ -138,7 +138,7 @@ func TestTransformer(t *testing.T) {
 			unmangleVal: struct{ F int }{F: 42},
 			fm: fakeMangler{
 				fieldNameMods: map[string][]reflect.StructField{
-					"I": []reflect.StructField{
+					"I": {
 						{
 							Name:      "F",
 							PkgPath:   "",
@@ -164,7 +164,7 @@ func TestTransformer(t *testing.T) {
 			unmangleVal: struct{ F int }{F: 42},
 			fm: fakeMangler{
 				fieldNameMods: map[string][]reflect.StructField{
-					"I": []reflect.StructField{
+					"I": {
 						{
 							Name:      "F",
 							PkgPath:   "",
@@ -192,7 +192,7 @@ func TestTransformer(t *testing.T) {
 			unmangleVal: struct{}{},
 			fm: fakeMangler{
 				fieldNameMods: map[string][]reflect.StructField{
-					"I": []reflect.StructField{},
+					"I": {},
 				},
 				// Don't recurse any fields
 				recurseField: map[string]bool{},
@@ -216,7 +216,7 @@ func TestTransformer(t *testing.T) {
 			unmangleVal: struct{}{},
 			fm: fakeMangler{
 				fieldNameMods: map[string][]reflect.StructField{
-					"I": []reflect.StructField{},
+					"I": {},
 				},
 				// Don't recurse any fields
 				recurseField: map[string]bool{},
@@ -236,7 +236,7 @@ func TestTransformer(t *testing.T) {
 			unmangleVal: struct{ F, Q int }{F: 42, Q: 88},
 			fm: fakeMangler{
 				fieldNameMods: map[string][]reflect.StructField{
-					"I": []reflect.StructField{
+					"I": {
 						{
 							Name:      "F",
 							PkgPath:   "",
@@ -274,7 +274,7 @@ func TestTransformer(t *testing.T) {
 			unmangleVal: struct{ J, Q int }{J: 1023, Q: 88},
 			fm: fakeMangler{
 				fieldNameMods: map[string][]reflect.StructField{
-					"I": []reflect.StructField{
+					"I": {
 						{
 							Name:      "Q",
 							PkgPath:   "",
@@ -283,7 +283,7 @@ func TestTransformer(t *testing.T) {
 							Anonymous: false,
 						},
 					},
-					"J": []reflect.StructField{
+					"J": {
 						{
 							Name:      "J",
 							PkgPath:   "",
@@ -318,7 +318,7 @@ func TestTransformer(t *testing.T) {
 			unmangleVal: struct{ J, Q int }{J: 1023, Q: 88},
 			fm: fakeMangler{
 				fieldNameMods: map[string][]reflect.StructField{
-					"I": []reflect.StructField{
+					"I": {
 						{
 							Name:      "Q",
 							PkgPath:   "",
@@ -327,7 +327,7 @@ func TestTransformer(t *testing.T) {
 							Anonymous: false,
 						},
 					},
-					"J": []reflect.StructField{
+					"J": {
 						{
 							Name:      "J",
 							PkgPath:   "",
@@ -373,7 +373,7 @@ func TestTransformer(t *testing.T) {
 			},
 			fm: fakeMangler{
 				fieldNameMods: map[string][]reflect.StructField{
-					"I": []reflect.StructField{
+					"I": {
 						{
 							Name:      "Q",
 							PkgPath:   "",
@@ -382,7 +382,7 @@ func TestTransformer(t *testing.T) {
 							Anonymous: false,
 						},
 					},
-					"J": []reflect.StructField{
+					"J": {
 						{
 							Name:      "J",
 							PkgPath:   "",
@@ -391,7 +391,7 @@ func TestTransformer(t *testing.T) {
 							Anonymous: false,
 						},
 					},
-					"L": []reflect.StructField{
+					"L": {
 						{
 							Name:      "L",
 							PkgPath:   "",
@@ -449,7 +449,7 @@ func TestTransformer(t *testing.T) {
 			},
 			fm: fakeMangler{
 				fieldNameMods: map[string][]reflect.StructField{
-					"I": []reflect.StructField{
+					"I": {
 						{
 							Name:      "Q",
 							PkgPath:   "",
@@ -458,7 +458,7 @@ func TestTransformer(t *testing.T) {
 							Anonymous: false,
 						},
 					},
-					"J": []reflect.StructField{
+					"J": {
 						{
 							Name:      "J",
 							PkgPath:   "",
@@ -467,7 +467,7 @@ func TestTransformer(t *testing.T) {
 							Anonymous: false,
 						},
 					},
-					"L": []reflect.StructField{
+					"L": {
 						{
 							Name:      "L",
 							PkgPath:   "",
@@ -528,7 +528,7 @@ func TestTransformer(t *testing.T) {
 			},
 			fm: fakeMangler{
 				fieldNameMods: map[string][]reflect.StructField{
-					"I": []reflect.StructField{
+					"I": {
 						{
 							Name:      "Q",
 							PkgPath:   "",
@@ -537,7 +537,7 @@ func TestTransformer(t *testing.T) {
 							Anonymous: false,
 						},
 					},
-					"J": []reflect.StructField{
+					"J": {
 						{
 							Name:      "J",
 							PkgPath:   "",
@@ -546,7 +546,7 @@ func TestTransformer(t *testing.T) {
 							Anonymous: false,
 						},
 					},
-					"L": []reflect.StructField{
+					"L": {
 						{
 							Name:      "L",
 							PkgPath:   "",
