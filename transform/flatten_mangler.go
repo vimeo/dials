@@ -49,7 +49,7 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 
 	out := []reflect.StructField{}
 
-	tag, prefixTag, tagErr := f.getTag(sf.Name, nil, sf.Tag)
+	tag, prefixTag, tagErr := f.getTag(&sf, nil)
 	if tagErr != nil {
 		return out, tagErr
 	}
@@ -94,7 +94,7 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf refle
 		// get the tag for the current field name
 		flattenedTags := make([]string, len(tagPrefix), len(tagPrefix)+1)
 		copy(flattenedTags, tagPrefix)
-		tag, newFlattenedTags, tagErr := f.getTag(nestedsf.Name, flattenedTags, nestedsf.Tag)
+		tag, newFlattenedTags, tagErr := f.getTag(&nestedsf, flattenedTags)
 		if tagErr != nil {
 			return out, tagErr
 		}
@@ -126,22 +126,22 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf refle
 // getTag uses the tag if one already exist or creates one based on the
 // configured EncodingCasing function and fieldName. It returns the new parsed
 // StructTag, the updated slice of tags, and any error encountered
-func (f *FlattenMangler) getTag(fieldName string, tags []string, st reflect.StructTag) (reflect.StructTag, []string, error) {
-	tag, ok := st.Lookup(f.tag)
+func (f *FlattenMangler) getTag(sf *reflect.StructField, tags []string) (reflect.StructTag, []string, error) {
+	tag, ok := sf.Tag.Lookup(f.tag)
 
 	// tag already exists so use the existing tag and append to prefix tags
 	if ok {
 		tags = append(tags, tag)
 	} else {
 		// tag doesn't already exist so use the field name
-		tags = append(tags, fieldName)
+		tags = append(tags, sf.Name)
 	}
 
 	tagVal := f.tagEncodeCasing(tags)
 
-	parsedTag, parseErr := structtag.Parse(string(st))
+	parsedTag, parseErr := structtag.Parse(string(sf.Tag))
 	if parseErr != nil {
-		return st, tags, parseErr
+		return sf.Tag, tags, parseErr
 	}
 
 	parsedTag.Set(&structtag.Tag{
