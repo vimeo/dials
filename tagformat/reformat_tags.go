@@ -79,7 +79,7 @@ func (k *TagReformattingMangler) ShouldRecurse(_ reflect.StructField) bool {
 // struct type passed in.
 func ReformatDialsTagSource(inner dials.Source, encodeFunc caseconversion.DecodeCasingFunc, decodeFunc caseconversion.EncodeCasingFunc) dials.Source {
 	return sourcewrap.NewTransformingSource(inner, &TagReformattingMangler{
-		tag:              DialsTagName,
+		tag:              transform.DialsTagName,
 		decodeCasingFunc: encodeFunc,
 		encodeCasingFunc: decodeFunc,
 	})

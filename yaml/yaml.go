@@ -30,7 +30,7 @@ func (d *Decoder) Decode(r io.Reader, t *dials.Type) (reflect.Value, error) {
 
 	tfmr := transform.NewTransformer(t.Type(),
 		&tagformat.TagCopyingMangler{
-			SrcTag: tagformat.DialsTagName, NewTag: YAMLTagName},
+			SrcTag: transform.DialsTagName, NewTag: YAMLTagName},
 	)
 	val, tfmErr := tfmr.Translate()
 	if tfmErr != nil {

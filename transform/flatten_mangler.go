@@ -8,7 +8,8 @@ import (
 	"github.com/vimeo/dials/tagformat/caseconversion"
 )
 
-const dialsTag = "dials"
+// DialsTagName is the name of the dials tag.
+const DialsTagName = "dials"
 
 // FlattenMangler implements the Mangler interface
 type FlattenMangler struct {
@@ -18,11 +19,7 @@ type FlattenMangler struct {
 }
 
 // DefaultFlattenMangler is the default FlattenMangler
-var DefaultFlattenMangler = &FlattenMangler{
-	tag:              dialsTag,
-	nameEncodeCasing: caseconversion.EncodeUpperCamelCase,
-	tagEncodeCasing:  caseconversion.EncodeCasePreservingSnakeCase,
-}
+var DefaultFlattenMangler = NewFlattenMangler(DialsTagName, caseconversion.EncodeUpperCamelCase, caseconversion.EncodeCasePreservingSnakeCase)
 
 // NewFlattenMangler is the constructor for FlattenMangler
 func NewFlattenMangler(tag string, nameEnc, tagEnc caseconversion.EncodeCasingFunc) *FlattenMangler {
@@ -87,14 +84,10 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf refle
 		nestedsf := ft.Field(i)
 
 		// add the current member name to the list of nested names needed for flattening
-		flattenedNames := make([]string, len(fieldPrefix), len(fieldPrefix)+1)
-		copy(flattenedNames, fieldPrefix)
-		flattenedNames = append(flattenedNames, nestedsf.Name)
+		flattenedNames := append(fieldPrefix[:len(fieldPrefix):len(fieldPrefix)], nestedsf.Name)
 
-		// get the tag for the current field name
-		flattenedTags := make([]string, len(tagPrefix), len(tagPrefix)+1)
-		copy(flattenedTags, tagPrefix)
-		tag, newFlattenedTags, tagErr := f.getTag(&nestedsf, flattenedTags)
+		// add the tag of the current field to the list of flattened tags
+		tag, flattenedTags, tagErr := f.getTag(&nestedsf, tagPrefix)
 		if tagErr != nil {
 			return out, tagErr
 		}
@@ -104,7 +97,7 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf refle
 		nestedK, _ := getUnderlyingKindType(nestedsf.Type)
 		switch nestedK {
 		case reflect.Struct:
-			flattened, err := f.flattenStruct(flattenedNames, newFlattenedTags, nestedsf)
+			flattened, err := f.flattenStruct(flattenedNames, flattenedTags, nestedsf)
 			if err != nil {
 				return out, err
 			}
@@ -131,10 +124,10 @@ func (f *FlattenMangler) getTag(sf *reflect.StructField, tags []string) (reflect
 
 	// tag already exists so use the existing tag and append to prefix tags
 	if ok {
-		tags = append(tags, tag)
+		tags = append(tags[:len(tags):len(tags)], tag)
 	} else {
 		// tag doesn't already exist so use the field name
-		tags = append(tags, sf.Name)
+		tags = append(tags[:len(tags):len(tags)], sf.Name)
 	}
 
 	tagVal := f.tagEncodeCasing(tags)

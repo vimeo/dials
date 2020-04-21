@@ -27,7 +27,7 @@ type Source struct {
 // unchanged.)
 func (e *Source) Value(t *dials.Type) (reflect.Value, error) {
 	stringCastingMangler := &transform.StringCastingMangler{}
-	tagCopyingMangler := &tagformat.TagCopyingMangler{SrcTag: tagformat.DialsTagName, NewTag: envTagName}
+	tagCopyingMangler := &tagformat.TagCopyingMangler{SrcTag: transform.DialsTagName, NewTag: envTagName}
 	tfmr := transform.NewTransformer(t.Type(), stringCastingMangler, tagCopyingMangler)
 
 	val, err := tfmr.Translate()

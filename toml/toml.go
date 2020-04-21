@@ -32,7 +32,7 @@ func (d *Decoder) Decode(r io.Reader, t *dials.Type) (reflect.Value, error) {
 	// tags aren't specified.
 	tfmr := transform.NewTransformer(t.Type(),
 		&tagformat.TagCopyingMangler{
-			SrcTag: tagformat.DialsTagName, NewTag: TOMLTagName})
+			SrcTag: transform.DialsTagName, NewTag: TOMLTagName})
 	val, tfmErr := tfmr.Translate()
 	if tfmErr != nil {
 		return reflect.Value{}, fmt.Errorf("failed to convert tags: %s", tfmErr)

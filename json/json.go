@@ -30,7 +30,7 @@ func (d *Decoder) Decode(r io.Reader, t *dials.Type) (reflect.Value, error) {
 	// If there aren't any json tags, copy over from any dials tags.
 	tfmr := transform.NewTransformer(t.Type(),
 		&tagformat.TagCopyingMangler{
-			SrcTag: tagformat.DialsTagName, NewTag: JSONTagName})
+			SrcTag: transform.DialsTagName, NewTag: JSONTagName})
 	val, tfmErr := tfmr.Translate()
 	if tfmErr != nil {
 		return reflect.Value{}, fmt.Errorf("failed to convert tags: %s", tfmErr)
