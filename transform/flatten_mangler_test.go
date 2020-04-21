@@ -34,25 +34,25 @@ func TestFlattenMangler(t *testing.T) {
 		name       string
 		testStruct interface{}
 		// modify will fill the flatten struct value after Mangling
-		modify    func(t *testing.T, val reflect.Value)
-		assertion func(t *testing.T, i interface{})
+		modify    func(t testing.TB, val reflect.Value)
+		assertion func(t testing.TB, i interface{})
 	}{
 		{
 			name:       "one member in struct of type int",
 			testStruct: 32,
-			modify: func(t *testing.T, val reflect.Value) {
+			modify: func(t testing.TB, val reflect.Value) {
 				assert.EqualValues(t, `dials:"ConfigField"`, val.Type().Field(0).Tag)
 				i := 32
 				val.Field(0).Set(reflect.ValueOf(&i))
 			},
-			assertion: func(t *testing.T, i interface{}) {
+			assertion: func(t testing.TB, i interface{}) {
 				assert.Equal(t, 32, *i.(*int))
 			},
 		},
 		{
 			name:       "one member in struct of type map",
 			testStruct: map[string]string{},
-			modify: func(t *testing.T, val reflect.Value) {
+			modify: func(t testing.TB, val reflect.Value) {
 				assert.EqualValues(t, `dials:"ConfigField"`, val.Type().Field(0).Tag)
 				m := map[string]string{
 					"hello":   "world",
@@ -60,7 +60,7 @@ func TestFlattenMangler(t *testing.T) {
 				}
 				val.Field(0).Set(reflect.ValueOf(m))
 			},
-			assertion: func(t *testing.T, i interface{}) {
+			assertion: func(t testing.TB, i interface{}) {
 				m := map[string]string{
 					"hello":   "world",
 					"flatten": "unflatten",
@@ -79,8 +79,8 @@ func TestFlattenMangler(t *testing.T) {
 				testString: "hello world",
 				testBool:   true,
 			},
-			modify: func(t *testing.T, val reflect.Value) {},
-			assertion: func(t *testing.T, i interface{}) {
+			modify: func(t testing.TB, val reflect.Value) {},
+			assertion: func(t testing.TB, i interface{}) {
 				// should be empty struct since none of the fields are exposed
 				assert.Equal(t, struct{}{}, *i.(*struct{}))
 			},
@@ -96,7 +96,7 @@ func TestFlattenMangler(t *testing.T) {
 				TestString: "hello world",
 				TestBool:   true,
 			},
-			modify: func(t *testing.T, val reflect.Value) {
+			modify: func(t testing.TB, val reflect.Value) {
 
 				expectedTags := []string{
 					`dials:"ConfigField_TestInt"`,
@@ -116,7 +116,7 @@ func TestFlattenMangler(t *testing.T) {
 				val.Field(1).Set(reflect.ValueOf(&s))
 				val.Field(2).Set(reflect.ValueOf(&b))
 			},
-			assertion: func(t *testing.T, i interface{}) {
+			assertion: func(t testing.TB, i interface{}) {
 				in := 42
 				s := "hello world"
 				b := true
@@ -136,7 +136,7 @@ func TestFlattenMangler(t *testing.T) {
 		{
 			name:       "multilevel nested struct",
 			testStruct: b,
-			modify: func(t *testing.T, val reflect.Value) {
+			modify: func(t testing.TB, val reflect.Value) {
 
 				expectedTags := []string{
 					`dials:"ConfigField_Name"`,
@@ -159,7 +159,7 @@ func TestFlattenMangler(t *testing.T) {
 				val.Field(2).Set(reflect.ValueOf(&i1))
 				val.Field(3).Set(reflect.ValueOf(&i2))
 			},
-			assertion: func(t *testing.T, i interface{}) {
+			assertion: func(t testing.TB, i interface{}) {
 				// all the fields are pointerified because of call to Pointerify
 				s1 := "test"
 				s2 := "here"
@@ -200,7 +200,7 @@ func TestFlattenMangler(t *testing.T) {
 				} `dials:"YESTERDAY"`
 				DayTripper bool
 			}{},
-			modify: func(t *testing.T, val reflect.Value) {
+			modify: func(t testing.TB, val reflect.Value) {
 				expectedTags := []string{
 					`dials:"ConfigField_hello_jude"`,
 					`dials:"ConfigField_here_comes_THE_sun"`,
@@ -228,7 +228,7 @@ func TestFlattenMangler(t *testing.T) {
 				val.Field(4).Set(reflect.ValueOf(&i3))
 				val.Field(5).Set(reflect.ValueOf(&b2))
 			},
-			assertion: func(t *testing.T, i interface{}) {
+			assertion: func(t testing.TB, i interface{}) {
 				s1 := "The Beatles"
 				i1 := 4
 				i2 := 1900
@@ -283,7 +283,7 @@ func TestFlattenMangler(t *testing.T) {
 			configStructType := reflect.StructOf([]reflect.StructField{sf})
 
 			ptrifiedConfigType := ptrify.Pointerify(configStructType, reflect.New(configStructType).Elem())
-			f := DefaultFlattenMangler
+			f := DefaultFlattenMangler()
 			tfmr := NewTransformer(ptrifiedConfigType, f)
 			val, err := tfmr.Translate()
 			require.NoError(t, err)

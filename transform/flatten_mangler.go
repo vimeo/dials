@@ -18,8 +18,15 @@ type FlattenMangler struct {
 	tagEncodeCasing  caseconversion.EncodeCasingFunc
 }
 
-// DefaultFlattenMangler is the default FlattenMangler
-var DefaultFlattenMangler = NewFlattenMangler(DialsTagName, caseconversion.EncodeUpperCamelCase, caseconversion.EncodeCasePreservingSnakeCase)
+// DefaultFlattenMangler returns a FlattenMangler with preset values for tag,
+// nameEncodeCasing, and tagEncodeCasing
+func DefaultFlattenMangler() *FlattenMangler {
+	return &FlattenMangler{
+		tag:              DialsTagName,
+		nameEncodeCasing: caseconversion.EncodeUpperCamelCase,
+		tagEncodeCasing:  caseconversion.EncodeCasePreservingSnakeCase,
+	}
+}
 
 // NewFlattenMangler is the constructor for FlattenMangler
 func NewFlattenMangler(tag string, nameEnc, tagEnc caseconversion.EncodeCasingFunc) *FlattenMangler {
