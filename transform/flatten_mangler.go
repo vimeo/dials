@@ -73,6 +73,8 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 	return out, nil
 }
 
+// flattenStruct takes a struct and flattens all the fields and makes a recursive
+// call if the field is a struct too
 func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf reflect.StructField) ([]reflect.StructField, error) {
 
 	// get underlying type after removing pointers. Ignoring the kind
@@ -163,8 +165,8 @@ func (f *FlattenMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) 
 	return val, nil
 }
 
+// populateStruct populates the original value with values from the flattend values
 func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex int) (int, error) {
-
 	if !originalVal.CanSet() {
 		return inputIndex, fmt.Errorf("Error unmangling %s. Need addressable type, actual %q", originalVal, originalVal.Type().Kind())
 	}
