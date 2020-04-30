@@ -156,28 +156,9 @@ type sourceValue struct {
 	value  reflect.Value
 }
 
+// Type is a wrapper for a reflect.Type.
 type Type struct {
 	t reflect.Type
-}
-
-// Builder returns a builder
-func (t *Type) Builder() *Builder {
-	reflectType := t.Type()
-	newValue := reflect.New(t.Type()).Elem()
-	fields := make([]*Field, 0, reflectType.NumField())
-	for i := 0; i < reflectType.NumField(); i++ {
-		f := &Field{
-			Name:  []string{reflectType.Field(i).Name},
-			Value: newValue.Field(i),
-		}
-		fields = append(fields, f)
-	}
-
-	return &Builder{
-		t:      t,
-		fields: fields,
-		value:  newValue,
-	}
 }
 
 // Type describes a config struct type, usually it is already pointerified
@@ -190,48 +171,4 @@ func NewType(t reflect.Type) *Type {
 	return &Type{
 		t: t,
 	}
-}
-
-// Builder is a struct with some convenience methods.
-type Builder struct {
-	t      *Type
-	fields []*Field
-	value  reflect.Value
-}
-
-func (b *Builder) Lookup(name ...string) (*Field, error) {
-	return nil, nil
-}
-
-func (b *Builder) Fields() []*Field {
-	return b.fields
-}
-
-func (b *Builder) Finish() (reflect.Value, error) {
-
-	// for _, f := range b.fields {
-	// 	name := f.Name[0]
-	// 	fieldToSet := newValue.FieldByName(name)
-	// 	if fieldToSet.CanSet() {
-	// 		nv := reflect.New(fieldToSet.Type().Elem())
-	// 		nv.Elem().Set(f.Value)
-	// 		fieldToSet.Set(nv)
-	// 	} else {
-	// 		return reflect.Value{}, fmt.Errorf("can't set field %s", name)
-	// 	}
-	//
-	// }
-	return b.value, nil
-}
-
-type Field struct {
-	Name  []string
-	Value reflect.Value
-}
-
-func (f *Field) Set(newVal string) {
-	nv := reflect.New(f.Value.Type().Elem())
-	nv.Elem().Set(reflect.ValueOf(newVal))
-
-	f.Value.Set(nv)
 }

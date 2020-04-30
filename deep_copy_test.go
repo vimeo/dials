@@ -128,7 +128,7 @@ func TestDeepCopy(t *testing.T) {
 			J bool
 			S interface{}
 		}{J: true,
-			S: [...]*sInt{&sInt{1}, &sInt{2}, &sInt{3}, &sInt{4}, &sInt{5}},
+			S: [...]*sInt{{1}, {2}, {3}, {4}, {5}},
 		}},
 		"bool_with_interface_nested_ptr_slice": {i: struct {
 			J bool
