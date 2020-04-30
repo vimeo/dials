@@ -27,14 +27,14 @@ func TestDirectBasic(t *testing.T) {
 	buf := &bytes.Buffer{}
 	src.Flags.SetOutput(buf)
 
-	v, err := dials.Config(ctx, &Config{}, src)
+	d, err := dials.Config(ctx, &Config{}, src)
 	if err != nil {
 		t.Fatal(err)
 	}
 	src.Flags.Usage()
 	t.Log(buf.String())
 
-	got, ok := v.Get().(*Config)
+	got, ok := d.View().(*Config)
 	if !ok {
 		t.Fatalf("want: *Config, got: %T", got)
 	}
@@ -270,14 +270,14 @@ func TestTable(t *testing.T) {
 			s, setupErr := NewSetWithArgs(DashesNameConfig(), tbl.tmpl, tbl.args)
 			require.NoError(t, setupErr, "failed to setup Set")
 
-			v, cfgErr := dials.Config(ctx, tbl.tmpl, s)
+			d, cfgErr := dials.Config(ctx, tbl.tmpl, s)
 			if tbl.expErr != "" {
 				require.EqualError(t, cfgErr, tbl.expErr)
 				return
 			}
 			require.NoError(t, cfgErr, "failed to stack/Value()")
 
-			assert.EqualValues(t, tbl.expected, v.Get())
+			assert.EqualValues(t, tbl.expected, d.View())
 		})
 	}
 }

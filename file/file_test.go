@@ -70,10 +70,10 @@ func TestWatchingFile(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	view, err := dials.Config(ctx, myConfig, watchingFile)
+	d, err := dials.Config(ctx, myConfig, watchingFile)
 	assert.NoError(t, err)
 
-	c, ok := view.Get().(*config)
+	c, ok := d.View().(*config)
 	assert.True(t, ok)
 	assert.Equal(t, 42, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
@@ -81,7 +81,7 @@ func TestWatchingFile(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
-		<-view.Events()
+		<-d.Events()
 		wg.Done()
 	}()
 
@@ -90,7 +90,7 @@ func TestWatchingFile(t *testing.T) {
 
 	wg.Wait()
 
-	c, ok = view.Get().(*config)
+	c, ok = d.View().(*config)
 	assert.True(t, ok)
 	assert.Equal(t, 47, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
@@ -130,10 +130,10 @@ func TestWatchingFileWithRelativePathAndChdir(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	view, err := dials.Config(ctx, myConfig, watchingFile)
+	d, err := dials.Config(ctx, myConfig, watchingFile)
 	assert.NoError(t, err)
 
-	c, ok := view.Get().(*config)
+	c, ok := d.View().(*config)
 	assert.True(t, ok)
 	assert.Equal(t, 42, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
@@ -141,7 +141,7 @@ func TestWatchingFileWithRelativePathAndChdir(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
-		<-view.Events()
+		<-d.Events()
 		wg.Done()
 	}()
 
@@ -154,7 +154,7 @@ func TestWatchingFileWithRelativePathAndChdir(t *testing.T) {
 
 	wg.Wait()
 
-	c, ok = view.Get().(*config)
+	c, ok = d.View().(*config)
 	assert.True(t, ok)
 	assert.Equal(t, 47, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
@@ -180,12 +180,12 @@ func TestWatchingFileWithRemove(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	view, err := dials.Config(ctx, myConfig, watchingFile)
+	d, err := dials.Config(ctx, myConfig, watchingFile)
 	require.NoErrorf(t, err, "failed to construct watcher (on file %q)", firstConfig)
 
 	// let it panic (it's a test, and the panic trace will give us the data
 	// we want.
-	c := view.Get().(*config)
+	c := d.View().(*config)
 	assert.Equal(t, 42, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
 
@@ -193,7 +193,7 @@ func TestWatchingFileWithRemove(t *testing.T) {
 	completed := make(chan struct{})
 	go func(ctx context.Context, completed chan struct{}) {
 		select {
-		case <-view.Events():
+		case <-d.Events():
 		case <-ctx.Done():
 		}
 		close(completed)
@@ -210,7 +210,7 @@ func TestWatchingFileWithRemove(t *testing.T) {
 	cancel()
 
 	// should still be set to what it was before
-	c = view.Get().(*config)
+	c = d.View().(*config)
 	assert.Equal(t, 42, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
 }
@@ -236,10 +236,10 @@ func TestWatchingFileWithTrickle(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	view, err := dials.Config(ctx, myConfig, watchingFile)
+	d, err := dials.Config(ctx, myConfig, watchingFile)
 	assert.NoError(t, err)
 
-	c, ok := view.Get().(*config)
+	c, ok := d.View().(*config)
 	assert.True(t, ok)
 	assert.Equal(t, 42, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
@@ -251,7 +251,7 @@ func TestWatchingFileWithTrickle(t *testing.T) {
 	LOOP:
 		for {
 			select {
-			case <-view.Events():
+			case <-d.Events():
 				atomic.AddInt32(&counter, 1)
 			case <-ctx.Done():
 				break LOOP
@@ -287,7 +287,7 @@ func TestWatchingFileWithTrickle(t *testing.T) {
 	assert.EqualValues(t, atomic.LoadInt32(&counter), 1)
 
 	// should still be set to what it was before
-	c, ok = view.Get().(*config)
+	c, ok = d.View().(*config)
 	assert.True(t, ok)
 	assert.Equal(t, 11, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
@@ -336,10 +336,10 @@ func TestWatchingFileWithK8SEmulatedAtomicWriter(t *testing.T) {
 
 	ctx, outerCancel := context.WithCancel(context.Background())
 	defer outerCancel()
-	view, err := dials.Config(ctx, myConfig, watchingFile)
+	d, err := dials.Config(ctx, myConfig, watchingFile)
 	assert.NoError(t, err)
 
-	c, ok := view.Get().(*config)
+	c, ok := d.View().(*config)
 	assert.True(t, ok)
 	assert.Equal(t, 42, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
@@ -353,7 +353,7 @@ func TestWatchingFileWithK8SEmulatedAtomicWriter(t *testing.T) {
 	LOOP:
 		for {
 			select {
-			case conf := <-view.Events():
+			case conf := <-d.Events():
 				atomic.AddInt32(&counter, 1)
 				c := conf.(*config)
 				assert.EqualValues(t, 4, c.NumBeatles)
@@ -396,7 +396,7 @@ func TestWatchingFileWithK8SEmulatedAtomicWriter(t *testing.T) {
 	assert.EqualValues(t, atomic.LoadInt32(&counter), 13)
 
 	// let it panic if it isn't the &config type we expect
-	c = view.Get().(*config)
+	c = d.View().(*config)
 	assert.Equal(t, 9+14, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
 }

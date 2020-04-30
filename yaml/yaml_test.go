@@ -24,14 +24,14 @@ func TestYAML(t *testing.T) {
 `
 
 	myConfig := &testConfig{}
-	view, err := dials.Config(
+	d, err := dials.Config(
 		context.Background(),
 		myConfig,
 		&static.StringSource{Data: yamlData, Decoder: &Decoder{}},
 	)
 	require.NoError(t, err)
 
-	c, ok := view.Get().(*testConfig)
+	c, ok := d.View().(*testConfig)
 	require.True(t, ok)
 
 	assert.Equal(t, "something", c.Val1)
@@ -70,14 +70,14 @@ func TestShallowlyNestedYAML(t *testing.T) {
 	myConfig := &testConfig{}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	view, err := dials.Config(
+	d, err := dials.Config(
 		ctx,
 		myConfig,
 		&static.StringSource{Data: yamlData, Decoder: &Decoder{}},
 	)
 
 	require.NoError(t, err)
-	c, ok := view.Get().(*testConfig)
+	c, ok := d.View().(*testConfig)
 	assert.True(t, ok)
 
 	assert.Equal(t, "something", c.DatabaseName)
@@ -122,14 +122,14 @@ func TestMoreDeeplyNestedYAML(t *testing.T) {
 	}`
 
 	myConfig := &testConfig{}
-	view, err := dials.Config(
+	d, err := dials.Config(
 		context.Background(),
 		myConfig,
 		&static.StringSource{Data: yamlData, Decoder: &Decoder{}},
 	)
 	require.NoError(t, err)
 
-	c, ok := view.Get().(*testConfig)
+	c, ok := d.View().(*testConfig)
 	assert.True(t, ok)
 
 	assert.Equal(t, "something", c.DatabaseName)

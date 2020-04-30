@@ -23,14 +23,14 @@ func TestJSON(t *testing.T) {
     }`
 
 	myConfig := &testConfig{}
-	view, err := dials.Config(
+	d, err := dials.Config(
 		context.Background(),
 		myConfig,
 		&static.StringSource{Data: jsonData, Decoder: &Decoder{}},
 	)
 	require.NoError(t, err)
 
-	c, ok := view.Get().(*testConfig)
+	c, ok := d.View().(*testConfig)
 	assert.True(t, ok)
 
 	assert.Equal(t, "something", c.Val1)
@@ -59,14 +59,14 @@ func TestShallowlyNestedJSON(t *testing.T) {
     }`
 
 	myConfig := &testConfig{}
-	view, err := dials.Config(
+	d, err := dials.Config(
 		context.Background(),
 		myConfig,
 		&static.StringSource{Data: jsonData, Decoder: &Decoder{}},
 	)
 	require.NoError(t, err)
 
-	c, ok := view.Get().(*testConfig)
+	c, ok := d.View().(*testConfig)
 	assert.True(t, ok)
 
 	assert.Equal(t, "something", c.DatabaseName)
@@ -103,14 +103,14 @@ func TestDeeplyNestedJSON(t *testing.T) {
 	}`
 
 	myConfig := &testConfig{}
-	view, err := dials.Config(
+	d, err := dials.Config(
 		context.Background(),
 		myConfig,
 		&static.StringSource{Data: jsonData, Decoder: &Decoder{}},
 	)
 	require.NoError(t, err)
 
-	c, ok := view.Get().(*testConfig)
+	c, ok := d.View().(*testConfig)
 	assert.True(t, ok)
 
 	assert.Equal(t, "something", c.DatabaseName)
@@ -153,14 +153,14 @@ func TestMoreDeeplyNestedJSON(t *testing.T) {
 	}`
 
 	myConfig := &testConfig{}
-	view, err := dials.Config(
+	d, err := dials.Config(
 		context.Background(),
 		myConfig,
 		&static.StringSource{Data: jsonData, Decoder: &Decoder{}},
 	)
 	require.NoError(t, err)
 
-	c, ok := view.Get().(*testConfig)
+	c, ok := d.View().(*testConfig)
 	assert.True(t, ok)
 
 	assert.Equal(t, "something", c.DatabaseName)
