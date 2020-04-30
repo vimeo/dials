@@ -23,14 +23,14 @@ func TestDecoder(t *testing.T) {
 `
 
 	myConfig := &testConfig{}
-	view, err := dials.Config(
+	d, err := dials.Config(
 		context.Background(),
 		myConfig,
 		&static.StringSource{Data: tomlData, Decoder: &Decoder{}},
 	)
 	require.NoError(t, err)
 
-	c, ok := view.Get().(*testConfig)
+	c, ok := d.View().(*testConfig)
 	require.True(t, ok)
 
 	assert.Equal(t, "something", c.Val1)
@@ -56,14 +56,14 @@ func TestShallowlyNestedTOML(t *testing.T) {
 `
 
 	myConfig := &testConfig{}
-	view, err := dials.Config(
+	d, err := dials.Config(
 		context.Background(),
 		myConfig,
 		&static.StringSource{Data: tomlData, Decoder: &Decoder{}},
 	)
 	require.NoError(t, err)
 
-	c, ok := view.Get().(*testConfig)
+	c, ok := d.View().(*testConfig)
 	assert.True(t, ok)
 
 	assert.Equal(t, "something", c.DatabaseName)
@@ -95,14 +95,14 @@ func TestDeeplyNestedTOML(t *testing.T) {
 	`
 
 	myConfig := &testConfig{}
-	view, err := dials.Config(
+	d, err := dials.Config(
 		context.Background(),
 		myConfig,
 		&static.StringSource{Data: tomlData, Decoder: &Decoder{}},
 	)
 	require.NoError(t, err)
 
-	c, ok := view.Get().(*testConfig)
+	c, ok := d.View().(*testConfig)
 	assert.True(t, ok)
 
 	assert.Equal(t, "something", c.DatabaseName)
@@ -137,14 +137,14 @@ func TestMoreDeeplyNestedTOML(t *testing.T) {
 	`
 
 	myConfig := &testConfig{}
-	view, err := dials.Config(
+	d, err := dials.Config(
 		context.Background(),
 		myConfig,
 		&static.StringSource{Data: tomlData, Decoder: &Decoder{}},
 	)
 	require.NoError(t, err)
 
-	c, ok := view.Get().(*testConfig)
+	c, ok := d.View().(*testConfig)
 	assert.True(t, ok)
 
 	assert.Equal(t, "something", c.DatabaseName)

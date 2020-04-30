@@ -135,12 +135,12 @@ func TestEnv(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			os.Setenv(testCase.EnvVarName, testCase.EnvVarValue)
 			defer os.Unsetenv(testCase.EnvVarName)
-			view, err := dials.Config(context.Background(), testCase.ConfigStruct, &testCase.Source)
+			d, err := dials.Config(context.Background(), testCase.ConfigStruct, &testCase.Source)
 			if testCase.ExpectedErr != "" {
 				require.Contains(t, err.Error(), testCase.ExpectedErr)
 			} else {
 				require.NoError(t, err)
-				assert.EqualValues(t, testCase.Expected, view.Get())
+				assert.EqualValues(t, testCase.Expected, d.View())
 			}
 		})
 	}

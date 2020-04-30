@@ -11,7 +11,7 @@ import (
 )
 
 // Config ...
-func Config(ctx context.Context, t interface{}, sources ...Source) (*View, error) {
+func Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, error) {
 
 	watcherChan := make(chan *watchTab)
 	computed := make([]sourceValue, 0, len(sources))
@@ -56,16 +56,16 @@ func Config(ctx context.Context, t interface{}, sources ...Source) (*View, error
 		return nil, err
 	}
 
-	view := &View{
+	d := &Dials{
 		value:       atomic.Value{},
 		updatesChan: make(chan interface{}, 1),
 	}
-	view.value.Store(newValue)
+	d.value.Store(newValue)
 
 	if someoneWatching {
-		go view.monitor(ctx, t, computed, watcherChan)
+		go d.monitor(ctx, t, computed, watcherChan)
 	}
-	return view, nil
+	return d, nil
 }
 
 // Source ...
@@ -89,21 +89,24 @@ type Watcher interface {
 	Watch(context.Context, *Type, func(context.Context, reflect.Value)) error
 }
 
-type View struct {
+// Dials is the main access point for your configuration.
+type Dials struct {
 	value       atomic.Value
 	updatesChan chan interface{}
 }
 
-// Get returns the configuration struct populated.
-func (v *View) Get() interface{} {
-	return v.value.Load()
+// View returns the configuration struct populated.
+func (d *Dials) View() interface{} {
+	return d.value.Load()
 }
 
-func (v *View) Events() <-chan interface{} {
-	return v.updatesChan
+// Events returns a channel that will get a message every time the configuration
+// is updated.
+func (d *Dials) Events() <-chan interface{} {
+	return d.updatesChan
 }
 
-func (v *View) monitor(
+func (d *Dials) monitor(
 	ctx context.Context,
 	t interface{},
 	sourceValues []sourceValue,
@@ -124,9 +127,9 @@ func (v *View) monitor(
 			if err != nil {
 				continue
 			}
-			v.value.Store(newInterface)
+			d.value.Store(newInterface)
 			select {
-			case v.updatesChan <- newInterface:
+			case d.updatesChan <- newInterface:
 			default:
 			}
 		}

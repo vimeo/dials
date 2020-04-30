@@ -66,14 +66,14 @@ func TestReformatDialsTags(t *testing.T) {
 			t.Parallel()
 
 			myConfig := &testConfig{}
-			view, err := dials.Config(
+			d, err := dials.Config(
 				context.Background(),
 				myConfig,
 				tagformat.ReformatDialsTagSource(&static.StringSource{Data: tc.data, Decoder: tc.decoder}, caseconversion.DecodeLowerSnakeCase, caseconversion.EncodeLowerCamelCase),
 			)
 			require.NoError(t, err)
 
-			c, ok := view.Get().(*testConfig)
+			c, ok := d.View().(*testConfig)
 			assert.True(t, ok)
 			assert.Equal(t, "something", c.DatabaseName)
 			assert.Equal(t, "127.0.0.1", c.DatabaseAddress)
@@ -165,14 +165,14 @@ func TestReformatDialsTagsInNestedStruct(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			t.Parallel()
 			myConfig := &testConfig{}
-			view, err := dials.Config(
+			d, err := dials.Config(
 				context.Background(),
 				myConfig,
 				tagformat.ReformatDialsTagSource(&static.StringSource{Data: tc.data, Decoder: tc.decoder}, caseconversion.DecodeLowerSnakeCase, caseconversion.EncodeLowerCamelCase),
 			)
 			require.NoError(t, err)
 
-			c, ok := view.Get().(*testConfig)
+			c, ok := d.View().(*testConfig)
 			assert.True(t, ok)
 			assert.Equal(t, "something", c.DatabaseName)
 			assert.Equal(t, "test", c.DatabaseUser.Username)

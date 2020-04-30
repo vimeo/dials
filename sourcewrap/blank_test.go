@@ -89,11 +89,11 @@ func TestBlankSource(t *testing.T) {
 		B: 4809,
 		C: "fob",
 	}
-	v, err := dials.Config(ctx, &c, &b)
+	d, err := dials.Config(ctx, &c, &b)
 	if err != nil {
 		t.Fatalf("failed to construct View: %s", err)
 	}
-	initConf := v.Get().(*basicConf)
+	initConf := d.View().(*basicConf)
 	if *initConf != c {
 		t.Errorf("unexpected initial config: got %+v; expected %+v", *initConf, c)
 	}
@@ -106,7 +106,7 @@ func TestBlankSource(t *testing.T) {
 	}
 
 	// Await the new value, since it's sent asynchronously
-	newConfIface := <-v.Events()
+	newConfIface := <-d.Events()
 	newConf := newConfIface.(*basicConf)
 	if *newConf != c {
 		t.Errorf("unexpected new config: got %+v; expected %+v", *newConf, c)
@@ -131,11 +131,11 @@ func TestBlankSourceError(t *testing.T) {
 		B: 4809,
 		C: "fob",
 	}
-	v, err := dials.Config(ctx, &c, &b)
+	d, err := dials.Config(ctx, &c, &b)
 	if err != nil {
 		t.Fatalf("failed to construct View: %s", err)
 	}
-	initConf := v.Get().(*basicConf)
+	initConf := d.View().(*basicConf)
 	if *initConf != c {
 		t.Errorf("unexpected initial config: got %+v; expected %+v", *initConf, c)
 	}
@@ -159,7 +159,7 @@ func TestBlankSourceError(t *testing.T) {
 
 	// make sure nothing comes through on the events channel, sinc our
 	select {
-	case <-v.Events():
+	case <-d.Events():
 		t.Errorf("unexpected update to view with errored source")
 	default:
 	}
@@ -180,11 +180,11 @@ func TestBlankSourceWatcher(t *testing.T) {
 		B: 4809,
 		C: "fob",
 	}
-	v, err := dials.Config(ctx, &c, &b)
+	d, err := dials.Config(ctx, &c, &b)
 	if err != nil {
 		t.Fatalf("failed to construct View: %s", err)
 	}
-	initConf := v.Get().(*basicConf)
+	initConf := d.View().(*basicConf)
 	if *initConf != c {
 		t.Errorf("unexpected initial config: got %+v; expected %+v", *initConf, c)
 	}
@@ -198,7 +198,7 @@ func TestBlankSourceWatcher(t *testing.T) {
 
 	{
 		// Await the new value, since it's sent asynchronously
-		newConfIface := <-v.Events()
+		newConfIface := <-d.Events()
 		newConf := newConfIface.(*basicConf)
 		if *newConf != c {
 			t.Errorf("unexpected new config: got %+v; expected %+v", *newConf, c)
@@ -212,7 +212,7 @@ func TestBlankSourceWatcher(t *testing.T) {
 	triv.poke(ctx)
 	{
 		// Await the new value, since it's sent asynchronously
-		newConfIface := <-v.Events()
+		newConfIface := <-d.Events()
 		newConf := newConfIface.(*basicConf)
 		if *newConf != c {
 			t.Errorf("unexpected new config: got %+v; expected %+v", *newConf, c)
@@ -241,11 +241,11 @@ func TestBlankSourceErrorWatcher(t *testing.T) {
 		B: 4809,
 		C: "fob",
 	}
-	v, err := dials.Config(ctx, &c, &b)
+	d, err := dials.Config(ctx, &c, &b)
 	if err != nil {
 		t.Fatalf("failed to construct View: %s", err)
 	}
-	initConf := v.Get().(*basicConf)
+	initConf := d.View().(*basicConf)
 	if *initConf != c {
 		t.Errorf("unexpected initial config: got %+v; expected %+v", *initConf, c)
 	}
@@ -264,7 +264,7 @@ func TestBlankSourceErrorWatcher(t *testing.T) {
 
 	{
 		// Await the new value, since it's sent asynchronously
-		newConfIface := <-v.Events()
+		newConfIface := <-d.Events()
 		newConf := newConfIface.(*basicConf)
 		if *newConf != c {
 			t.Errorf("unexpected new config: got %+v; expected %+v", *newConf, c)
