@@ -6,36 +6,22 @@ import (
 	"github.com/fatih/structtag"
 	"github.com/vimeo/dials"
 	"github.com/vimeo/dials/sourcewrap"
+	"github.com/vimeo/dials/tagformat/caseconversion"
 	"github.com/vimeo/dials/transform"
 )
-
-// DecodeCasingFunc takes in an identifier in a case such as camelCase or
-// snake_case and splits it up into a DecodedIdentifier for encoding by an
-// EncodeCasingFunc into a different case.
-type DecodeCasingFunc func(string) (DecodedIdentifier, error)
-
-// EncodeCasingFunc combines the contents of a DecodedIdentifier into an
-// identifier in a case such as camelCase or snake_case.
-type EncodeCasingFunc func(DecodedIdentifier) string
-
-// DecodedIdentifier is an slice of lowercase words (e.g., []string{"test",
-// "string"}) produced by a DecodeCasingFunc, which can be encoded by an
-// EncodeCasingFunc into a string in the specified case (e.g., with
-// EncodeLowerCamelCase, "testString").
-type DecodedIdentifier []string
 
 // TagReformattingMangler implements transform.Mangler, rewriting the specified
 // struct tag (with Mangler recursion enabled)
 type TagReformattingMangler struct {
 	tag              string
-	decodeCasingFunc DecodeCasingFunc
-	encodeCasingFunc EncodeCasingFunc
+	decodeCasingFunc caseconversion.DecodeCasingFunc
+	encodeCasingFunc caseconversion.EncodeCasingFunc
 }
 
 // NewTagReformattingMangler constructs a new TagReformattingMangler that can
 // replace the value of an existing tag
 func NewTagReformattingMangler(tagName string,
-	enc DecodeCasingFunc, dec EncodeCasingFunc) *TagReformattingMangler {
+	enc caseconversion.DecodeCasingFunc, dec caseconversion.EncodeCasingFunc) *TagReformattingMangler {
 	return &TagReformattingMangler{
 		tag:              tagName,
 		decodeCasingFunc: enc,
@@ -91,9 +77,9 @@ func (k *TagReformattingMangler) ShouldRecurse(_ reflect.StructField) bool {
 // config struct, changing the casing as specified (e.g., from lowerCamelCase
 // into snake_case), then calls Value on the wrapped source with the modified
 // struct type passed in.
-func ReformatDialsTagSource(inner dials.Source, encodeFunc DecodeCasingFunc, decodeFunc EncodeCasingFunc) dials.Source {
+func ReformatDialsTagSource(inner dials.Source, encodeFunc caseconversion.DecodeCasingFunc, decodeFunc caseconversion.EncodeCasingFunc) dials.Source {
 	return sourcewrap.NewTransformingSource(inner, &TagReformattingMangler{
-		tag:              DialsTagName,
+		tag:              transform.DialsTagName,
 		decodeCasingFunc: encodeFunc,
 		encodeCasingFunc: decodeFunc,
 	})

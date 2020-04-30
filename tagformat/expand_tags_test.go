@@ -11,7 +11,7 @@ import (
 )
 
 func TestExpanddialsTag(t *testing.T) {
-	mangler := TagCopyingMangler{SrcTag: DialsTagName, NewTag: "json"}
+	mangler := TagCopyingMangler{SrcTag: transform.DialsTagName, NewTag: "json"}
 	sf := reflect.StructField{
 		Tag: `dials:"test"`,
 	}
@@ -31,7 +31,7 @@ func TestExpanddialsTags(t *testing.T) {
 	vc := reflect.ValueOf(tc)
 	cfg := ptrify.Pointerify(vc.Type(), vc)
 
-	mangler := TagCopyingMangler{SrcTag: DialsTagName, NewTag: "yaml"}
+	mangler := TagCopyingMangler{SrcTag: transform.DialsTagName, NewTag: "yaml"}
 	tfm := transform.NewTransformer(cfg, &mangler)
 
 	mangledVal, mangleErr := tfm.Translate()

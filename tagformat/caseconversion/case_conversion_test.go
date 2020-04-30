@@ -1,4 +1,4 @@
-package tagformat
+package caseconversion
 
 import (
 	"testing"

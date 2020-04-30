@@ -7,9 +7,6 @@ import (
 	"github.com/vimeo/dials/transform"
 )
 
-// DialsTagName is the name of the dials tag.
-const DialsTagName = "dials"
-
 // TagCopyingMangler implements the transform.Mangler interface
 // copying `SrcTag` tags unmodified into a new tag specified by
 // the `NewTag` member, for example `json` or `yaml`. It is intended to be

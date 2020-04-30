@@ -9,6 +9,7 @@ import (
 	"github.com/vimeo/dials/json"
 	"github.com/vimeo/dials/static"
 	"github.com/vimeo/dials/tagformat"
+	"github.com/vimeo/dials/tagformat/caseconversion"
 	"github.com/vimeo/dials/toml"
 	"github.com/vimeo/dials/yaml"
 
@@ -68,7 +69,7 @@ func TestReformatDialsTags(t *testing.T) {
 			view, err := dials.Config(
 				context.Background(),
 				myConfig,
-				tagformat.ReformatDialsTagSource(&static.StringSource{Data: tc.data, Decoder: tc.decoder}, tagformat.DecodeLowerSnakeCase, tagformat.EncodeLowerCamelCase),
+				tagformat.ReformatDialsTagSource(&static.StringSource{Data: tc.data, Decoder: tc.decoder}, caseconversion.DecodeLowerSnakeCase, caseconversion.EncodeLowerCamelCase),
 			)
 			require.NoError(t, err)
 
@@ -167,7 +168,7 @@ func TestReformatDialsTagsInNestedStruct(t *testing.T) {
 			view, err := dials.Config(
 				context.Background(),
 				myConfig,
-				tagformat.ReformatDialsTagSource(&static.StringSource{Data: tc.data, Decoder: tc.decoder}, tagformat.DecodeLowerSnakeCase, tagformat.EncodeLowerCamelCase),
+				tagformat.ReformatDialsTagSource(&static.StringSource{Data: tc.data, Decoder: tc.decoder}, caseconversion.DecodeLowerSnakeCase, caseconversion.EncodeLowerCamelCase),
 			)
 			require.NoError(t, err)
 

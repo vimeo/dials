@@ -6,6 +6,7 @@ import (
 
 	"github.com/vimeo/dials"
 	"github.com/vimeo/dials/tagformat"
+	"github.com/vimeo/dials/tagformat/caseconversion"
 	"github.com/vimeo/dials/transform"
 )
 
@@ -26,7 +27,7 @@ type Source struct {
 // unchanged.)
 func (e *Source) Value(t *dials.Type) (reflect.Value, error) {
 	stringCastingMangler := &transform.StringCastingMangler{}
-	tagCopyingMangler := &tagformat.TagCopyingMangler{SrcTag: tagformat.DialsTagName, NewTag: envTagName}
+	tagCopyingMangler := &tagformat.TagCopyingMangler{SrcTag: transform.DialsTagName, NewTag: envTagName}
 	tfmr := transform.NewTransformer(t.Type(), stringCastingMangler, tagCopyingMangler)
 
 	val, err := tfmr.Translate()
@@ -62,11 +63,11 @@ func envVarName(prefix string, field reflect.StructField) (string, error) {
 }
 
 func envVarNameFromFieldName(prefix, fieldName string) (string, error) {
-	words, err := tagformat.DecodeGolangCamelCase(fieldName)
+	words, err := caseconversion.DecodeGolangCamelCase(fieldName)
 	if err != nil {
 		return "", err
 	}
-	key := tagformat.EncodeUpperSnakeCase(words)
+	key := caseconversion.EncodeUpperSnakeCase(words)
 	if prefix != "" {
 		key = prefix + "_" + key
 	}
