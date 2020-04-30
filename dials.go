@@ -106,6 +106,24 @@ func (d *Dials) Events() <-chan interface{} {
 	return d.updatesChan
 }
 
+// Fill populates the passed struct with the current value of the configuration.
+// It will panic if the type of `blankConfig` does not match the type of the
+// configuration value passed to `Config` in the first place.
+func (d *Dials) Fill(blankConfig interface{}) {
+	bVal := reflect.ValueOf(blankConfig)
+	currentVal := reflect.ValueOf(d.value.Load())
+
+	if bVal.Type() != currentVal.Type() {
+		panic(fmt.Sprintf(
+			"value to fill type (%s) does not match actual type (%s)",
+			bVal.Type(),
+			currentVal.Type(),
+		))
+	}
+
+	bVal.Elem().Set(currentVal.Elem())
+}
+
 func (d *Dials) monitor(
 	ctx context.Context,
 	t interface{},
