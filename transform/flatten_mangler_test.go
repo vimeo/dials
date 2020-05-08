@@ -1,6 +1,7 @@
 package transform
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -10,24 +11,54 @@ import (
 )
 
 func TestFlattenMangler(t *testing.T) {
-	type foo struct {
+	type Foo struct {
 		Location    string `dials:"Location"`
 		Coordinates int    `dials:"Coordinates"`
 	}
 
 	type bar struct {
 		Name         string `dials:"Name"`
-		Foobar       *foo   `dials:"Foobar"`
+		Foobar       *Foo   `dials:"Foobar"`
 		AnotherField int    `dials:"AnotherField"`
+	}
+
+	type embeddedFooBar struct {
+		Name string `dials:"Name"`
+		Foo
+		AnotherField int `dials:"AnotherField"`
+	}
+
+	type embeddedFooBarTag struct {
+		Name         string `dials:"Name"`
+		Foo          `dials:"embeddedFoo"`
+		AnotherField int `dials:"AnotherField"`
 	}
 
 	b := bar{
 		Name: "test",
-		Foobar: &foo{
+		Foobar: &Foo{
 			Location:    "here",
 			Coordinates: 64,
 		},
 		AnotherField: 42,
+	}
+
+	efg := embeddedFooBar{
+		"test",
+		Foo{
+			Location:    "here",
+			Coordinates: 64,
+		},
+		42,
+	}
+
+	efgt := embeddedFooBarTag{
+		"test",
+		Foo{
+			Location:    "here",
+			Coordinates: 64,
+		},
+		42,
 	}
 
 	testCases := []struct {
@@ -272,12 +303,134 @@ func TestFlattenMangler(t *testing.T) {
 				assert.Equal(t, &s, i)
 			},
 		},
+		{
+			name:       "Embedded struct without tag",
+			testStruct: efg,
+			modify: func(t testing.TB, val reflect.Value) {
+				expectedTags := []string{
+					`dials:"ConfigField_Name"`,
+					`dials:"ConfigField_Location"`,
+					`dials:"ConfigField_Coordinates"`,
+					`dials:"ConfigField_AnotherField"`,
+				}
+
+				expectedNames := []string{
+					"ConfigFieldName",
+					"ConfigFieldLocation",
+					"ConfigFieldCoordinates",
+					"ConfigFieldAnotherField",
+				}
+
+				vtype := val.Type()
+				for i := 0; i < vtype.NumField(); i++ {
+					assert.EqualValues(t, expectedTags[i], vtype.Field(i).Tag)
+					assert.EqualValues(t, expectedNames[i], vtype.Field(i).Name)
+				}
+
+				s1 := "test"
+				s2 := "here"
+				i1 := 64
+				i2 := 42
+
+				val.Field(0).Set(reflect.ValueOf(&s1))
+				val.Field(1).Set(reflect.ValueOf(&s2))
+				val.Field(2).Set(reflect.ValueOf(&i1))
+				val.Field(3).Set(reflect.ValueOf(&i2))
+			},
+			assertion: func(t testing.TB, i interface{}) {
+				// all the fields are pointerified because of call to Pointerify
+				s1 := "test"
+				s2 := "here"
+				i1 := 64
+				i2 := 42
+				b := struct {
+					Name *string `dials:"Name"`
+					Foo  *struct {
+						Location    *string `dials:"Location"`
+						Coordinates *int    `dials:"Coordinates"`
+					}
+					AnotherField *int `dials:"AnotherField"`
+				}{
+					Name: &s1,
+					Foo: &struct {
+						Location    *string `dials:"Location"`
+						Coordinates *int    `dials:"Coordinates"`
+					}{
+						Location:    &s2,
+						Coordinates: &i1,
+					},
+					AnotherField: &i2,
+				}
+				assert.Equal(t, &b, i)
+			},
+		},
+		{
+			name:       "Embedded struct with tag",
+			testStruct: efgt,
+			modify: func(t testing.TB, val reflect.Value) {
+				expectedTags := []string{
+					`dials:"ConfigField_Name"`,
+					`dials:"ConfigField_embeddedFoo_Location"`,
+					`dials:"ConfigField_embeddedFoo_Coordinates"`,
+					`dials:"ConfigField_AnotherField"`,
+				}
+				expectedNames := []string{
+					"ConfigFieldName",
+					"ConfigFieldLocation",
+					"ConfigFieldCoordinates",
+					"ConfigFieldAnotherField",
+				}
+
+				vtype := val.Type()
+				for i := 0; i < vtype.NumField(); i++ {
+					assert.EqualValues(t, expectedTags[i], vtype.Field(i).Tag)
+					assert.EqualValues(t, expectedNames[i], vtype.Field(i).Name)
+
+				}
+
+				s1 := "test"
+				s2 := "here"
+				i1 := 64
+				i2 := 42
+
+				val.Field(0).Set(reflect.ValueOf(&s1))
+				val.Field(1).Set(reflect.ValueOf(&s2))
+				val.Field(2).Set(reflect.ValueOf(&i1))
+				val.Field(3).Set(reflect.ValueOf(&i2))
+			},
+			assertion: func(t testing.TB, i interface{}) {
+				// all the fields are pointerified because of call to Pointerify
+				s1 := "test"
+				s2 := "here"
+				i1 := 64
+				i2 := 42
+				b := struct {
+					Name *string `dials:"Name"`
+					Foo  *struct {
+						Location    *string `dials:"Location"`
+						Coordinates *int    `dials:"Coordinates"`
+					} `dials:"embeddedFoo"`
+					AnotherField *int `dials:"AnotherField"`
+				}{
+					Name: &s1,
+					Foo: &struct {
+						Location    *string `dials:"Location"`
+						Coordinates *int    `dials:"Coordinates"`
+					}{
+						Location:    &s2,
+						Coordinates: &i1,
+					},
+					AnotherField: &i2,
+				}
+				assert.Equal(t, &b, i)
+			},
+		},
 	}
 
 	for _, testcase := range testCases {
 		tc := testcase
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+			// t.Parallel()
 			itype := reflect.TypeOf(tc.testStruct)
 			sf := reflect.StructField{Name: "ConfigField", Type: itype}
 			configStructType := reflect.StructOf([]reflect.StructField{sf})
@@ -298,5 +451,40 @@ func TestFlattenMangler(t *testing.T) {
 			rv := revVal.FieldByName("ConfigField")
 			tc.assertion(t, rv.Interface())
 		})
+	}
+}
+
+func TestEmbed(t *testing.T) {
+	type Foo struct {
+		Location    string `dials:"Location"`
+		Coordinates int    `dials:"Coordinates"`
+	}
+
+	type EmbeddedFooBar struct {
+		*Foo `dials:"embeddedFoo"`
+	}
+
+	type bar struct {
+		Foobar *EmbeddedFooBar `dials:"Foobar"`
+	}
+
+	efg := EmbeddedFooBar{
+		&Foo{
+			Location:    "here",
+			Coordinates: 64,
+		},
+	}
+
+	b := bar{
+		Foobar: &efg,
+	}
+
+	val := reflect.ValueOf(b)
+	ft := val.Type()
+	for i := 0; i < ft.NumField(); i++ {
+		sf := ft.Field(i)
+		fm := DefaultFlattenMangler()
+		out, _ := fm.flattenStruct(nil, nil, sf)
+		fmt.Println(out)
 	}
 }

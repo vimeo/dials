@@ -92,8 +92,13 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf refle
 	for i := 0; i < ft.NumField(); i++ {
 		nestedsf := ft.Field(i)
 
-		// add the current member name to the list of nested names needed for flattening
-		flattenedNames := append(fieldPrefix[:len(fieldPrefix):len(fieldPrefix)], nestedsf.Name)
+		flattenedNames := fieldPrefix
+
+		// add the current member name to the list of nested names needed for
+		// flattening if not an embedded field
+		if !nestedsf.Anonymous {
+			flattenedNames = append(fieldPrefix[:len(fieldPrefix):len(fieldPrefix)], nestedsf.Name)
+		}
 
 		// add the tag of the current field to the list of flattened tags
 		tag, flattenedTags, tagErr := f.getTag(&nestedsf, tagPrefix)
@@ -134,9 +139,11 @@ func (f *FlattenMangler) getTag(sf *reflect.StructField, tags []string) (reflect
 	// tag already exists so use the existing tag and append to prefix tags
 	if ok {
 		tags = append(tags[:len(tags):len(tags)], tag)
-	} else {
-		// tag doesn't already exist so use the field name
+	} else if !sf.Anonymous {
+		// tag doesn't already exist so use the field name as long as it's not
+		// Anonymous (embedded field)
 		tags = append(tags[:len(tags):len(tags)], sf.Name)
+
 	}
 
 	tagVal := f.tagEncodeCasing(tags)
