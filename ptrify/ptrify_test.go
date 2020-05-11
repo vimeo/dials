@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPointerify(t *testing.T) {
@@ -164,4 +166,23 @@ func TestPointerify(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEmbeddedPointerify(t *testing.T) {
+	type SString struct{ J *string }
+
+	e := struct {
+		SString
+		E bool
+	}{}
+
+	in := reflect.TypeOf(e)
+	v := reflect.ValueOf(e)
+	out := Pointerify(in, v)
+
+	assert.True(t, out.Field(0).Anonymous)
+	assert.Equal(t, "SString", out.Field(0).Name)
+
+	assert.False(t, out.Field(1).Anonymous)
+	assert.Equal(t, "E", out.Field(1).Name)
 }

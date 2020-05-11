@@ -1,6 +1,7 @@
 package transform
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -44,12 +45,12 @@ func TestFlattenMangler(t *testing.T) {
 	}
 
 	efg := embeddedFooBar{
-		"test",
-		Foo{
+		Name: "test",
+		Foo: Foo{
 			Location:    "here",
 			Coordinates: 64,
 		},
-		42,
+		AnotherField: 42,
 	}
 
 	efgt := embeddedFooBarTag{
@@ -214,7 +215,8 @@ func TestFlattenMangler(t *testing.T) {
 					},
 					AnotherField: &i2,
 				}
-				assert.Equal(t, &b, i)
+
+				assert.EqualValues(t, &b, i)
 			},
 		},
 		{
@@ -300,7 +302,7 @@ func TestFlattenMangler(t *testing.T) {
 					DayTripper: &b2,
 				}
 
-				assert.Equal(t, &s, i)
+				assert.EqualValues(t, &s, i)
 			},
 		},
 		{
@@ -338,30 +340,17 @@ func TestFlattenMangler(t *testing.T) {
 				val.Field(3).Set(reflect.ValueOf(&i2))
 			},
 			assertion: func(t testing.TB, i interface{}) {
-				// all the fields are pointerified because of call to Pointerify
-				s1 := "test"
-				s2 := "here"
-				i1 := 64
-				i2 := 42
-				b := struct {
-					Name *string `dials:"Name"`
-					Foo  *struct {
-						Location    *string `dials:"Location"`
-						Coordinates *int    `dials:"Coordinates"`
-					}
-					AnotherField *int `dials:"AnotherField"`
-				}{
-					Name: &s1,
-					Foo: &struct {
-						Location    *string `dials:"Location"`
-						Coordinates *int    `dials:"Coordinates"`
-					}{
-						Location:    &s2,
-						Coordinates: &i1,
-					},
-					AnotherField: &i2,
-				}
-				assert.Equal(t, &b, i)
+				// embedded fields are hard to compare with defined structs because
+				// they are named but the Anonymous field is set to false. So use
+				// JSON marshaling/unmarshalling to compare values
+
+				b, err := json.Marshal(i)
+				assert.NoError(t, err)
+
+				var actual embeddedFooBar
+				err = json.Unmarshal(b, &actual)
+				assert.NoError(t, err)
+				assert.Equal(t, efg, actual)
 			},
 		},
 		{
@@ -385,7 +374,6 @@ func TestFlattenMangler(t *testing.T) {
 				for i := 0; i < vtype.NumField(); i++ {
 					assert.EqualValues(t, expectedTags[i], vtype.Field(i).Tag)
 					assert.EqualValues(t, expectedNames[i], vtype.Field(i).Name)
-
 				}
 
 				s1 := "test"
@@ -399,30 +387,18 @@ func TestFlattenMangler(t *testing.T) {
 				val.Field(3).Set(reflect.ValueOf(&i2))
 			},
 			assertion: func(t testing.TB, i interface{}) {
-				// all the fields are pointerified because of call to Pointerify
-				s1 := "test"
-				s2 := "here"
-				i1 := 64
-				i2 := 42
-				b := struct {
-					Name *string `dials:"Name"`
-					Foo  *struct {
-						Location    *string `dials:"Location"`
-						Coordinates *int    `dials:"Coordinates"`
-					} `dials:"embeddedFoo"`
-					AnotherField *int `dials:"AnotherField"`
-				}{
-					Name: &s1,
-					Foo: &struct {
-						Location    *string `dials:"Location"`
-						Coordinates *int    `dials:"Coordinates"`
-					}{
-						Location:    &s2,
-						Coordinates: &i1,
-					},
-					AnotherField: &i2,
-				}
-				assert.Equal(t, &b, i)
+				// assert.EqualValues doesn't work here with the embedded structs
+				// like it does for nested structs since the values are different
+				// with Anonymous set to true for embedded fields. So using JSON
+				// marshalling to ensure that the values are populated correctly
+				b, err := json.Marshal(i)
+				assert.NoError(t, err)
+
+				var actual embeddedFooBarTag
+				err = json.Unmarshal(b, &actual)
+				assert.NoError(t, err)
+
+				assert.Equal(t, efgt, actual)
 			},
 		},
 	}

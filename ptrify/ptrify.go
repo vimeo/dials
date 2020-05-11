@@ -39,10 +39,11 @@ func Pointerify(original reflect.Type, tmpl reflect.Value) reflect.Type {
 func pointerifyField(originalField reflect.StructField, tmplFieldVal reflect.Value) *reflect.StructField {
 	ft := originalField.Type
 	sf := reflect.StructField{
-		Name:    originalField.Name,
-		Type:    reflect.PtrTo(ft),
-		Tag:     originalField.Tag,
-		PkgPath: originalField.PkgPath,
+		Name:      originalField.Name,
+		Type:      reflect.PtrTo(ft),
+		Tag:       originalField.Tag,
+		PkgPath:   originalField.PkgPath,
+		Anonymous: originalField.Anonymous,
 	}
 	switch ft.Kind() {
 	case reflect.Map, reflect.Slice:
@@ -110,9 +111,10 @@ func pointerifyField(originalField reflect.StructField, tmplFieldVal reflect.Val
 		// need to recursively pointerify the component fields.
 		pointeredStruct := Pointerify(ft, tmplFieldVal)
 		return &reflect.StructField{
-			Name: originalField.Name,
-			Type: reflect.PtrTo(pointeredStruct),
-			Tag:  originalField.Tag,
+			Name:      originalField.Name,
+			Type:      reflect.PtrTo(pointeredStruct),
+			Tag:       originalField.Tag,
+			Anonymous: originalField.Anonymous,
 		}
 	case reflect.Chan, reflect.Func:
 		// channels are not configuration, and defaulting to

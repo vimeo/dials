@@ -70,9 +70,10 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 		name := f.nameEncodeCasing(flattenedName)
 
 		newsf := reflect.StructField{
-			Name: name,
-			Type: sf.Type,
-			Tag:  tag,
+			Name:      name,
+			Type:      sf.Type,
+			Tag:       tag,
+			Anonymous: sf.Anonymous,
 		}
 		out = []reflect.StructField{newsf}
 	}
@@ -119,9 +120,10 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf refle
 		default:
 			name := f.nameEncodeCasing(flattenedNames)
 			newSF := reflect.StructField{
-				Name: name,
-				Type: nestedsf.Type,
-				Tag:  tag,
+				Name:      name,
+				Type:      nestedsf.Type,
+				Tag:       tag,
+				Anonymous: sf.Anonymous,
 			}
 			out = append(out, newSF)
 		}
