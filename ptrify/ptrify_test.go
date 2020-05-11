@@ -169,6 +169,7 @@ func TestPointerify(t *testing.T) {
 }
 
 func TestEmbeddedPointerify(t *testing.T) {
+	t.Parallel()
 	type SString struct{ J *string }
 
 	e := struct {

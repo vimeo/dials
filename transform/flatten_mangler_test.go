@@ -406,7 +406,7 @@ func TestFlattenMangler(t *testing.T) {
 	for _, testcase := range testCases {
 		tc := testcase
 		t.Run(tc.name, func(t *testing.T) {
-			// t.Parallel()
+			t.Parallel()
 			itype := reflect.TypeOf(tc.testStruct)
 			sf := reflect.StructField{Name: "ConfigField", Type: itype}
 			configStructType := reflect.StructOf([]reflect.StructField{sf})
