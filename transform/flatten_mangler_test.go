@@ -341,11 +341,11 @@ func TestFlattenMangler(t *testing.T) {
 			},
 			assertion: func(t testing.TB, i interface{}) {
 				// embedded fields are hard to compare with defined structs because
-				// they are named but the Anonymous field is set to false. So use
+				// they are named but the Anonymous field is set to true. So use
 				// JSON marshaling/unmarshalling to compare values
 
 				b, err := json.Marshal(i)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
 				var actual embeddedFooBar
 				err = json.Unmarshal(b, &actual)
@@ -392,7 +392,7 @@ func TestFlattenMangler(t *testing.T) {
 				// with Anonymous set to true for embedded fields. So using JSON
 				// marshalling to ensure that the values are populated correctly
 				b, err := json.Marshal(i)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
 				var actual embeddedFooBarTag
 				err = json.Unmarshal(b, &actual)
