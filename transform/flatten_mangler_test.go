@@ -1,6 +1,8 @@
 package transform
 
 import (
+	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -10,24 +12,54 @@ import (
 )
 
 func TestFlattenMangler(t *testing.T) {
-	type foo struct {
+	type Foo struct {
 		Location    string `dials:"Location"`
 		Coordinates int    `dials:"Coordinates"`
 	}
 
 	type bar struct {
 		Name         string `dials:"Name"`
-		Foobar       *foo   `dials:"Foobar"`
+		Foobar       *Foo   `dials:"Foobar"`
 		AnotherField int    `dials:"AnotherField"`
+	}
+
+	type embeddedFooBar struct {
+		Name string `dials:"Name"`
+		Foo
+		AnotherField int `dials:"AnotherField"`
+	}
+
+	type embeddedFooBarTag struct {
+		Name         string `dials:"Name"`
+		Foo          `dials:"embeddedFoo"`
+		AnotherField int `dials:"AnotherField"`
 	}
 
 	b := bar{
 		Name: "test",
-		Foobar: &foo{
+		Foobar: &Foo{
 			Location:    "here",
 			Coordinates: 64,
 		},
 		AnotherField: 42,
+	}
+
+	efg := embeddedFooBar{
+		Name: "test",
+		Foo: Foo{
+			Location:    "here",
+			Coordinates: 64,
+		},
+		AnotherField: 42,
+	}
+
+	efgt := embeddedFooBarTag{
+		"test",
+		Foo{
+			Location:    "here",
+			Coordinates: 64,
+		},
+		42,
 	}
 
 	testCases := []struct {
@@ -183,7 +215,8 @@ func TestFlattenMangler(t *testing.T) {
 					},
 					AnotherField: &i2,
 				}
-				assert.Equal(t, &b, i)
+
+				assert.EqualValues(t, &b, i)
 			},
 		},
 		{
@@ -269,7 +302,103 @@ func TestFlattenMangler(t *testing.T) {
 					DayTripper: &b2,
 				}
 
-				assert.Equal(t, &s, i)
+				assert.EqualValues(t, &s, i)
+			},
+		},
+		{
+			name:       "Embedded struct without tag",
+			testStruct: efg,
+			modify: func(t testing.TB, val reflect.Value) {
+				expectedTags := []string{
+					`dials:"ConfigField_Name"`,
+					`dials:"ConfigField_Location"`,
+					`dials:"ConfigField_Coordinates"`,
+					`dials:"ConfigField_AnotherField"`,
+				}
+
+				expectedNames := []string{
+					"ConfigFieldName",
+					"ConfigFieldLocation",
+					"ConfigFieldCoordinates",
+					"ConfigFieldAnotherField",
+				}
+
+				vtype := val.Type()
+				for i := 0; i < vtype.NumField(); i++ {
+					assert.EqualValues(t, expectedTags[i], vtype.Field(i).Tag)
+					assert.EqualValues(t, expectedNames[i], vtype.Field(i).Name)
+				}
+
+				s1 := "test"
+				s2 := "here"
+				i1 := 64
+				i2 := 42
+
+				val.Field(0).Set(reflect.ValueOf(&s1))
+				val.Field(1).Set(reflect.ValueOf(&s2))
+				val.Field(2).Set(reflect.ValueOf(&i1))
+				val.Field(3).Set(reflect.ValueOf(&i2))
+			},
+			assertion: func(t testing.TB, i interface{}) {
+				// embedded fields are hard to compare with defined structs because
+				// they are named but the Anonymous field is set to true. So use
+				// JSON marshaling/unmarshalling to compare values
+
+				b, err := json.Marshal(i)
+				require.NoError(t, err)
+
+				var actual embeddedFooBar
+				err = json.Unmarshal(b, &actual)
+				assert.NoError(t, err)
+				assert.Equal(t, efg, actual)
+			},
+		},
+		{
+			name:       "Embedded struct with tag",
+			testStruct: efgt,
+			modify: func(t testing.TB, val reflect.Value) {
+				expectedTags := []string{
+					`dials:"ConfigField_Name"`,
+					`dials:"ConfigField_embeddedFoo_Location"`,
+					`dials:"ConfigField_embeddedFoo_Coordinates"`,
+					`dials:"ConfigField_AnotherField"`,
+				}
+				expectedNames := []string{
+					"ConfigFieldName",
+					"ConfigFieldLocation",
+					"ConfigFieldCoordinates",
+					"ConfigFieldAnotherField",
+				}
+
+				vtype := val.Type()
+				for i := 0; i < vtype.NumField(); i++ {
+					assert.EqualValues(t, expectedTags[i], vtype.Field(i).Tag)
+					assert.EqualValues(t, expectedNames[i], vtype.Field(i).Name)
+				}
+
+				s1 := "test"
+				s2 := "here"
+				i1 := 64
+				i2 := 42
+
+				val.Field(0).Set(reflect.ValueOf(&s1))
+				val.Field(1).Set(reflect.ValueOf(&s2))
+				val.Field(2).Set(reflect.ValueOf(&i1))
+				val.Field(3).Set(reflect.ValueOf(&i2))
+			},
+			assertion: func(t testing.TB, i interface{}) {
+				// assert.EqualValues doesn't work here with the embedded structs
+				// like it does for nested structs since the values are different
+				// with Anonymous set to true for embedded fields. So using JSON
+				// marshalling to ensure that the values are populated correctly
+				b, err := json.Marshal(i)
+				require.NoError(t, err)
+
+				var actual embeddedFooBarTag
+				err = json.Unmarshal(b, &actual)
+				assert.NoError(t, err)
+
+				assert.Equal(t, efgt, actual)
 			},
 		},
 	}
@@ -298,5 +427,40 @@ func TestFlattenMangler(t *testing.T) {
 			rv := revVal.FieldByName("ConfigField")
 			tc.assertion(t, rv.Interface())
 		})
+	}
+}
+
+func TestEmbed(t *testing.T) {
+	type Foo struct {
+		Location    string `dials:"Location"`
+		Coordinates int    `dials:"Coordinates"`
+	}
+
+	type EmbeddedFooBar struct {
+		*Foo `dials:"embeddedFoo"`
+	}
+
+	type bar struct {
+		Foobar *EmbeddedFooBar `dials:"Foobar"`
+	}
+
+	efg := EmbeddedFooBar{
+		&Foo{
+			Location:    "here",
+			Coordinates: 64,
+		},
+	}
+
+	b := bar{
+		Foobar: &efg,
+	}
+
+	val := reflect.ValueOf(b)
+	ft := val.Type()
+	for i := 0; i < ft.NumField(); i++ {
+		sf := ft.Field(i)
+		fm := DefaultFlattenMangler()
+		out, _ := fm.flattenStruct(nil, nil, sf)
+		fmt.Println(out)
 	}
 }
