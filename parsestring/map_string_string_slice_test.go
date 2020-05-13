@@ -17,7 +17,7 @@ func TestParseMapSlice(t *testing.T) {
 			name:  "simple_origin",
 			input: `"Origin": "foobar"`,
 			expected: map[string][]string{
-				"Origin": []string{"foobar"},
+				"Origin": {"foobar"},
 			},
 			expectedErr: nil,
 		},
@@ -25,7 +25,7 @@ func TestParseMapSlice(t *testing.T) {
 			name:  "origin_with_escape",
 			input: `"Origin": "foobar\"fimbar"`,
 			expected: map[string][]string{
-				"Origin": []string{"foobar\"fimbar"},
+				"Origin": {"foobar\"fimbar"},
 			},
 			expectedErr: nil,
 		},
@@ -33,7 +33,7 @@ func TestParseMapSlice(t *testing.T) {
 			name:  "rawstring_origin",
 			input: "`Origin`: `foobar`",
 			expected: map[string][]string{
-				"Origin": []string{"foobar"},
+				"Origin": {"foobar"},
 			},
 			expectedErr: nil,
 		},
@@ -41,7 +41,7 @@ func TestParseMapSlice(t *testing.T) {
 			name:  "origin_two",
 			input: `"Origin": "foobar", "Origin": "foobat"`,
 			expected: map[string][]string{
-				"Origin": []string{"foobar", "foobat"},
+				"Origin": {"foobar", "foobat"},
 			},
 			expectedErr: nil,
 		},
@@ -49,8 +49,8 @@ func TestParseMapSlice(t *testing.T) {
 			name:  "origin_two_referer",
 			input: `"Origin": "foobar", "Origin": "foobat", "Referer": "fimbat"`,
 			expected: map[string][]string{
-				"Origin":  []string{"foobar", "foobat"},
-				"Referer": []string{"fimbat"},
+				"Origin":  {"foobar", "foobat"},
+				"Referer": {"fimbat"},
 			},
 			expectedErr: nil,
 		},

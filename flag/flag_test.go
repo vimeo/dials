@@ -131,15 +131,15 @@ func TestTable(t *testing.T) {
 		},
 		{
 			name:     "map_string_string_slice_set",
-			tmpl:     &struct{ A map[string][]string }{A: map[string][]string{"z": []string{"i"}}},
+			tmpl:     &struct{ A map[string][]string }{A: map[string][]string{"z": {"i"}}},
 			args:     []string{"--a=l:v,l:z"},
-			expected: &struct{ A map[string][]string }{A: map[string][]string{"l": []string{"v", "z"}}},
+			expected: &struct{ A map[string][]string }{A: map[string][]string{"l": {"v", "z"}}},
 		},
 		{
 			name:     "map_string_string_slice_default",
-			tmpl:     &struct{ A map[string][]string }{A: map[string][]string{"z": []string{"i"}}},
+			tmpl:     &struct{ A map[string][]string }{A: map[string][]string{"z": {"i"}}},
 			args:     []string{},
-			expected: &struct{ A map[string][]string }{A: map[string][]string{"z": []string{"i"}}},
+			expected: &struct{ A map[string][]string }{A: map[string][]string{"z": {"i"}}},
 		},
 		{
 			name:     "string_slice_set",
@@ -155,15 +155,15 @@ func TestTable(t *testing.T) {
 		},
 		{
 			name:     "string_set_set",
-			tmpl:     &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": struct{}{}}},
+			tmpl:     &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
 			args:     []string{"--a=v"},
-			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"v": struct{}{}}},
+			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"v": {}}},
 		},
 		{
 			name:     "string_set_default",
-			tmpl:     &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": struct{}{}}},
+			tmpl:     &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
 			args:     []string{},
-			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": struct{}{}}},
+			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
 		},
 		{
 			name:     "basic_duration_default",
