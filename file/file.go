@@ -106,14 +106,46 @@ func (s *Source) Value(t *dials.Type) (reflect.Value, error) {
 	return decoded, err
 }
 
+// WatchOpts contains options, which can be mutated by a WatchOpt
+type WatchOpts struct {
+	logger       StdLogger
+	pollInterval time.Duration
+	sigCh        chan os.Signal
+}
+
+// WatchOpt functions mutate the state of a WatchOpts, providing optional
+// arguments to NewWatchingSource
+type WatchOpt func(*WatchOpts)
+
+// WithLogger sets a logger on the new WatchingSource.
+func WithLogger(logger StdLogger) WatchOpt {
+	return func(o *WatchOpts) {
+		o.logger = logger
+	}
+}
+
+// WithPollInterval configures the new WatchingSource to use a fallback ticker
+// to trigger polling for changes to files.
+func WithPollInterval(pollInterval time.Duration) WatchOpt {
+	return func(o *WatchOpts) {
+		o.pollInterval = pollInterval
+	}
+}
+
+// WithSignalChannel configures the new WatchingSource to use the provided
+// channel as a manual trigger for rereading the config file (useful with SIGHUP).
+func WithSignalChannel(sigCh chan os.Signal) WatchOpt {
+	return func(o *WatchOpts) {
+		o.sigCh = sigCh
+	}
+}
+
 // NewWatchingSource creates a new file watching source that will reload and
 // notify if the file is updated.
 func NewWatchingSource(
-	logger StdLogger,
 	path string,
 	decoder dials.Decoder,
-	pollInterval time.Duration,
-	reload chan os.Signal,
+	opts ...WatchOpt,
 ) (*WatchingSource, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
@@ -121,14 +153,20 @@ func NewWatchingSource(
 			path, err)
 	}
 
+	o := WatchOpts{}
+
+	for _, opt := range opts {
+		opt(&o)
+	}
+
 	return &WatchingSource{
 		Source: Source{
 			path:    absPath,
 			decoder: decoder,
 		},
-		PollInterval: pollInterval,
-		Reload:       reload,
-		logger:       logWrapper{log: logger},
+		PollInterval: o.pollInterval,
+		Reload:       o.sigCh,
+		logger:       logWrapper{log: o.logger},
 	}, nil
 }
 
