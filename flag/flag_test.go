@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"flag"
+	"fmt"
 	"testing"
 	"time"
 
@@ -178,7 +179,7 @@ func TestTable(t *testing.T) {
 			expected: &struct{ A time.Duration }{A: 3 * time.Millisecond},
 		},
 		{
-			// use time.Time for a couple test-cases since it implementes the UnmarshalText method.
+			// use time.Time for a couple test-cases since it implements the UnmarshalText method.
 			name:     "marshaler_time_set",
 			tmpl:     &struct{ A time.Time }{A: time.Time{}},
 			args:     []string{"--a=2019-12-18T14:00:12Z"},
@@ -265,7 +266,7 @@ func TestTable(t *testing.T) {
 	} {
 		tbl := itbl
 		t.Run(tbl.name, func(t *testing.T) {
-			t.Parallel()
+			// t.Parallel()
 			ctx := context.Background()
 			s, setupErr := NewSetWithArgs(DashesNameConfig(), tbl.tmpl, tbl.args)
 			require.NoError(t, setupErr, "failed to setup Set")
@@ -276,7 +277,7 @@ func TestTable(t *testing.T) {
 				return
 			}
 			require.NoError(t, cfgErr, "failed to stack/Value()")
-
+			fmt.Println("d.View", d.View())
 			assert.EqualValues(t, tbl.expected, d.View())
 		})
 	}
