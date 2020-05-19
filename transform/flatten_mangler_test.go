@@ -112,7 +112,7 @@ func TestFlattenMangler(t *testing.T) {
 			assertion: func(t testing.TB, i interface{}) {
 				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
 				require.NoError(t, timeErr)
-				assert.EqualValues(t, &curTime, i.(*time.Time))
+				assert.EqualValues(t, curTime, *i.(*time.Time))
 			},
 		},
 		{
