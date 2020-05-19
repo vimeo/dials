@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/vimeo/dials"
@@ -42,25 +41,24 @@ type NameConfig struct {
 	TagDecodeCasing caseconversion.DecodeCasingFunc
 }
 
-// DashesNameConfig defines a reasonably-defaulted NameConfig with dashes for
+// DefaultFlagNameConfig defines a reasonably-defaulted NameConfig with dashes for
 // both separators.
-func DashesNameConfig() NameConfig {
-	return NameConfig{
-		FieldNameEncodeCasing: caseconversion.EncodeUpperSnakeCase,
-		FieldNameDecodeCasing: caseconversion.DecodeUpperSnakeCase,
-		TagEncodeCasing:       caseconversion.EncodeCasePreservingSnakeCase}
+func DefaultFlagNameConfig() *NameConfig {
+	return &NameConfig{
+		FieldNameEncodeCasing: caseconversion.EncodeUpperCamelCase,
+		FieldNameDecodeCasing: caseconversion.DecodeUpperCamelCase,
+		TagEncodeCasing:       caseconversion.EncodeCasePreservingSnakeCase,
+		TagDecodeCasing:       caseconversion.DecodeCasePreservingSnakeCase,
+	}
 }
 
 func ptrified(template interface{}) (reflect.Type, error) {
 	val := reflect.ValueOf(template)
-	fmt.Println("val.Kind()", val.Kind())
-	fmt.Println("template", template)
 	if val.Kind() != reflect.Ptr {
 		return nil, fmt.Errorf("non-pointer-type passed: %s", val.Type())
 	}
 
 	val = val.Elem()
-	fmt.Println("val.Kind()", val.Kind())
 	if val.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("pointer-to-non-struct-type passed: %s", val.Type())
 	}
@@ -74,7 +72,7 @@ func ptrified(template interface{}) (reflect.Type, error) {
 // configuration can play nicely with libraries that register flags with the
 // standard library. (or libraries using dials can register flags and let the
 // actual process's Main() call Parse())
-func NewCmdLineSet(cfg NameConfig, template interface{}) (*Set, error) {
+func NewCmdLineSet(cfg *NameConfig, template interface{}) (*Set, error) {
 	ptyp, ptrifyErr := ptrified(template)
 	if ptrifyErr != nil {
 		return nil, ptrifyErr
@@ -97,7 +95,7 @@ func NewCmdLineSet(cfg NameConfig, template interface{}) (*Set, error) {
 }
 
 // NewSetWithArgs creates a new FlagSet and registers flags in it
-func NewSetWithArgs(cfg NameConfig, template interface{}, args []string) (*Set, error) {
+func NewSetWithArgs(cfg *NameConfig, template interface{}, args []string) (*Set, error) {
 	ptyp, ptrifyErr := ptrified(template)
 	if ptrifyErr != nil {
 		return nil, ptrifyErr
@@ -137,7 +135,7 @@ type Set struct {
 	ptrType reflect.Type
 
 	// NameCfg defines tunables for constructing flag-names
-	NameCfg NameConfig
+	NameCfg *NameConfig
 
 	flagsRegistered bool
 	tfmr            *transform.Transformer
@@ -160,9 +158,6 @@ func (s *Set) registerFlags(ptyp reflect.Type) error {
 	fm := transform.NewFlattenMangler(transform.DialsTagName, s.NameCfg.FieldNameEncodeCasing, s.NameCfg.TagEncodeCasing)
 	tfmr := transform.NewTransformer(ptyp, fm)
 	val, TrnslErr := tfmr.Translate()
-	for i := 0; i < val.Type().NumField(); i++ {
-		fmt.Println("i", i, val.Type().Field(i).Name)
-	}
 	if TrnslErr != nil {
 		return TrnslErr
 	}
@@ -364,10 +359,14 @@ func (s *Set) Value(t *dials.Type) (reflect.Value, error) {
 			s.ParseFunc = func() error { return s.Flags.Parse(os.Args[1:]) }
 		}
 	}
+
+	if s.NameCfg == nil {
+		s.NameCfg = DefaultFlagNameConfig()
+	}
+
 	if !s.flagsRegistered {
 		var ptyp reflect.Type
 		if s.ptrType == nil {
-			// ptyp = ptrify.Pointerify(reflect.TypeOf(t.Type()).Elem(), reflect.ValueOf(t.Type()).Elem())
 			ptyp = t.Type()
 		} else {
 			ptyp = s.ptrType
@@ -469,17 +468,27 @@ func willOverflow(val, target reflect.Value) bool {
 
 }
 
-// mkname creates a flag name based on the values of the dialsFlag tag or decoded
-// field name and converting it into kebab case
+// mkname creates a flag name based on the values of the dialsFlag/dials tag or
+// decoded field name and converting it into kebab case
 func (s *Set) mkname(sf reflect.StructField) (string, error) {
+	// use the name from the dialsflag tag for the flag name
 	if name, ok := sf.Tag.Lookup(dialsFlagTag); ok {
 		return name, nil
 	}
-	decoded, decodeErr := s.NameCfg.FieldNameDecodeCasing(sf.Name)
+	// check if the dials tag is populated (it should be once it goes through
+	// the flatten mangler. It won't be populated if it's an embedded field and
+	// the field doesn't have a tag on it)
+	var decoded caseconversion.DecodedIdentifier
+	var decodeErr error
+	if name, ok := sf.Tag.Lookup(transform.DialsTagName); ok {
+		decoded, decodeErr = s.NameCfg.TagDecodeCasing(name)
+	} else {
+		decoded, decodeErr = s.NameCfg.FieldNameDecodeCasing(sf.Name)
+	}
 	if decodeErr != nil {
 		return "", fmt.Errorf("Error creating flag name: %s", decodeErr)
 	}
-	flagName := strings.ToLower(caseconversion.EncodeKebabCase(decoded))
 
+	flagName := caseconversion.EncodeKebabCase(decoded)
 	return flagName, nil
 }

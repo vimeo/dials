@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"flag"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vimeo/dials"
+	"github.com/vimeo/dials/tagformat/caseconversion"
 )
 
 func TestDirectBasic(t *testing.T) {
@@ -263,12 +263,46 @@ func TestTable(t *testing.T) {
 				G struct{ A int }
 			}{F: struct{ A, B int }{A: 42, B: 34}, G: struct{ A int }{A: 5}},
 		},
+		{
+			name: "hierarchical_ints_multi_struct_partially_defaulted _with_tags",
+			tmpl: &struct {
+				F struct {
+					A int `dials:"NotA"`
+					B int
+				}
+				G struct {
+					A int `dialsflag:"NotB"`
+				}
+			}{F: struct {
+				A int `dials:"NotA"`
+				B int
+			}{
+				A: 4, B: 34,
+			},
+				G: struct {
+					A int `dialsflag:"NotB"`
+				}{A: 5234}},
+			args: []string{"--f-nota=42", "--NotB=76"},
+			expected: &struct {
+				F struct{ A, B int }
+				G struct{ A int }
+			}{F: struct{ A, B int }{A: 42, B: 34}, G: struct{ A int }{A: 76}},
+		},
 	} {
 		tbl := itbl
 		t.Run(tbl.name, func(t *testing.T) {
-			// t.Parallel()
+			t.Parallel()
 			ctx := context.Background()
-			s, setupErr := NewSetWithArgs(DashesNameConfig(), tbl.tmpl, tbl.args)
+			// use UpperSnakeCase instead of default (CamelCase) since
+			// single character field names like A and B make it hard to decode
+			// between different fields
+			nameConfig := &NameConfig{
+				FieldNameEncodeCasing: caseconversion.EncodeUpperSnakeCase,
+				FieldNameDecodeCasing: caseconversion.DecodeUpperSnakeCase,
+				TagEncodeCasing:       caseconversion.EncodeCasePreservingSnakeCase,
+				TagDecodeCasing:       caseconversion.DecodeCasePreservingSnakeCase,
+			}
+			s, setupErr := NewSetWithArgs(nameConfig, tbl.tmpl, tbl.args)
 			require.NoError(t, setupErr, "failed to setup Set")
 
 			d, cfgErr := dials.Config(ctx, tbl.tmpl, s)
@@ -277,7 +311,6 @@ func TestTable(t *testing.T) {
 				return
 			}
 			require.NoError(t, cfgErr, "failed to stack/Value()")
-			fmt.Println("d.View", d.View())
 			assert.EqualValues(t, tbl.expected, d.View())
 		})
 	}

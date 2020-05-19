@@ -206,6 +206,31 @@ func DecodeUpperSnakeCase(s string) (DecodedIdentifier, error) {
 	return words, nil
 }
 
+// DecodeCasePreservingSnakeCase decodes Case_Preserving_Snake_Case into into a
+// slice of lower-cased sub-string
+func DecodeCasePreservingSnakeCase(s string) (DecodedIdentifier, error) {
+	if unicode.IsDigit(rune(s[0])) {
+		return nil, fmt.Errorf("Converting case of %q: Case_Preserving_Snake_Case strings can't start with characters of the Decimal Digit category", s)
+	}
+
+	words := []string{}
+	lastBoundary := 0
+
+	for z, char := range s {
+		if char == '_' {
+			// flush
+			if lastBoundary < z {
+				words = append(words, strings.ToLower(s[lastBoundary:z]))
+			}
+			lastBoundary = z + 1
+		} else if !unicode.IsLetter(char) && !unicode.IsDigit(char) {
+			return nil, fmt.Errorf("Converting case of %q: Only characters of the Letter category and '_' can appear in Preserving_Snake_Case strings: %c at byte-offset %d does not comply", s, char, z)
+		}
+	}
+	words = append(words, strings.ToLower(s[lastBoundary:]))
+	return words, nil
+}
+
 func aggregateStringLen(words DecodedIdentifier) int {
 	total := 0
 	for _, w := range words {
