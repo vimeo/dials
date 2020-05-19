@@ -1,6 +1,7 @@
 package transform
 
 import (
+	"encoding"
 	"fmt"
 	"reflect"
 
@@ -10,6 +11,8 @@ import (
 
 // DialsTagName is the name of the dials tag.
 const DialsTagName = "dials"
+
+var textMValue = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 
 // FlattenMangler implements the Mangler interface
 type FlattenMangler struct {
@@ -60,11 +63,11 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 
 	switch k {
 	case reflect.Struct:
-		var err error
-		out, err = f.flattenStruct([]string{sf.Name}, prefixTag, sf)
-		if err != nil {
-			return out, err
+		// only flatten if it doesn't implement TextUnmarshaler
+		if !sf.Type.Implements(textMValue) {
+			return f.flattenStruct([]string{sf.Name}, prefixTag, sf)
 		}
+		fallthrough
 	default:
 		flattenedName := []string{sf.Name}
 		name := f.nameEncodeCasing(flattenedName)
@@ -112,11 +115,16 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf refle
 		nestedK, _ := getUnderlyingKindType(nestedsf.Type)
 		switch nestedK {
 		case reflect.Struct:
-			flattened, err := f.flattenStruct(flattenedNames, flattenedTags, nestedsf)
-			if err != nil {
-				return out, err
+			// only flatten if it doesn't implement TextUnmarshaler
+			if !nestedsf.Type.Implements(textMValue) {
+				flattened, err := f.flattenStruct(flattenedNames, flattenedTags, nestedsf)
+				if err != nil {
+					return out, err
+				}
+				out = append(out, flattened...)
+				continue
 			}
-			out = append(out, flattened...)
+			fallthrough // don't flatten if it implements TextUnmarshaler
 		default:
 			name := f.nameEncodeCasing(flattenedNames)
 			newSF := reflect.StructField{
@@ -191,39 +199,48 @@ func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex 
 
 	switch kind {
 	case reflect.Struct:
-		// the originalVal is a pointer and to go through the fields, we need
-		// the concrete type so create a new struct and remove the pointer
-		setVal := reflect.New(vt)
-		val := setVal.Elem()
+		// go through each field if the struct doesn't implement TextUnmarshaler
+		if !originalVal.Type().Implements(textMValue) {
+			// the originalVal is a pointer and to go through the fields, we need
+			// the concrete type so create a new struct and remove the pointer
+			setVal := reflect.New(vt)
+			val := setVal.Elem()
 
-		// go through each member in the struct and populate. Recurse if one of
-		// the members is a nested struct. Otherwise populate the field
-		for i := 0; i < val.NumField(); i++ {
-			nestedVal := val.Field(i)
-			// remove pointers to get the underlying kind. Ignoring the type
-			kind, _ := getUnderlyingKindType(nestedVal.Type())
+			// go through each member in the struct and populate. Recurse if one of
+			// the members is a nested struct. Otherwise populate the field
+			for i := 0; i < val.NumField(); i++ {
+				nestedVal := val.Field(i)
+				// remove pointers to get the underlying kind. Ignoring the type
+				kind, _ := getUnderlyingKindType(nestedVal.Type())
 
-			switch kind {
-			case reflect.Struct:
-				var err error
-				inputIndex, err = populateStruct(nestedVal, vs, inputIndex)
-				if err != nil {
-					return inputIndex, err
-				}
-			default:
-				if !nestedVal.CanSet() {
-					return inputIndex, fmt.Errorf("Nested value %s under %s cannot be set", nestedVal, originalVal)
-				}
+				switch kind {
+				case reflect.Struct:
+					if !nestedVal.Type().Implements(textMValue) {
+						var err error
+						inputIndex, err = populateStruct(nestedVal, vs, inputIndex)
+						if err != nil {
+							return inputIndex, err
+						}
+						continue
+					}
+					fallthrough
+				default:
+					if !nestedVal.CanSet() {
+						return inputIndex, fmt.Errorf("Nested value %s under %s cannot be set", nestedVal, originalVal)
+					}
 
-				if !vs[inputIndex].Value.Type().AssignableTo(nestedVal.Type()) {
-					return inputIndex, fmt.Errorf("Error unmangling. Expected type %s. Actual type %s", vs[inputIndex].Value.Type(), nestedVal.Type())
+					if !vs[inputIndex].Value.Type().AssignableTo(nestedVal.Type()) {
+						return inputIndex, fmt.Errorf("Error unmangling. Expected type %s. Actual type %s", vs[inputIndex].Value.Type(), nestedVal.Type())
+					}
+					nestedVal.Set(vs[inputIndex].Value)
+					inputIndex++
 				}
-				nestedVal.Set(vs[inputIndex].Value)
-				inputIndex++
 			}
+			setVal.Elem().Set(val)
+			originalVal.Set(setVal)
+			return inputIndex, nil
 		}
-		setVal.Elem().Set(val)
-		originalVal.Set(setVal)
+		fallthrough
 	default:
 		originalVal.Set(vs[inputIndex].Value)
 		inputIndex++
