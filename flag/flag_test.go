@@ -16,14 +16,21 @@ import (
 func TestDirectBasic(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
+	type Embed struct {
+		Foo string `dialsflag:"foofoo"`
+		Bar bool   // will have tag of "Bar" after flatten mangler
+	}
 	type Config struct {
 		Hello string
 		World bool
+		Embed
 	}
 	fs := flag.NewFlagSet("test flags", flag.ContinueOnError)
 	src := &Set{
-		Flags:     fs,
-		ParseFunc: func() error { return fs.Parse([]string{"-world", "-hello=foobar"}) },
+		Flags: fs,
+		ParseFunc: func() error {
+			return fs.Parse([]string{"-world", "-hello=foobar", "-foofoo=something", "-bar"})
+		},
 	}
 	buf := &bytes.Buffer{}
 	src.Flags.SetOutput(buf)
@@ -45,6 +52,14 @@ func TestDirectBasic(t *testing.T) {
 	}
 	if !got.World {
 		t.Errorf("expected World to be true, got %t", got.World)
+	}
+
+	if got.Foo != "something" {
+		t.Errorf("expected \"something\" for Foo, got %q", got.Foo)
+	}
+
+	if !got.Bar {
+		t.Errorf("expected Bar to be true, got %t", got.Bar)
 	}
 }
 

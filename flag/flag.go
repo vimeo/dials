@@ -468,7 +468,7 @@ func willOverflow(val, target reflect.Value) bool {
 
 }
 
-// mkname creates a flag name based on the values of the dialsFlag/dials tag or
+// mkname creates a flag name based on the values of the dialsflag/dials tag or
 // decoded field name and converting it into kebab case
 func (s *Set) mkname(sf reflect.StructField) (string, error) {
 	// use the name from the dialsflag tag for the flag name
