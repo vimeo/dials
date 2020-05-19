@@ -11,6 +11,16 @@ import (
 	"github.com/vimeo/dials/ptrify"
 )
 
+type tu struct {
+	Text      string
+	Unmarshal string
+}
+
+// need a concrete type that implements TextUnmarshaler
+func (u tu) UnmarshalText(data []byte) error {
+	return nil
+}
+
 func TestFlattenMangler(t *testing.T) {
 	type Foo struct {
 		Location    string `dials:"Location"`
@@ -448,6 +458,62 @@ func TestFlattenMangler(t *testing.T) {
 				}{
 					A: &curTime,
 					B: &int1,
+				}
+				assert.EqualValues(t, b, i)
+			},
+		},
+		{
+			name: "unmarshal text concrete type",
+			testStruct: &struct {
+				A time.Time
+				B int
+				T tu
+			}{
+				A: time.Time{},
+				B: 8,
+				T: tu{Text: "Hello", Unmarshal: "World"},
+			},
+			modify: func(t testing.TB, val reflect.Value) {
+				require.Equal(t, 3, val.Type().NumField())
+
+				s := []string{
+					"ConfigFieldA",
+					"ConfigFieldB",
+					"ConfigFieldT",
+				}
+
+				for i := 0; i < val.Type().NumField(); i++ {
+					assert.Equal(t, s[i], val.Type().Field(i).Name)
+				}
+
+				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
+				require.NoError(t, timeErr)
+				int1 := 1
+				testtu := tu{
+					Text:      "Hey",
+					Unmarshal: "Jude",
+				}
+				val.Field(0).Set(reflect.ValueOf(&curTime))
+				val.Field(1).Set(reflect.ValueOf(&int1))
+				val.Field(2).Set(reflect.ValueOf(&testtu))
+			},
+			assertion: func(t testing.TB, i interface{}) {
+				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
+				require.NoError(t, timeErr)
+				int1 := 1
+				testtu := tu{
+					Text:      "Hey",
+					Unmarshal: "Jude",
+				}
+
+				b := &struct {
+					A *time.Time `dials:"A"`
+					B *int       `dials:"B"`
+					T *tu        `dials:"T"`
+				}{
+					A: &curTime,
+					B: &int1,
+					T: &testtu,
 				}
 				assert.EqualValues(t, b, i)
 			},
