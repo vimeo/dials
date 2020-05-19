@@ -476,8 +476,7 @@ func (s *Set) mkname(sf reflect.StructField) (string, error) {
 		return name, nil
 	}
 	// check if the dials tag is populated (it should be once it goes through
-	// the flatten mangler. It won't be populated if it's an embedded field and
-	// the field doesn't have a tag on it)
+	// the flatten mangler.
 	var decoded caseconversion.DecodedIdentifier
 	var decodeErr error
 	if name, ok := sf.Tag.Lookup(transform.DialsTagName); ok {
