@@ -26,9 +26,10 @@ type Source struct {
 // it to UPPER_SNAKE_CASE. (The casing of `dials_env` and `dials` tags is left
 // unchanged.)
 func (e *Source) Value(t *dials.Type) (reflect.Value, error) {
-	stringCastingMangler := &transform.StringCastingMangler{}
 	tagCopyingMangler := &tagformat.TagCopyingMangler{SrcTag: transform.DialsTagName, NewTag: envTagName}
-	tfmr := transform.NewTransformer(t.Type(), stringCastingMangler, tagCopyingMangler)
+	flattenMangler := transform.NewFlattenMangler(transform.DialsTagName, caseconversion.EncodeUpperCamelCase, caseconversion.EncodeUpperSnakeCase)
+	stringCastingMangler := &transform.StringCastingMangler{}
+	tfmr := transform.NewTransformer(t.Type(), tagCopyingMangler, flattenMangler, stringCastingMangler)
 
 	val, err := tfmr.Translate()
 	if err != nil {
