@@ -206,7 +206,7 @@ func DecodeUpperSnakeCase(s string) (DecodedIdentifier, error) {
 	return words, nil
 }
 
-// DecodeCasePreservingSnakeCase decodes Case_Preserving_Snake_Case into into a
+// DecodeCasePreservingSnakeCase decodes Case_Preserving_Snake_Case into a
 // slice of lower-cased sub-string
 func DecodeCasePreservingSnakeCase(s string) (DecodedIdentifier, error) {
 	if unicode.IsDigit(rune(s[0])) {
