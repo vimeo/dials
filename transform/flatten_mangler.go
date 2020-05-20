@@ -12,8 +12,8 @@ import (
 // DialsTagName is the name of the dials tag.
 const DialsTagName = "dials"
 
-// TextMReflectType is a reflect.Type of TextUnmarshaler
-var TextMReflectType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+// textMReflectType is a reflect.Type of TextUnmarshaler
+var textMReflectType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 
 // FlattenMangler implements the Mangler interface
 type FlattenMangler struct {
@@ -64,8 +64,8 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 
 	switch k {
 	case reflect.Struct:
-		// only flatten if it doesn't implement TextUnmarshaler
-		if sf.Type.Implements(TextMReflectType) || t.Implements(TextMReflectType) {
+		// only flatten the struct doesn't implement TextUnmarshaler
+		if t.Implements(textMReflectType) || reflect.PtrTo(t).Implements(textMReflectType) {
 			break
 		}
 		return f.flattenStruct([]string{sf.Name}, prefixTag, sf)
@@ -117,8 +117,8 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf refle
 		nestedK, nestedT := getUnderlyingKindType(nestedsf.Type)
 		switch nestedK {
 		case reflect.Struct:
-			// don't flatten if it implements TextUnmarshaler
-			if nestedsf.Type.Implements(TextMReflectType) || nestedT.Implements(TextMReflectType) {
+			// don't flatten if struct implements TextUnmarshaler
+			if nestedT.Implements(textMReflectType) || reflect.PtrTo(nestedT).Implements(textMReflectType) {
 				break
 			}
 			flattened, err := f.flattenStruct(flattenedNames, flattenedTags, nestedsf)
@@ -203,7 +203,7 @@ func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex 
 	switch kind {
 	case reflect.Struct:
 		// go through each field if the struct doesn't implement TextUnmarshaler
-		if originalVal.Type().Implements(TextMReflectType) || vt.Implements(TextMReflectType) {
+		if vt.Implements(textMReflectType) || reflect.PtrTo(vt).Implements(textMReflectType) {
 			break
 		}
 		// the originalVal is a pointer and to go through the fields, we need
@@ -220,7 +220,8 @@ func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex 
 
 			switch kind {
 			case reflect.Struct:
-				if nestedVal.Type().Implements(TextMReflectType) || t.Implements(TextMReflectType) {
+				// don't flatten if the struct implements TextUnmarshaler
+				if t.Implements(textMReflectType) || reflect.PtrTo(t).Implements(textMReflectType) {
 					break // break out of the case, still stays within the for loop
 				}
 				var err error
