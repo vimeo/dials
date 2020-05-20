@@ -336,8 +336,11 @@ func stripPtrs(val reflect.Value) reflect.Value {
 	return val
 }
 
-// Value implements dials.Source, taking a dials type and returning a
-// reflect.Value representing the values of the flags.
+// Value fills in the user-provided config struct using flags. It looks up the
+// flags to bind into a given struct field by using that field's `dialsflag`
+// struct tag if present, then its `dials` tag if present, and finally its name.
+// If the struct has nested fields, Value will flatten the fields so flags can
+// be defined for nested fields.
 func (s *Set) Value(t *dials.Type) (reflect.Value, error) {
 	// Check whether we've gone through the exercise of parsing flags yet
 	// (and types are compatible).
@@ -476,7 +479,8 @@ func (s *Set) mkname(sf reflect.StructField) (string, error) {
 		return name, nil
 	}
 	// check if the dials tag is populated (it should be once it goes through
-	// the flatten mangler.
+	// the flatten mangler). Have the else statement to catch any instances
+	// where we might have overlooked adding tags in flatten mangler
 	var decoded caseconversion.DecodedIdentifier
 	var decodeErr error
 	if name, ok := sf.Tag.Lookup(transform.DialsTagName); ok {
