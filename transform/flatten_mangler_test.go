@@ -2,14 +2,24 @@ package transform
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vimeo/dials/ptrify"
 )
+
+type tu struct {
+	Text      string
+	Unmarshal string
+}
+
+// need a concrete type that implements TextUnmarshaler
+func (u tu) UnmarshalText(data []byte) error {
+	return nil
+}
 
 func TestFlattenMangler(t *testing.T) {
 	type Foo struct {
@@ -98,6 +108,21 @@ func TestFlattenMangler(t *testing.T) {
 					"flatten": "unflatten",
 				}
 				assert.Equal(t, m, i.(map[string]string))
+			},
+		},
+		{
+			name:       "one member in struct of type time.Time",
+			testStruct: time.Time{},
+			modify: func(t testing.TB, val reflect.Value) {
+				assert.Equal(t, "ConfigField", val.Type().Field(0).Name)
+				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
+				require.NoError(t, timeErr)
+				val.Field(0).Set(reflect.ValueOf(&curTime))
+			},
+			assertion: func(t testing.TB, i interface{}) {
+				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
+				require.NoError(t, timeErr)
+				assert.EqualValues(t, curTime, *i.(*time.Time))
 			},
 		},
 		{
@@ -401,6 +426,98 @@ func TestFlattenMangler(t *testing.T) {
 				assert.Equal(t, efgt, actual)
 			},
 		},
+		{
+			name: "support time.Time",
+			testStruct: &struct {
+				A time.Time
+				B int
+			}{
+				A: time.Time{},
+				B: 8,
+			},
+			modify: func(t testing.TB, val reflect.Value) {
+				require.Equal(t, 2, val.Type().NumField())
+
+				assert.Equal(t, "ConfigFieldA", val.Type().Field(0).Name)
+				assert.Equal(t, "ConfigFieldB", val.Type().Field(1).Name)
+
+				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
+				require.NoError(t, timeErr)
+				int1 := 1
+				val.Field(0).Set(reflect.ValueOf(&curTime))
+				val.Field(1).Set(reflect.ValueOf(&int1))
+			},
+			assertion: func(t testing.TB, i interface{}) {
+				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
+				require.NoError(t, timeErr)
+				int1 := 1
+
+				b := &struct {
+					A *time.Time `dials:"A"`
+					B *int       `dials:"B"`
+				}{
+					A: &curTime,
+					B: &int1,
+				}
+				assert.EqualValues(t, b, i)
+			},
+		},
+		{
+			name: "unmarshal text concrete type",
+			testStruct: &struct {
+				A time.Time
+				B int
+				T tu
+			}{
+				A: time.Time{},
+				B: 8,
+				T: tu{Text: "Hello", Unmarshal: "World"},
+			},
+			modify: func(t testing.TB, val reflect.Value) {
+				require.Equal(t, 3, val.Type().NumField())
+
+				s := []string{
+					"ConfigFieldA",
+					"ConfigFieldB",
+					"ConfigFieldT",
+				}
+
+				for i := 0; i < val.Type().NumField(); i++ {
+					assert.Equal(t, s[i], val.Type().Field(i).Name)
+				}
+
+				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
+				require.NoError(t, timeErr)
+				int1 := 1
+				testtu := tu{
+					Text:      "Hey",
+					Unmarshal: "Jude",
+				}
+				val.Field(0).Set(reflect.ValueOf(&curTime))
+				val.Field(1).Set(reflect.ValueOf(&int1))
+				val.Field(2).Set(reflect.ValueOf(&testtu))
+			},
+			assertion: func(t testing.TB, i interface{}) {
+				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
+				require.NoError(t, timeErr)
+				int1 := 1
+				testtu := tu{
+					Text:      "Hey",
+					Unmarshal: "Jude",
+				}
+
+				b := &struct {
+					A *time.Time `dials:"A"`
+					B *int       `dials:"B"`
+					T *tu        `dials:"T"`
+				}{
+					A: &curTime,
+					B: &int1,
+					T: &testtu,
+				}
+				assert.EqualValues(t, b, i)
+			},
+		},
 	}
 
 	for _, testcase := range testCases {
@@ -427,40 +544,5 @@ func TestFlattenMangler(t *testing.T) {
 			rv := revVal.FieldByName("ConfigField")
 			tc.assertion(t, rv.Interface())
 		})
-	}
-}
-
-func TestEmbed(t *testing.T) {
-	type Foo struct {
-		Location    string `dials:"Location"`
-		Coordinates int    `dials:"Coordinates"`
-	}
-
-	type EmbeddedFooBar struct {
-		*Foo `dials:"embeddedFoo"`
-	}
-
-	type bar struct {
-		Foobar *EmbeddedFooBar `dials:"Foobar"`
-	}
-
-	efg := EmbeddedFooBar{
-		&Foo{
-			Location:    "here",
-			Coordinates: 64,
-		},
-	}
-
-	b := bar{
-		Foobar: &efg,
-	}
-
-	val := reflect.ValueOf(b)
-	ft := val.Type()
-	for i := 0; i < ft.NumField(); i++ {
-		sf := ft.Field(i)
-		fm := DefaultFlattenMangler()
-		out, _ := fm.flattenStruct(nil, nil, sf)
-		fmt.Println(out)
 	}
 }

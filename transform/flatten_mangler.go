@@ -1,6 +1,7 @@
 package transform
 
 import (
+	"encoding"
 	"fmt"
 	"reflect"
 
@@ -10,6 +11,9 @@ import (
 
 // DialsTagName is the name of the dials tag.
 const DialsTagName = "dials"
+
+// textMReflectType is a reflect.Type of TextUnmarshaler
+var textMReflectType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 
 // FlattenMangler implements the Mangler interface
 type FlattenMangler struct {
@@ -48,8 +52,8 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 			sf.Type)
 	}
 
-	// get the underlying element kind and ignore the underlying type here
-	k, _ := getUnderlyingKindType(sf.Type)
+	// get the underlying element kind and type
+	k, t := getUnderlyingKindType(sf.Type)
 
 	out := []reflect.StructField{}
 
@@ -60,23 +64,24 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 
 	switch k {
 	case reflect.Struct:
-		var err error
-		out, err = f.flattenStruct([]string{sf.Name}, prefixTag, sf)
-		if err != nil {
-			return out, err
+		// only flatten the struct if it doesn't implement TextUnmarshaler
+		if t.Implements(textMReflectType) || reflect.PtrTo(t).Implements(textMReflectType) {
+			break
 		}
+		return f.flattenStruct([]string{sf.Name}, prefixTag, sf)
 	default:
-		flattenedName := []string{sf.Name}
-		name := f.nameEncodeCasing(flattenedName)
-
-		newsf := reflect.StructField{
-			Name:      name,
-			Type:      sf.Type,
-			Tag:       tag,
-			Anonymous: sf.Anonymous,
-		}
-		out = []reflect.StructField{newsf}
 	}
+
+	flattenedName := []string{sf.Name}
+	name := f.nameEncodeCasing(flattenedName)
+
+	newsf := reflect.StructField{
+		Name:      name,
+		Type:      sf.Type,
+		Tag:       tag,
+		Anonymous: sf.Anonymous,
+	}
+	out = []reflect.StructField{newsf}
 
 	return out, nil
 }
@@ -109,24 +114,30 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf refle
 
 		// get the underlying type after removing pointer for each member
 		// of the struct. Ignoring type
-		nestedK, _ := getUnderlyingKindType(nestedsf.Type)
+		nestedK, nestedT := getUnderlyingKindType(nestedsf.Type)
 		switch nestedK {
 		case reflect.Struct:
+			// don't flatten if struct implements TextUnmarshaler
+			if nestedT.Implements(textMReflectType) || reflect.PtrTo(nestedT).Implements(textMReflectType) {
+				break
+			}
 			flattened, err := f.flattenStruct(flattenedNames, flattenedTags, nestedsf)
 			if err != nil {
 				return out, err
 			}
 			out = append(out, flattened...)
+			continue
 		default:
-			name := f.nameEncodeCasing(flattenedNames)
-			newSF := reflect.StructField{
-				Name:      name,
-				Type:      nestedsf.Type,
-				Tag:       tag,
-				Anonymous: sf.Anonymous,
-			}
-			out = append(out, newSF)
+
 		}
+		name := f.nameEncodeCasing(flattenedNames)
+		newSF := reflect.StructField{
+			Name:      name,
+			Type:      nestedsf.Type,
+			Tag:       tag,
+			Anonymous: sf.Anonymous,
+		}
+		out = append(out, newSF)
 	}
 
 	return out, nil
@@ -191,6 +202,10 @@ func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex 
 
 	switch kind {
 	case reflect.Struct:
+		// go through each field if the struct doesn't implement TextUnmarshaler
+		if vt.Implements(textMReflectType) || reflect.PtrTo(vt).Implements(textMReflectType) {
+			break
+		}
 		// the originalVal is a pointer and to go through the fields, we need
 		// the concrete type so create a new struct and remove the pointer
 		setVal := reflect.New(vt)
@@ -201,33 +216,39 @@ func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex 
 		for i := 0; i < val.NumField(); i++ {
 			nestedVal := val.Field(i)
 			// remove pointers to get the underlying kind. Ignoring the type
-			kind, _ := getUnderlyingKindType(nestedVal.Type())
+			kind, t := getUnderlyingKindType(nestedVal.Type())
 
 			switch kind {
 			case reflect.Struct:
+				// don't flatten if the struct implements TextUnmarshaler
+				if t.Implements(textMReflectType) || reflect.PtrTo(t).Implements(textMReflectType) {
+					break // break out of the case, still stays within the for loop
+				}
 				var err error
 				inputIndex, err = populateStruct(nestedVal, vs, inputIndex)
 				if err != nil {
 					return inputIndex, err
 				}
+				continue
 			default:
-				if !nestedVal.CanSet() {
-					return inputIndex, fmt.Errorf("Nested value %s under %s cannot be set", nestedVal, originalVal)
-				}
-
-				if !vs[inputIndex].Value.Type().AssignableTo(nestedVal.Type()) {
-					return inputIndex, fmt.Errorf("Error unmangling. Expected type %s. Actual type %s", vs[inputIndex].Value.Type(), nestedVal.Type())
-				}
-				nestedVal.Set(vs[inputIndex].Value)
-				inputIndex++
 			}
+			if !nestedVal.CanSet() {
+				return inputIndex, fmt.Errorf("Nested value %s under %s cannot be set", nestedVal, originalVal)
+			}
+
+			if !vs[inputIndex].Value.Type().AssignableTo(nestedVal.Type()) {
+				return inputIndex, fmt.Errorf("Error unmangling. Expected type %s. Actual type %s", vs[inputIndex].Value.Type(), nestedVal.Type())
+			}
+			nestedVal.Set(vs[inputIndex].Value)
+			inputIndex++
 		}
 		setVal.Elem().Set(val)
 		originalVal.Set(setVal)
+		return inputIndex, nil
 	default:
-		originalVal.Set(vs[inputIndex].Value)
-		inputIndex++
 	}
+	originalVal.Set(vs[inputIndex].Value)
+	inputIndex++
 
 	return inputIndex, nil
 }
