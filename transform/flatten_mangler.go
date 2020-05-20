@@ -64,7 +64,7 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 
 	switch k {
 	case reflect.Struct:
-		// only flatten the struct doesn't implement TextUnmarshaler
+		// only flatten the struct if it doesn't implement TextUnmarshaler
 		if t.Implements(textMReflectType) || reflect.PtrTo(t).Implements(textMReflectType) {
 			break
 		}
