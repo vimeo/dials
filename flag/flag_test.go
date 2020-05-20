@@ -18,7 +18,7 @@ func TestDirectBasic(t *testing.T) {
 	defer cancel()
 	type Embed struct {
 		Foo string `dialsflag:"foofoo"`
-		Bar bool   // will have tag of "Bar" after flatten mangler
+		Bar bool   // will have dials tag "Bar" after flatten mangler
 	}
 	type Config struct {
 		Hello string
@@ -194,7 +194,7 @@ func TestTable(t *testing.T) {
 			expected: &struct{ A time.Duration }{A: 3 * time.Millisecond},
 		},
 		{
-			// use time.Time for a couple test-cases since it implements the UnmarshalText method.
+			// use time.Time for a of couple test-cases since it implements TextUnmarshaler
 			name:     "marshaler_time_set",
 			tmpl:     &struct{ A time.Time }{A: time.Time{}},
 			args:     []string{"--a=2019-12-18T14:00:12Z"},

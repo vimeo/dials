@@ -38,11 +38,16 @@ type NameConfig struct {
 	FieldNameDecodeCasing caseconversion.DecodeCasingFunc
 	// TagEncodeCasing is for the tag names used by the flatten mangler
 	TagEncodeCasing caseconversion.EncodeCasingFunc
+	// TagDecodeCasing is the corresponding decoding of the tag used to parse the
+	// flag name
 	TagDecodeCasing caseconversion.DecodeCasingFunc
 }
 
-// DefaultFlagNameConfig defines a reasonably-defaulted NameConfig with dashes for
-// both separators.
+// TODO(@sachi): update to EncodeGolangCamelCase and DecodeGolangCamelCase for
+// FieldName casings once the EncodeGolangCamelCase function exists
+
+// DefaultFlagNameConfig defines a reasonably-defaulted NameConfig for field names
+// and tags
 func DefaultFlagNameConfig() *NameConfig {
 	return &NameConfig{
 		FieldNameEncodeCasing: caseconversion.EncodeUpperCamelCase,
