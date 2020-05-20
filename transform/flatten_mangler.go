@@ -68,7 +68,11 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 		if t.Implements(textMReflectType) || reflect.PtrTo(t).Implements(textMReflectType) {
 			break
 		}
-		return f.flattenStruct([]string{sf.Name}, prefixTag, sf)
+		fieldPrefix := []string{}
+		if !sf.Anonymous {
+			fieldPrefix = append(fieldPrefix, sf.Name)
+		}
+		return f.flattenStruct(fieldPrefix, prefixTag, sf)
 	default:
 	}
 

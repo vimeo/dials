@@ -546,3 +546,40 @@ func TestFlattenMangler(t *testing.T) {
 		})
 	}
 }
+
+func TestTopLevelEmbed(t *testing.T) {
+	t.Parallel()
+
+	type Embed struct {
+		Foo string `dials:"foofoo"`
+		Bar bool   // will have dials tag "Bar" after flatten mangler
+	}
+	type Config struct {
+		Hello string
+		Embed `dials:"creative_name"`
+	}
+
+	c := &Config{}
+	typeOfC := reflect.TypeOf(c)
+	tVal := reflect.ValueOf(c)
+	typeInstance := ptrify.Pointerify(typeOfC.Elem(), tVal.Elem())
+
+	f := DefaultFlattenMangler()
+	tfmr := NewTransformer(typeInstance, f)
+	val, err := tfmr.Translate()
+	require.NoError(t, err)
+
+	expectedNames := []string{
+		"Hello", "Foo", "Bar",
+	}
+
+	expectedTags := []string{
+		`dials:"Hello"`,
+		`dials:"creative_name_foofoo"`,
+		`dials:"creative_name_Bar"`,
+	}
+	for i := 0; i < val.Type().NumField(); i++ {
+		assert.Equal(t, expectedNames[i], val.Type().Field(i).Name)
+		assert.EqualValues(t, expectedTags[i], val.Type().Field(i).Tag)
+	}
+}
