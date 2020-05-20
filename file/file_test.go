@@ -64,7 +64,7 @@ func TestWatchingFile(t *testing.T) {
 
 	myConfig := &config{}
 
-	watchingFile, watchingErr := NewWatchingSource(&testStdLogger{t}, firstConfig, &json.Decoder{}, 0, nil)
+	watchingFile, watchingErr := NewWatchingSource(firstConfig, &json.Decoder{}, WithLogger(&testStdLogger{t}))
 	require.NoError(t, watchingErr, "construction failure")
 	defer watchingFile.WG.Wait()
 
@@ -124,7 +124,7 @@ func TestWatchingFileWithRelativePathAndChdir(t *testing.T) {
 	relFname, relErr := filepath.Rel(dir, firstConfig)
 	require.NoErrorf(t, relErr, "failed to construct relative path from dir %q to firstconfig %q", dir, firstConfig)
 
-	watchingFile, watchingErr := NewWatchingSource(&testStdLogger{t}, relFname, &json.Decoder{}, 0, nil)
+	watchingFile, watchingErr := NewWatchingSource(relFname, &json.Decoder{}, WithLogger(&testStdLogger{t}))
 	require.NoError(t, watchingErr, "construction failure")
 	defer watchingFile.WG.Wait()
 
@@ -174,7 +174,7 @@ func TestWatchingFileWithRemove(t *testing.T) {
 
 	myConfig := &config{}
 
-	watchingFile, watchingErr := NewWatchingSource(&testStdLogger{t}, firstConfig, &json.Decoder{}, 0, nil)
+	watchingFile, watchingErr := NewWatchingSource(firstConfig, &json.Decoder{}, WithLogger(&testStdLogger{t}))
 	require.NoError(t, watchingErr, "construction failure")
 	defer watchingFile.WG.Wait()
 
@@ -229,7 +229,7 @@ func TestWatchingFileWithTrickle(t *testing.T) {
 
 	myConfig := &config{}
 
-	watchingFile, watchingErr := NewWatchingSource(&testStdLogger{t}, firstConfig, &json.Decoder{}, 0, nil)
+	watchingFile, watchingErr := NewWatchingSource(firstConfig, &json.Decoder{}, WithLogger(&testStdLogger{t}))
 	require.NoError(t, watchingErr, "construction failure")
 	defer watchingFile.WG.Wait()
 
@@ -330,7 +330,7 @@ func TestWatchingFileWithK8SEmulatedAtomicWriter(t *testing.T) {
 
 	myConfig := &config{}
 
-	watchingFile, watchingErr := NewWatchingSource(&testStdLogger{t}, configPath, &json.Decoder{}, 0, nil)
+	watchingFile, watchingErr := NewWatchingSource(configPath, &json.Decoder{}, WithLogger(&testStdLogger{t}))
 	require.NoError(t, watchingErr, "construction failure")
 	defer watchingFile.WG.Wait()
 
