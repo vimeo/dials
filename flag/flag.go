@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/vimeo/dials"
@@ -38,9 +39,6 @@ type NameConfig struct {
 	FieldNameDecodeCasing caseconversion.DecodeCasingFunc
 	// TagEncodeCasing is for the tag names used by the flatten mangler
 	TagEncodeCasing caseconversion.EncodeCasingFunc
-	// TagDecodeCasing is the corresponding decoding of the tag used to parse the
-	// flag name
-	TagDecodeCasing caseconversion.DecodeCasingFunc
 }
 
 // TODO(@sachi): update FieldNameEncodeCasing to EncodeGolangCamelCase
@@ -52,8 +50,7 @@ func DefaultFlagNameConfig() *NameConfig {
 	return &NameConfig{
 		FieldNameEncodeCasing: caseconversion.EncodeUpperCamelCase,
 		FieldNameDecodeCasing: caseconversion.DecodeGoCamelCase,
-		TagEncodeCasing:       caseconversion.EncodeCasePreservingSnakeCase,
-		TagDecodeCasing:       caseconversion.DecodeCasePreservingSnakeCase,
+		TagEncodeCasing:       caseconversion.EncodeKebabCase,
 	}
 }
 
@@ -186,10 +183,7 @@ func (s *Set) registerFlags(ptyp reflect.Type) error {
 			help = x
 		}
 
-		name, nameErr := s.mkname(sf)
-		if nameErr != nil {
-			return nameErr
-		}
+		name := s.mkname(sf)
 		s.flagFieldName[name] = sf.Name
 
 		// if the flag already exists, don't register so the user can override
@@ -298,8 +292,7 @@ func (s *Set) registerFlags(ptyp reflect.Type) error {
 			case stringSet:
 				s.Flags.Var(&stringSetFlag{ptr.(*map[string]struct{})}, name, help)
 			default:
-				return fmt.Errorf("unhandled type %s",
-					ft)
+				return fmt.Errorf("unhandled type %s", ft)
 			}
 		default:
 			return fmt.Errorf("unhandled type %s", ft)
@@ -478,25 +471,19 @@ func willOverflow(val, target reflect.Value) bool {
 
 // mkname creates a flag name based on the values of the dialsflag/dials tag or
 // decoded field name and converting it into kebab case
-func (s *Set) mkname(sf reflect.StructField) (string, error) {
+func (s *Set) mkname(sf reflect.StructField) string {
 	// use the name from the dialsflag tag for the flag name
 	if name, ok := sf.Tag.Lookup(dialsFlagTag); ok {
-		return name, nil
+		return name
 	}
 	// check if the dials tag is populated (it should be once it goes through
-	// the flatten mangler). Have the else statement to catch any instances
-	// where we might have overlooked adding tags in flatten mangler
-	var decoded caseconversion.DecodedIdentifier
-	var decodeErr error
+	// the flatten mangler).
 	if name, ok := sf.Tag.Lookup(transform.DialsTagName); ok {
-		decoded, decodeErr = s.NameCfg.TagDecodeCasing(name)
-	} else {
-		decoded, decodeErr = s.NameCfg.FieldNameDecodeCasing(sf.Name)
-	}
-	if decodeErr != nil {
-		return "", fmt.Errorf("Error creating flag name: %s", decodeErr)
+		return strings.ToLower(name)
 	}
 
-	flagName := caseconversion.EncodeKebabCase(decoded)
-	return flagName, nil
+	// panic because flatten mangler should set the dials tag so panic if that
+	// wasn't set
+	panic(fmt.Errorf("Expected dials tag name for struct field %q", sf.Name))
+
 }

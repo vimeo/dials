@@ -314,8 +314,7 @@ func TestTable(t *testing.T) {
 			nameConfig := &NameConfig{
 				FieldNameEncodeCasing: caseconversion.EncodeUpperSnakeCase,
 				FieldNameDecodeCasing: caseconversion.DecodeUpperSnakeCase,
-				TagEncodeCasing:       caseconversion.EncodeCasePreservingSnakeCase,
-				TagDecodeCasing:       caseconversion.DecodeCasePreservingSnakeCase,
+				TagEncodeCasing:       caseconversion.EncodeKebabCase,
 			}
 			s, setupErr := NewSetWithArgs(nameConfig, tbl.tmpl, tbl.args)
 			require.NoError(t, setupErr, "failed to setup Set")
