@@ -393,12 +393,9 @@ func (s *Set) Value(t *dials.Type) (reflect.Value, error) {
 
 		ffield := s.trnslVal.FieldByName(fieldName)
 		if !ffield.IsNil() {
-			// If this field isn't nil, continue, we don't
-			// want to overwrite a populated field with an
-			// empty one. (since that would prevent us from
-			// seeing other fields in the same (or
-			// parallel) sub-structs.
-			return
+			// there's a 1:1 mapping between flags and field names so panic if
+			// this happens
+			panic(fmt.Errorf("Field name %s with flag %s is nil", fieldName, f.Name))
 		}
 
 		// We'll assume we're in a pointerified struct that matches
