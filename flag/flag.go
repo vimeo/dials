@@ -34,9 +34,6 @@ const dialsFlagTag = "dialsflag"
 type NameConfig struct {
 	// FieldNameEncodeCasing is for the field names used by the flatten mangler
 	FieldNameEncodeCasing caseconversion.EncodeCasingFunc
-	// FieldNameDecodeCasing is corresponding decoding of the field name used to
-	// parse the flag name
-	FieldNameDecodeCasing caseconversion.DecodeCasingFunc
 	// TagEncodeCasing is for the tag names used by the flatten mangler
 	TagEncodeCasing caseconversion.EncodeCasingFunc
 }
@@ -49,7 +46,6 @@ type NameConfig struct {
 func DefaultFlagNameConfig() *NameConfig {
 	return &NameConfig{
 		FieldNameEncodeCasing: caseconversion.EncodeUpperCamelCase,
-		FieldNameDecodeCasing: caseconversion.DecodeGoCamelCase,
 		TagEncodeCasing:       caseconversion.EncodeKebabCase,
 	}
 }

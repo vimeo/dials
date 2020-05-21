@@ -313,7 +313,6 @@ func TestTable(t *testing.T) {
 			// between different fields
 			nameConfig := &NameConfig{
 				FieldNameEncodeCasing: caseconversion.EncodeUpperSnakeCase,
-				FieldNameDecodeCasing: caseconversion.DecodeUpperSnakeCase,
 				TagEncodeCasing:       caseconversion.EncodeKebabCase,
 			}
 			s, setupErr := NewSetWithArgs(nameConfig, tbl.tmpl, tbl.args)
