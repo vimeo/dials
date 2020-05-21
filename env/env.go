@@ -63,7 +63,7 @@ func envVarName(prefix string, field reflect.StructField) (string, error) {
 }
 
 func envVarNameFromFieldName(prefix, fieldName string) (string, error) {
-	words, err := caseconversion.DecodeGolangCamelCase(fieldName)
+	words, err := caseconversion.DecodeGoCamelCase(fieldName)
 	if err != nil {
 		return "", err
 	}

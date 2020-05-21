@@ -43,15 +43,15 @@ type NameConfig struct {
 	TagDecodeCasing caseconversion.DecodeCasingFunc
 }
 
-// TODO(@sachi): update to EncodeGolangCamelCase and DecodeGolangCamelCase for
-// FieldName casings once the EncodeGolangCamelCase function exists
+// TODO(@sachi): update FieldNameEncodeCasing to EncodeGolangCamelCase
+//  once the EncodeGolangCamelCase function exists
 
 // DefaultFlagNameConfig defines a reasonably-defaulted NameConfig for field names
 // and tags
 func DefaultFlagNameConfig() *NameConfig {
 	return &NameConfig{
 		FieldNameEncodeCasing: caseconversion.EncodeUpperCamelCase,
-		FieldNameDecodeCasing: caseconversion.DecodeUpperCamelCase,
+		FieldNameDecodeCasing: caseconversion.DecodeGoCamelCase,
 		TagEncodeCasing:       caseconversion.EncodeCasePreservingSnakeCase,
 		TagDecodeCasing:       caseconversion.DecodeCasePreservingSnakeCase,
 	}

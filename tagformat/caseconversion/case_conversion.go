@@ -62,21 +62,21 @@ func DecodeLowerCamelCase(s string) (DecodedIdentifier, error) {
 	return decodeCamelCase("lowerCamelCase", s)
 }
 
-// firstCharOfInitialism, as used in DecodeGolangCamelCase, attempts to
+// firstCharOfInitialism, as used in DecodeGoCamelCase, attempts to
 // detect when the indexed rune is the first character of an initialism (e.g.,
 // json*A*PI).
 func firstCharOfInitialism(s string, i int) bool {
 	return len(s) > i && i >= 1 && unicode.IsUpper(rune(s[i])) && unicode.IsLower(rune(s[i-1]))
 }
 
-// firstCharAfterInitialism, as used in DecodeGolangCamelCase, attempts to
+// firstCharAfterInitialism, as used in DecodeGoCamelCase, attempts to
 // detect when the indexed rune is the first character of a non-initialism after
 // an initialism (e.g., JSON*F*ile).
 func firstCharAfterInitialism(s string, i int) bool {
 	return i+1 < len(s) && unicode.IsUpper(rune(s[i])) && unicode.IsLower(rune(s[i+1]))
 }
 
-// lastCharOfInitialismAtEOS, as used in DecodeGolangCamelCase, attempts to
+// lastCharOfInitialismAtEOS, as used in DecodeGoCamelCase, attempts to
 // detect when the indexed rune is the last character of an initialism at the
 // end of a string (e.g., jsonAP*I*).
 func lastCharOfInitialismAtEOS(s string, i int) bool {
@@ -86,8 +86,8 @@ func lastCharOfInitialismAtEOS(s string, i int) bool {
 // TODO: Add EncodeGolangCamelCase function and set as default name encoder in
 // FlattenMangler
 
-// DecodeGolangCamelCase decodes UpperCamelCase and lowerCamelCase strings with fully capitalized acronyms (e.g., "jsonAPIDocs") into a slice of lower-cased sub-strings
-func DecodeGolangCamelCase(s string) (DecodedIdentifier, error) {
+// DecodeGoCamelCase decodes UpperCamelCase and lowerCamelCase strings with fully capitalized acronyms (e.g., "jsonAPIDocs") into a slice of lower-cased sub-strings
+func DecodeGoCamelCase(s string) (DecodedIdentifier, error) {
 	words := []string{}
 	lastBoundary := 0
 	for i, char := range s {
