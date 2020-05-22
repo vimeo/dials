@@ -1,6 +1,7 @@
 package env
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 
@@ -27,9 +28,10 @@ type Source struct {
 // unchanged.)
 func (e *Source) Value(t *dials.Type) (reflect.Value, error) {
 	tagCopyingMangler := &tagformat.TagCopyingMangler{SrcTag: transform.DialsTagName, NewTag: envTagName}
-	flattenMangler := transform.NewFlattenMangler(transform.DialsTagName, caseconversion.EncodeUpperCamelCase, caseconversion.EncodeUpperSnakeCase)
+	flattenMangler := transform.NewFlattenMangler(transform.DialsTagName, caseconversion.EncodeUpperCamelCase, caseconversion.EncodeUpperCamelCase)
+	reformatTagMangler := tagformat.NewTagReformattingMangler(transform.DialsTagName, caseconversion.DecodeGolangCamelCase, caseconversion.EncodeUpperSnakeCase)
 	stringCastingMangler := &transform.StringCastingMangler{}
-	tfmr := transform.NewTransformer(t.Type(), tagCopyingMangler, flattenMangler, stringCastingMangler)
+	tfmr := transform.NewTransformer(t.Type(), tagCopyingMangler, flattenMangler, reformatTagMangler, stringCastingMangler)
 
 	val, err := tfmr.Translate()
 	if err != nil {
@@ -39,10 +41,7 @@ func (e *Source) Value(t *dials.Type) (reflect.Value, error) {
 	valType := val.Type()
 	for i := 0; i < val.NumField(); i++ {
 		field := valType.Field(i)
-		envVarName, err := envVarName(e.Prefix, field)
-		if err != nil {
-			return reflect.Value{}, err
-		}
+		envVarName := envVarName(e.Prefix, field)
 
 		if envVarVal, ok := os.LookupEnv(envVarName); ok {
 			// The StringCastingMangler has transformed all the fields on the
@@ -56,21 +55,18 @@ func (e *Source) Value(t *dials.Type) (reflect.Value, error) {
 	return tfmr.ReverseTranslate(val)
 }
 
-func envVarName(prefix string, field reflect.StructField) (string, error) {
+func envVarName(prefix string, field reflect.StructField) string {
 	if envTagVal := field.Tag.Get(envTagName); envTagVal != "" {
-		return envTagVal, nil
+		return envTagVal
 	}
-	return envVarNameFromFieldName(prefix, field.Name)
-}
 
-func envVarNameFromFieldName(prefix, fieldName string) (string, error) {
-	words, err := caseconversion.DecodeGolangCamelCase(fieldName)
-	if err != nil {
-		return "", err
+	dialsTagVal := field.Tag.Get(transform.DialsTagName)
+	if dialsTagVal == "" {
+		panic(fmt.Errorf("Empty dials tag for field name %s", field.Name))
 	}
-	key := caseconversion.EncodeUpperSnakeCase(words)
 	if prefix != "" {
-		key = prefix + "_" + key
+		return prefix + "_" + dialsTagVal
 	}
-	return key, nil
+
+	return dialsTagVal
 }

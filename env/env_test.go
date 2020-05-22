@@ -169,12 +169,12 @@ func TestEnv(t *testing.T) {
 				Bar string `dials_env:"Foobar"`
 			}{Bar: "helloworld"},
 		},
-		/* "embedded_field": {
+		"embedded_field": {
 			ConfigStruct: &struct {
 				Hello string
 				Embed
 			}{},
-			EnvVarName:  "EMBED_FOO",
+			EnvVarName:  "FOO",
 			EnvVarValue: "foobar",
 			Expected: &struct {
 				Hello string
@@ -184,8 +184,7 @@ func TestEnv(t *testing.T) {
 					Foo: "foobar",
 				},
 			},
-		}, */
-
+		},
 	}
 
 	for name, testCase := range cases {
