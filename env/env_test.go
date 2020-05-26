@@ -11,6 +11,10 @@ import (
 )
 
 func TestEnv(t *testing.T) {
+	type Embed struct {
+		Foo int
+		Bar bool
+	}
 	cases := map[string]struct {
 		ConfigStruct interface{}
 		EnvVarName   string
@@ -128,6 +132,46 @@ func TestEnv(t *testing.T) {
 			EnvVarName:   "JSON_FILE_PATH",
 			EnvVarValue:  "/path/to/file",
 			Expected:     &struct{ JSONFilePath string }{JSONFilePath: "/path/to/file"},
+		},
+		"nested_struct_field": {
+			ConfigStruct: &struct {
+				Foo string
+				Bar *struct {
+					Hello   string
+					Goodbye int
+				}
+			}{},
+			EnvVarName:  "BAR_GOODBYE",
+			EnvVarValue: "8",
+			Expected: &struct {
+				Foo string
+				Bar *struct {
+					Hello   string
+					Goodbye int
+				}
+			}{
+				Foo: "",
+				Bar: &struct {
+					Hello   string
+					Goodbye int
+				}{Hello: "", Goodbye: 8},
+			},
+		},
+		"embedded_field": {
+			ConfigStruct: &struct {
+				Hello string
+				Embed
+			}{},
+			EnvVarName:  "FOO", // Embed struct had field Foo
+			EnvVarValue: "8",
+			Expected: &struct {
+				Hello string
+				Embed
+			}{
+				Embed: Embed{
+					Foo: 8,
+				},
+			},
 		},
 	}
 

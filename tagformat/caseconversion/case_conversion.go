@@ -2,6 +2,7 @@ package caseconversion
 
 import (
 	"fmt"
+	"go/token"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -86,17 +87,17 @@ func lastCharOfInitialismAtEOS(s string, i int) bool {
 // TODO: Add EncodeGolangCamelCase function and set as default name encoder in
 // FlattenMangler
 
-// DecodeGoCamelCase decodes UpperCamelCase and lowerCamelCase strings with fully capitalized acronyms (e.g., "jsonAPIDocs") into a slice of lower-cased sub-strings
+// DecodeGoCamelCase decodes UpperCamelCase and lowerCamelCase strings with
+// fully capitalized acronyms (e.g., "jsonAPIDocs") into a slice of lower-cased
+// sub-strings.
 func DecodeGoCamelCase(s string) (DecodedIdentifier, error) {
+	if !token.IsIdentifier(s) {
+		return nil, fmt.Errorf("Only characters of the Letter category or '_' can appear in strings")
+	}
 	words := []string{}
 	lastBoundary := 0
 	for i, char := range s {
-		if !unicode.IsLetter(char) {
-			return nil, fmt.Errorf("Only characters of the Letter category can appear in strings: %c at byte offset %d",
-				char, i)
-		}
-
-		if firstCharOfInitialism(s, i) || firstCharAfterInitialism(s, i) {
+		if firstCharOfInitialism(s, i) || firstCharAfterInitialism(s, i) || char == '_' {
 			if lastBoundary < i {
 				word := s[lastBoundary:i]
 				if word == strings.ToUpper(word) {
@@ -105,7 +106,13 @@ func DecodeGoCamelCase(s string) (DecodedIdentifier, error) {
 					words = append(words, strings.ToLower(word))
 				}
 			}
-			lastBoundary = i
+			switch char {
+			case '_':
+				lastBoundary = i + 1
+			default:
+				lastBoundary = i
+			}
+
 		} else if lastCharOfInitialismAtEOS(s, i) {
 			if lastBoundary < i {
 				word := s[lastBoundary:]
@@ -118,7 +125,10 @@ func DecodeGoCamelCase(s string) (DecodedIdentifier, error) {
 		}
 	}
 
-	words = append(words, strings.ToLower(s[lastBoundary:]))
+	if last := strings.ToLower(s[lastBoundary:]); len(last) > 0 {
+		words = append(words, strings.ToLower(s[lastBoundary:]))
+	}
+
 	return words, nil
 }
 
@@ -168,7 +178,9 @@ func decodeLowerCaseWithSplitChar(splitChar rune, typeName, s string) (DecodedId
 		}
 	}
 	// flush one last time to get the remainder of the string
-	words = append(words, s[lastBoundary:])
+	if last := strings.ToLower(s[lastBoundary:]); len(last) > 0 {
+		words = append(words, strings.ToLower(s[lastBoundary:]))
+	}
 	return words, nil
 }
 
@@ -202,7 +214,9 @@ func DecodeUpperSnakeCase(s string) (DecodedIdentifier, error) {
 		}
 	}
 	// flush one last time to get the remainder of the string
-	words = append(words, strings.ToLower(s[lastBoundary:]))
+	if last := strings.ToLower(s[lastBoundary:]); len(last) > 0 {
+		words = append(words, strings.ToLower(s[lastBoundary:]))
+	}
 	return words, nil
 }
 
