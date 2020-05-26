@@ -15,26 +15,36 @@ var decodeCases = []struct {
 }{
 	{"UpperCamelCase", []string{"upper", "camel", "case"}, DecodeUpperCamelCase, false},
 	{"lowerCamelCase", []string{"lower", "camel", "case"}, DecodeUpperCamelCase, true},
-	{"lowerCamelCase", []string{"lower", "camel", "case"}, DecodeLowerCamelCase, false},
 	{"UpperCamelCaseU", []string{"upper", "camel", "case", "u"}, DecodeUpperCamelCase, false},
-	{"lowerCamelCaseU", []string{"lower", "camel", "case", "u"}, DecodeLowerCamelCase, false},
-	{"lowerCamel0CaseU", []string{"lower", "camel0", "case", "u"}, DecodeLowerCamelCase, false},
-	{"NotLowerCamelCase", []string{}, DecodeLowerCamelCase, true},
-	{"1errorCase", []string{}, DecodeLowerCamelCase, true},
 	{"Case", []string{"case"}, DecodeUpperCamelCase, false},
 	{"UCCase", []string{"u", "c", "case"}, DecodeUpperCamelCase, false},
 	{"UC_Case", []string{}, DecodeUpperCamelCase, true},
 	{"Upper12CamelCase", []string{"upper12", "camel", "case"}, DecodeUpperCamelCase, false},
-	{"lower_snake_case", []string{"lower", "snake", "case"}, DecodeLowerSnakeCase, false},
+
+	{"lowerCamelCase", []string{"lower", "camel", "case"}, DecodeLowerCamelCase, false},
+	{"lowerCamelCaseU", []string{"lower", "camel", "case", "u"}, DecodeLowerCamelCase, false},
+	{"lowerCamel0CaseU", []string{"lower", "camel0", "case", "u"}, DecodeLowerCamelCase, false},
+	{"NotLowerCamelCase", []string{}, DecodeLowerCamelCase, true},
+	{"1errorCase", []string{}, DecodeLowerCamelCase, true},
+
 	{"kebab-case-string", []string{"kebab", "case", "string"}, DecodeKebabCase, false},
 	{"1kebab-case-string", []string{}, DecodeKebabCase, true},
 	{"kebab1-case-string", []string{"kebab1", "case", "string"}, DecodeKebabCase, false},
+	{"kebab1-case-string-", []string{"kebab1", "case", "string"}, DecodeKebabCase, false},
+	{"kebab-case-string-u", []string{"kebab", "case", "string", "u"}, DecodeKebabCase, false},
+
 	{"UPPER_SNAKE_CASE", []string{"upper", "snake", "case"}, DecodeUpperSnakeCase, false},
 	{"1UPPER_SNAKE_CASE", []string{}, DecodeUpperSnakeCase, true},
 	{"UPPER_SNAKE_CASE1", []string{"upper", "snake", "case1"}, DecodeUpperSnakeCase, false},
-	{"lower_snake_case_u", []string{"lower", "snake", "case", "u"}, DecodeLowerSnakeCase, false},
-	{"kebab-case-string-u", []string{"kebab", "case", "string", "u"}, DecodeKebabCase, false},
 	{"UPPER_SNAKE_CASE_U", []string{"upper", "snake", "case", "u"}, DecodeUpperSnakeCase, false},
+	{"UPPER_SNAKE_CASE_U_", []string{"upper", "snake", "case", "u"}, DecodeUpperSnakeCase, false},
+
+	{"lower_snake_case", []string{"lower", "snake", "case"}, DecodeLowerSnakeCase, false},
+	{"lower_snake_case_u", []string{"lower", "snake", "case", "u"}, DecodeLowerSnakeCase, false},
+	{"lower__snake_case", []string{"lower", "snake", "case"}, DecodeLowerSnakeCase, false},
+	{"_lower_snake_case", []string{"lower", "snake", "case"}, DecodeLowerSnakeCase, false},
+	{"lower_snake_case_", []string{"lower", "snake", "case"}, DecodeLowerSnakeCase, false},
+
 	{"jsonAPI", []string{"json", "api"}, DecodeGolangCamelCase, false},
 	{"JSONAPI", []string{"json", "api"}, DecodeGolangCamelCase, false},
 	{"TestJSONAPI", []string{"test", "json", "api"}, DecodeGolangCamelCase, false},
@@ -46,11 +56,9 @@ var decodeCases = []struct {
 	{"UpperCamelCaseXMLAPIDocs", []string{"upper", "camel", "case", "xml", "api", "docs"}, DecodeGolangCamelCase, false},
 	{"ABTest", []string{"ab", "test"}, DecodeGolangCamelCase, false},
 	{"jsonABTest", []string{"json", "ab", "test"}, DecodeGolangCamelCase, false},
+	{"decode_golangCamelCase_try", []string{"decode", "golang", "camel", "case", "try"}, DecodeGolangCamelCase, false},
+	{"decode_golangCamelCase_try_", []string{"decode", "golang", "camel", "case", "try"}, DecodeGolangCamelCase, false},
 	{"A", []string{"a"}, DecodeGolangCamelCase, false},
-
-	{"lower__snake_case", []string{"lower", "snake", "case"}, DecodeLowerSnakeCase, false},
-	{"_lower_snake_case", []string{"lower", "snake", "case"}, DecodeLowerSnakeCase, false},
-	{"lower_snake_case_", []string{"lower", "snake", "case", ""}, DecodeLowerSnakeCase, false},
 }
 
 func TestDecode(t *testing.T) {
