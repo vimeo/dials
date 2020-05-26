@@ -2,6 +2,7 @@ package caseconversion
 
 import (
 	"fmt"
+	"go/token"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -90,14 +91,12 @@ func lastCharOfInitialismAtEOS(s string, i int) bool {
 // fully capitalized acronyms (e.g., "jsonAPIDocs") into a slice of lower-cased
 // sub-strings.
 func DecodeGolangCamelCase(s string) (DecodedIdentifier, error) {
+	if !token.IsIdentifier(s) {
+		return nil, fmt.Errorf("Only characters of the Letter category or '_' can appear in strings")
+	}
 	words := []string{}
 	lastBoundary := 0
 	for i, char := range s {
-		if !unicode.IsLetter(char) && char != '_' {
-			return nil, fmt.Errorf("Only characters of the Letter category or '_' can appear in strings: %c at byte offset %d",
-				char, i)
-		}
-
 		if firstCharOfInitialism(s, i) || firstCharAfterInitialism(s, i) || char == '_' {
 			if lastBoundary < i {
 				word := s[lastBoundary:i]
@@ -107,11 +106,13 @@ func DecodeGolangCamelCase(s string) (DecodedIdentifier, error) {
 					words = append(words, strings.ToLower(word))
 				}
 			}
-			if char == '_' {
+			switch char {
+			case '_':
 				lastBoundary = i + 1
-			} else {
+			default:
 				lastBoundary = i
 			}
+
 		} else if lastCharOfInitialismAtEOS(s, i) {
 			if lastBoundary < i {
 				word := s[lastBoundary:]
