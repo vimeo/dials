@@ -27,9 +27,13 @@ type Source struct {
 // it to UPPER_SNAKE_CASE. (The casing of `dials_env` and `dials` tags is left
 // unchanged.)
 func (e *Source) Value(t *dials.Type) (reflect.Value, error) {
+	// copy tags from "dials" to "dials_env" tag
 	tagCopyingMangler := &tagformat.TagCopyingMangler{SrcTag: transform.DialsTagName, NewTag: envTagName}
+	// flatten the nested fields
 	flattenMangler := transform.NewFlattenMangler(transform.DialsTagName, caseconversion.EncodeUpperCamelCase, caseconversion.EncodeUpperCamelCase)
+	// reformat the tags so they are SCREAMING_SNAKE_CASE
 	reformatTagMangler := tagformat.NewTagReformattingMangler(transform.DialsTagName, caseconversion.DecodeGolangCamelCase, caseconversion.EncodeUpperSnakeCase)
+	// convert all the fields in the flattened struct to string type the environment variables can be set
 	stringCastingMangler := &transform.StringCastingMangler{}
 	tfmr := transform.NewTransformer(t.Type(), tagCopyingMangler, flattenMangler, reformatTagMangler, stringCastingMangler)
 
@@ -55,6 +59,9 @@ func (e *Source) Value(t *dials.Type) (reflect.Value, error) {
 	return tfmr.ReverseTranslate(val)
 }
 
+// envVarName checks the dials_env tag and will use that value for the
+// name. Otherwise, it will look for the dials tag and use that value with the
+// optional prefix
 func envVarName(prefix string, field reflect.StructField) string {
 	if envTagVal := field.Tag.Get(envTagName); envTagVal != "" {
 		return envTagVal

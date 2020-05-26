@@ -12,7 +12,7 @@ import (
 
 func TestEnv(t *testing.T) {
 	type Embed struct {
-		Foo string
+		Foo int
 		Bar bool
 	}
 	cases := map[string]struct {
@@ -157,31 +157,19 @@ func TestEnv(t *testing.T) {
 				}{Hello: "", Goodbye: 8},
 			},
 		},
-		"tags": {
-			ConfigStruct: &struct {
-				Foo string `dials:"NotFoo"`
-				Bar string `dials_env:"Foobar"`
-			}{},
-			EnvVarName:  "Foobar",
-			EnvVarValue: "helloworld",
-			Expected: &struct {
-				Foo string `dials:"NotFoo"`
-				Bar string `dials_env:"Foobar"`
-			}{Bar: "helloworld"},
-		},
 		"embedded_field": {
 			ConfigStruct: &struct {
 				Hello string
 				Embed
 			}{},
-			EnvVarName:  "FOO",
-			EnvVarValue: "foobar",
+			EnvVarName:  "FOO", // Embed struct had field Foo
+			EnvVarValue: "8",
 			Expected: &struct {
 				Hello string
 				Embed
 			}{
 				Embed: Embed{
-					Foo: "foobar",
+					Foo: 8,
 				},
 			},
 		},
