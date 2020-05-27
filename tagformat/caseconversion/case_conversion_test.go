@@ -45,6 +45,10 @@ var decodeCases = []struct {
 	{"_lower_snake_case", []string{"lower", "snake", "case"}, DecodeLowerSnakeCase, false},
 	{"lower_snake_case_", []string{"lower", "snake", "case"}, DecodeLowerSnakeCase, false},
 
+	{"caSe_pREserving_sNake_Case", []string{"case", "preserving", "snake", "case"}, DecodeCasePreservingSnakeCase, false},
+	// only letters are allowed so "&" in "case" will cause an error
+	{"ca&e_pREserving_sNake_Case", []string{}, DecodeCasePreservingSnakeCase, true},
+
 	{"jsonAPI", []string{"json", "api"}, DecodeGoCamelCase, false},
 	{"JSONAPI", []string{"json", "api"}, DecodeGoCamelCase, false},
 	{"TestJSONAPI", []string{"test", "json", "api"}, DecodeGoCamelCase, false},

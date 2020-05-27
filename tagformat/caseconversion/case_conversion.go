@@ -24,11 +24,13 @@ type EncodeCasingFunc func(DecodedIdentifier) string
 type DecodedIdentifier []string
 
 func decodeCamelCase(typeName, s string) (DecodedIdentifier, error) {
-	words := []string{}
-	lastBoundary := 0
-	if unicode.IsDigit(rune(s[0])) {
+	// ignore the size of the rune
+	r, _ := utf8.DecodeRuneInString(s)
+	if r == utf8.RuneError || unicode.IsDigit(r) {
 		return nil, fmt.Errorf("Converting case of %q: %s strings can't start with characters of the Decimal Digit category", s, typeName)
 	}
+	words := []string{}
+	lastBoundary := 0
 	for z, char := range s {
 		if !unicode.IsLetter(char) && !unicode.IsDigit(char) {
 			return nil, fmt.Errorf("Converting case of %q: Only characters of the Letter and Decimal Digit categories can appear in %s strings: %c at byte offset %d",
@@ -49,7 +51,9 @@ func decodeCamelCase(typeName, s string) (DecodedIdentifier, error) {
 
 // DecodeUpperCamelCase decodes UpperCamelCase strings into a slice of lower-cased sub-strings
 func DecodeUpperCamelCase(s string) (DecodedIdentifier, error) {
-	if !unicode.IsLetter(rune(s[0])) || !unicode.IsUpper(rune(s[0])) {
+	// ignore the size of the rune
+	r, _ := utf8.DecodeRuneInString(s)
+	if !unicode.IsLetter(r) || !unicode.IsUpper(r) {
 		return nil, fmt.Errorf("Converting case of %q: First character of upperCamelCase string must be an uppercase character of the Letter category", s)
 	}
 	return decodeCamelCase("UpperCamelCase", s)
@@ -57,7 +61,9 @@ func DecodeUpperCamelCase(s string) (DecodedIdentifier, error) {
 
 // DecodeLowerCamelCase decodes lowerCamelCase strings into a slice of lower-cased sub-strings
 func DecodeLowerCamelCase(s string) (DecodedIdentifier, error) {
-	if !unicode.IsLetter(rune(s[0])) || !unicode.IsLower(rune(s[0])) {
+	// ignore the size of the rune
+	r, _ := utf8.DecodeRuneInString(s)
+	if !unicode.IsLetter(r) || !unicode.IsLower(r) {
 		return nil, fmt.Errorf("Converting case of %q: First character of lowerCamelCase string must be a lowercase character of the Letter category", s)
 	}
 	return decodeCamelCase("lowerCamelCase", s)
@@ -67,21 +73,34 @@ func DecodeLowerCamelCase(s string) (DecodedIdentifier, error) {
 // detect when the indexed rune is the first character of an initialism (e.g.,
 // json*A*PI).
 func firstCharOfInitialism(s string, i int) bool {
-	return len(s) > i && i >= 1 && unicode.IsUpper(rune(s[i])) && unicode.IsLower(rune(s[i-1]))
+	r1, rl1 := utf8.DecodeRuneInString(s[i:])
+
+	// ignore the rune length for the previous character
+	r2, _ := utf8.DecodeLastRuneInString(s[:i])
+	return len(s) > i+rl1 && i >= 1 && unicode.IsUpper(r1) && unicode.IsLower(r2)
 }
 
 // firstCharAfterInitialism, as used in DecodeGoCamelCase, attempts to
 // detect when the indexed rune is the first character of a non-initialism after
 // an initialism (e.g., JSON*F*ile).
 func firstCharAfterInitialism(s string, i int) bool {
-	return i+1 < len(s) && unicode.IsUpper(rune(s[i])) && unicode.IsLower(rune(s[i+1]))
+	r1, rl1 := utf8.DecodeRuneInString(s[i:])
+	// ensure the rune isn't the last character of the string
+	if i+rl1 >= len(s) {
+		return false
+	}
+	r2, rl2 := utf8.DecodeRuneInString(s[i+rl1:])
+	return i+rl1+rl2 < len(s) && unicode.IsUpper(r1) && unicode.IsLower(r2)
 }
 
 // lastCharOfInitialismAtEOS, as used in DecodeGoCamelCase, attempts to
 // detect when the indexed rune is the last character of an initialism at the
 // end of a string (e.g., jsonAP*I*).
 func lastCharOfInitialismAtEOS(s string, i int) bool {
-	return i+1 == len(s) && unicode.IsUpper(rune(s[i]))
+	s1 := s[i:]
+	r, rl := utf8.DecodeRuneInString(s1)
+
+	return i+rl == len(s) && unicode.IsUpper(r)
 }
 
 // TODO: Add EncodeGolangCamelCase function and set as default name encoder in
@@ -161,9 +180,12 @@ func extractInitialisms(s string) []string {
 }
 
 func decodeLowerCaseWithSplitChar(splitChar rune, typeName, s string) (DecodedIdentifier, error) {
-	if unicode.IsDigit(rune(s[0])) {
+	// ignore the size of the rune
+	r, _ := utf8.DecodeRuneInString(s)
+	if r == utf8.RuneError || unicode.IsDigit(r) {
 		return nil, fmt.Errorf("Converting case of %q: %s strings can't start with characters of the Decimal Digit category", s, typeName)
 	}
+
 	words := []string{}
 	lastBoundary := 0
 	for z, char := range s {
@@ -197,9 +219,12 @@ func DecodeKebabCase(s string) (DecodedIdentifier, error) {
 // DecodeUpperSnakeCase decodes UPPER_SNAKE_CASE (sometimes called
 // SCREAMING_SNAKE_CASE) into a slice of lower-cased sub-strings
 func DecodeUpperSnakeCase(s string) (DecodedIdentifier, error) {
-	if unicode.IsDigit(rune(s[0])) {
+	// ignore the size of the rune
+	r, _ := utf8.DecodeRuneInString(s)
+	if r == utf8.RuneError || unicode.IsDigit(r) {
 		return nil, fmt.Errorf("Converting case of %q: UPPER_SNAKE_CASE strings can't start with characters of the Decimal Digit category", s)
 	}
+
 	words := []string{}
 	lastBoundary := 0
 	for z, char := range s {
@@ -223,10 +248,12 @@ func DecodeUpperSnakeCase(s string) (DecodedIdentifier, error) {
 // DecodeCasePreservingSnakeCase decodes Case_Preserving_Snake_Case into a
 // slice of lower-cased sub-string
 func DecodeCasePreservingSnakeCase(s string) (DecodedIdentifier, error) {
-	if unicode.IsDigit(rune(s[0])) {
+	// ignore the size of the rune
+	r, _ := utf8.DecodeRuneInString(s)
+	if r == utf8.RuneError || unicode.IsDigit(r) {
 		return nil, fmt.Errorf("Converting case of %q: Case_Preserving_Snake_Case strings can't start with characters of the Decimal Digit category", s)
-	}
 
+	}
 	words := []string{}
 	lastBoundary := 0
 
