@@ -3,6 +3,8 @@ package transform
 import (
 	"encoding/json"
 	"reflect"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -83,7 +85,8 @@ func TestFlattenMangler(t *testing.T) {
 			name:       "one member in struct of type int",
 			testStruct: 32,
 			modify: func(t testing.TB, val reflect.Value) {
-				assert.EqualValues(t, `dials:"ConfigField"`, val.Type().Field(0).Tag)
+				assert.EqualValues(t, "ConfigField", val.Type().Field(0).Tag.Get(DialsTagName))
+				assert.EqualValues(t, "0", val.Type().Field(0).Tag.Get(DialsFieldPathTag))
 				i := 32
 				val.Field(0).Set(reflect.ValueOf(&i))
 			},
@@ -95,7 +98,9 @@ func TestFlattenMangler(t *testing.T) {
 			name:       "one member in struct of type map",
 			testStruct: map[string]string{},
 			modify: func(t testing.TB, val reflect.Value) {
-				assert.EqualValues(t, `dials:"ConfigField"`, val.Type().Field(0).Tag)
+				assert.EqualValues(t, "ConfigField", val.Type().Field(0).Tag.Get(DialsTagName))
+				assert.EqualValues(t, "0", val.Type().Field(0).Tag.Get(DialsFieldPathTag))
+
 				m := map[string]string{
 					"hello":   "world",
 					"flatten": "unflatten",
@@ -115,6 +120,8 @@ func TestFlattenMangler(t *testing.T) {
 			testStruct: time.Time{},
 			modify: func(t testing.TB, val reflect.Value) {
 				assert.Equal(t, "ConfigField", val.Type().Field(0).Name)
+				assert.Equal(t, "ConfigField", val.Type().Field(0).Tag.Get(DialsTagName))
+				assert.Equal(t, "0", val.Type().Field(0).Tag.Get(DialsFieldPathTag))
 				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
 				require.NoError(t, timeErr)
 				val.Field(0).Set(reflect.ValueOf(&curTime))
@@ -155,14 +162,21 @@ func TestFlattenMangler(t *testing.T) {
 			},
 			modify: func(t testing.TB, val reflect.Value) {
 
-				expectedTags := []string{
-					`dials:"ConfigField_TestInt"`,
-					`dials:"ConfigField_TestString"`,
-					`dials:"ConfigField_TestBool"`,
+				expectedDialsTags := []string{
+					"ConfigField_TestInt",
+					"ConfigField_TestString",
+					"ConfigField_TestBool",
 				}
 
-				for i := 0; i < len(expectedTags); i++ {
-					assert.EqualValues(t, expectedTags[i], val.Type().Field(i).Tag)
+				expectedPathTags := []string{
+					"0,0",
+					"0,1",
+					"0,2",
+				}
+
+				for i := 0; i < val.Type().NumField(); i++ {
+					assert.EqualValues(t, expectedDialsTags[i], val.Type().Field(i).Tag.Get(DialsTagName))
+					assert.EqualValues(t, expectedPathTags[i], val.Type().Field(i).Tag.Get(DialsFieldPathTag))
 				}
 
 				i := 42
@@ -195,15 +209,24 @@ func TestFlattenMangler(t *testing.T) {
 			testStruct: b,
 			modify: func(t testing.TB, val reflect.Value) {
 
-				expectedTags := []string{
-					`dials:"ConfigField_Name"`,
-					`dials:"ConfigField_Foobar_Location"`,
-					`dials:"ConfigField_Foobar_Coordinates"`,
-					`dials:"ConfigField_AnotherField"`,
+				expectedDialsTags := []string{
+					"ConfigField_Name",
+					"ConfigField_Foobar_Location",
+					"ConfigField_Foobar_Coordinates",
+					"ConfigField_AnotherField",
 				}
 
-				for i := 0; i < len(expectedTags); i++ {
-					assert.EqualValues(t, expectedTags[i], val.Type().Field(i).Tag)
+				expectedFieldTags := []string{
+					"0,0",
+					"0,1,0",
+					"0,1,1",
+					"0,2",
+				}
+
+				for i := 0; i < val.Type().NumField(); i++ {
+					assert.EqualValues(t, expectedDialsTags[i], val.Type().Field(i).Tag.Get(DialsTagName))
+					assert.EqualValues(t, expectedFieldTags[i], val.Type().Field(i).Tag.Get(DialsFieldPathTag))
+
 				}
 
 				s1 := "test"
@@ -260,16 +283,27 @@ func TestFlattenMangler(t *testing.T) {
 			}{},
 			modify: func(t testing.TB, val reflect.Value) {
 				expectedTags := []string{
-					`dials:"ConfigField_hello_jude"`,
-					`dials:"ConfigField_here_comes_THE_sun"`,
-					`dials:"ConfigField_YESTERDAY_Hello"`,
-					`dials:"ConfigField_YESTERDAY_GoodBye_Penny"`,
-					`dials:"ConfigField_YESTERDAY_GoodBye_Lane"`,
-					`dials:"ConfigField_DayTripper"`,
+					"ConfigField_hello_jude",
+					"ConfigField_here_comes_THE_sun",
+					"ConfigField_YESTERDAY_Hello",
+					"ConfigField_YESTERDAY_GoodBye_Penny",
+					"ConfigField_YESTERDAY_GoodBye_Lane",
+					"ConfigField_DayTripper",
+				}
+
+				expectedFieldPathTag := []string{
+					"0,0",
+					"0,1",
+					"0,2,0",
+					"0,2,1,0",
+					"0,2,1,1",
+					"0,3",
 				}
 
 				for i := 0; i < len(expectedTags); i++ {
-					assert.EqualValues(t, expectedTags[i], val.Type().Field(i).Tag)
+					assert.EqualValues(t, expectedTags[i], val.Type().Field(i).Tag.Get(DialsTagName))
+					assert.EqualValues(t, expectedFieldPathTag[i], val.Type().Field(i).Tag.Get(DialsFieldPathTag))
+
 				}
 
 				s1 := "The Beatles"
@@ -334,11 +368,18 @@ func TestFlattenMangler(t *testing.T) {
 			name:       "Embedded struct without tag",
 			testStruct: efg,
 			modify: func(t testing.TB, val reflect.Value) {
-				expectedTags := []string{
-					`dials:"ConfigField_Name"`,
-					`dials:"ConfigField_Location"`,
-					`dials:"ConfigField_Coordinates"`,
-					`dials:"ConfigField_AnotherField"`,
+				expectedDialsTags := []string{
+					"ConfigField_Name",
+					"ConfigField_Location",
+					"ConfigField_Coordinates",
+					"ConfigField_AnotherField",
+				}
+
+				expectedFieldTags := []string{
+					"0,0",
+					"0,1,0",
+					"0,1,1",
+					"0,2",
 				}
 
 				expectedNames := []string{
@@ -350,7 +391,8 @@ func TestFlattenMangler(t *testing.T) {
 
 				vtype := val.Type()
 				for i := 0; i < vtype.NumField(); i++ {
-					assert.EqualValues(t, expectedTags[i], vtype.Field(i).Tag)
+					assert.EqualValues(t, expectedDialsTags[i], vtype.Field(i).Tag.Get(DialsTagName))
+					assert.EqualValues(t, expectedFieldTags[i], vtype.Field(i).Tag.Get(DialsFieldPathTag))
 					assert.EqualValues(t, expectedNames[i], vtype.Field(i).Name)
 				}
 
@@ -382,12 +424,20 @@ func TestFlattenMangler(t *testing.T) {
 			name:       "Embedded struct with tag",
 			testStruct: efgt,
 			modify: func(t testing.TB, val reflect.Value) {
-				expectedTags := []string{
-					`dials:"ConfigField_Name"`,
-					`dials:"ConfigField_embeddedFoo_Location"`,
-					`dials:"ConfigField_embeddedFoo_Coordinates"`,
-					`dials:"ConfigField_AnotherField"`,
+				expectedDialsTags := []string{
+					"ConfigField_Name",
+					"ConfigField_embeddedFoo_Location",
+					"ConfigField_embeddedFoo_Coordinates",
+					"ConfigField_AnotherField",
 				}
+
+				expectedFieldTags := []string{
+					"0,0",
+					"0,1,0",
+					"0,1,1",
+					"0,2",
+				}
+
 				expectedNames := []string{
 					"ConfigFieldName",
 					"ConfigFieldLocation",
@@ -397,7 +447,8 @@ func TestFlattenMangler(t *testing.T) {
 
 				vtype := val.Type()
 				for i := 0; i < vtype.NumField(); i++ {
-					assert.EqualValues(t, expectedTags[i], vtype.Field(i).Tag)
+					assert.EqualValues(t, expectedDialsTags[i], vtype.Field(i).Tag.Get(DialsTagName))
+					assert.EqualValues(t, expectedFieldTags[i], vtype.Field(i).Tag.Get(DialsFieldPathTag))
 					assert.EqualValues(t, expectedNames[i], vtype.Field(i).Name)
 				}
 
@@ -559,7 +610,11 @@ func TestTopLevelEmbed(t *testing.T) {
 		Embed `dials:"creative_name"`
 	}
 
-	c := &Config{}
+	c := &Config{
+		Embed: Embed{
+			Foo: "DoesThisWork",
+		},
+	}
 	typeOfC := reflect.TypeOf(c)
 	tVal := reflect.ValueOf(c)
 	typeInstance := ptrify.Pointerify(typeOfC.Elem(), tVal.Elem())
@@ -573,13 +628,30 @@ func TestTopLevelEmbed(t *testing.T) {
 		"Hello", "Foo", "Bar",
 	}
 
-	expectedTags := []string{
-		`dials:"Hello"`,
-		`dials:"creative_name_foofoo"`,
-		`dials:"creative_name_Bar"`,
+	expectedDialsTags := []string{
+		"Hello",
+		"creative_name_foofoo",
+		"creative_name_Bar",
 	}
+
+	expectedFieldTags := []string{
+		"0", "1,0", "1,1",
+	}
+
 	for i := 0; i < val.Type().NumField(); i++ {
 		assert.Equal(t, expectedNames[i], val.Type().Field(i).Name)
-		assert.EqualValues(t, expectedTags[i], val.Type().Field(i).Tag)
+		assert.EqualValues(t, expectedDialsTags[i], val.Type().Field(i).Tag.Get(DialsTagName))
+		assert.EqualValues(t, expectedFieldTags[i], val.Type().Field(i).Tag.Get(DialsFieldPathTag))
 	}
+
+	// retrieve the underlying value of Foo with the index path in dialsfieldpath tag
+	fieldsString := strings.Split(expectedFieldTags[1], ",")
+	fields := []int{}
+	for _, v := range fieldsString {
+		i, err := strconv.Atoi(v)
+		require.NoError(t, err)
+		fields = append(fields, i)
+	}
+
+	assert.Equal(t, c.Embed.Foo, tVal.Elem().FieldByIndex(fields).Interface())
 }

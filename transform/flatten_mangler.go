@@ -4,13 +4,20 @@ import (
 	"encoding"
 	"fmt"
 	"reflect"
+	"strconv"
+	"strings"
 
 	"github.com/fatih/structtag"
 	"github.com/vimeo/dials/tagformat/caseconversion"
 )
 
-// DialsTagName is the name of the dials tag.
-const DialsTagName = "dials"
+const (
+	// DialsTagName is the name of the dials tag.
+	DialsTagName = "dials"
+	// DialsFieldPathTag contains the path to the nested struct field as a
+	// comma separated string of the nested field index.
+	DialsFieldPathTag = "dialsfieldpath"
+)
 
 // textMReflectType is a reflect.Type of TextUnmarshaler
 var textMReflectType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
@@ -56,8 +63,9 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 	k, t := getUnderlyingKindType(sf.Type)
 
 	out := []reflect.StructField{}
+	fieldPath := sf.Index
 
-	tag, prefixTag, tagErr := f.getTag(&sf, nil)
+	tag, prefixTag, tagErr := f.getTag(&sf, nil, fieldPath)
 	if tagErr != nil {
 		return out, tagErr
 	}
@@ -72,7 +80,7 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 		if !sf.Anonymous {
 			fieldPrefix = append(fieldPrefix, sf.Name)
 		}
-		return f.flattenStruct(fieldPrefix, prefixTag, sf)
+		return f.flattenStruct(fieldPrefix, prefixTag, fieldPath, sf)
 	default:
 	}
 
@@ -92,7 +100,7 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 
 // flattenStruct takes a struct and flattens all the fields and makes a recursive
 // call if the field is a struct too
-func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf reflect.StructField) ([]reflect.StructField, error) {
+func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, fieldPath []int, sf reflect.StructField) ([]reflect.StructField, error) {
 
 	// get underlying type after removing pointers. Ignoring the kind
 	_, ft := getUnderlyingKindType(sf.Type)
@@ -110,8 +118,10 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf refle
 			flattenedNames = append(fieldPrefix[:len(fieldPrefix):len(fieldPrefix)], nestedsf.Name)
 		}
 
+		flattenedIndex := append(fieldPath, nestedsf.Index...)
+
 		// add the tag of the current field to the list of flattened tags
-		tag, flattenedTags, tagErr := f.getTag(&nestedsf, tagPrefix)
+		tag, flattenedTags, tagErr := f.getTag(&nestedsf, tagPrefix, flattenedIndex)
 		if tagErr != nil {
 			return out, tagErr
 		}
@@ -125,7 +135,7 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf refle
 			if nestedT.Implements(textMReflectType) || reflect.PtrTo(nestedT).Implements(textMReflectType) {
 				break
 			}
-			flattened, err := f.flattenStruct(flattenedNames, flattenedTags, nestedsf)
+			flattened, err := f.flattenStruct(flattenedNames, flattenedTags, flattenedIndex, nestedsf)
 			if err != nil {
 				return out, err
 			}
@@ -150,7 +160,7 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, sf refle
 // getTag uses the tag if one already exist or creates one based on the
 // configured EncodingCasing function and fieldName. It returns the new parsed
 // StructTag, the updated slice of tags, and any error encountered
-func (f *FlattenMangler) getTag(sf *reflect.StructField, tags []string) (reflect.StructTag, []string, error) {
+func (f *FlattenMangler) getTag(sf *reflect.StructField, tags []string, flattenedIndex []int) (reflect.StructTag, []string, error) {
 	tag, ok := sf.Tag.Lookup(f.tag)
 
 	// tag already exists so use the existing tag and append to prefix tags
@@ -174,6 +184,15 @@ func (f *FlattenMangler) getTag(sf *reflect.StructField, tags []string) (reflect
 		Key:     f.tag,
 		Name:    tagVal,
 		Options: []string{},
+	})
+
+	fieldPathSlice := []string{}
+	for _, v := range flattenedIndex {
+		fieldPathSlice = append(fieldPathSlice, strconv.Itoa(v))
+	}
+	parsedTag.Set(&structtag.Tag{
+		Key:  DialsFieldPathTag,
+		Name: strings.Join(fieldPathSlice, ","),
 	})
 
 	return reflect.StructTag(parsedTag.String()), tags, nil
