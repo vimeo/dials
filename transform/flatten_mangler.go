@@ -4,7 +4,6 @@ import (
 	"encoding"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/fatih/structtag"
@@ -63,7 +62,7 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 	k, t := getUnderlyingKindType(sf.Type)
 
 	out := []reflect.StructField{}
-	fieldPath := sf.Index
+	fieldPath := []string{sf.Name}
 
 	tag, prefixTag, tagErr := f.getTag(&sf, nil, fieldPath)
 	if tagErr != nil {
@@ -100,7 +99,7 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 
 // flattenStruct takes a struct and flattens all the fields and makes a recursive
 // call if the field is a struct too
-func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, fieldPath []int, sf reflect.StructField) ([]reflect.StructField, error) {
+func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix, fieldPath []string, sf reflect.StructField) ([]reflect.StructField, error) {
 
 	// get underlying type after removing pointers. Ignoring the kind
 	_, ft := getUnderlyingKindType(sf.Type)
@@ -118,10 +117,13 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, fieldPat
 			flattenedNames = append(fieldPrefix[:len(fieldPrefix):len(fieldPrefix)], nestedsf.Name)
 		}
 
-		flattenedIndex := append(fieldPath, nestedsf.Index...)
+		// Need a separate flattenPath slice for the field path instead of just
+		// using the fieldPrefix one because we need to add the names of the
+		// embedded fields to the slice so we can iterate through and get the original field
+		flattenedPath := append(fieldPath, nestedsf.Name)
 
 		// add the tag of the current field to the list of flattened tags
-		tag, flattenedTags, tagErr := f.getTag(&nestedsf, tagPrefix, flattenedIndex)
+		tag, flattenedTags, tagErr := f.getTag(&nestedsf, tagPrefix, flattenedPath)
 		if tagErr != nil {
 			return out, tagErr
 		}
@@ -135,7 +137,7 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, fieldPat
 			if nestedT.Implements(textMReflectType) || reflect.PtrTo(nestedT).Implements(textMReflectType) {
 				break
 			}
-			flattened, err := f.flattenStruct(flattenedNames, flattenedTags, flattenedIndex, nestedsf)
+			flattened, err := f.flattenStruct(flattenedNames, flattenedTags, flattenedPath, nestedsf)
 			if err != nil {
 				return out, err
 			}
@@ -160,7 +162,7 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix []string, fieldPat
 // getTag uses the tag if one already exist or creates one based on the
 // configured EncodingCasing function and fieldName. It returns the new parsed
 // StructTag, the updated slice of tags, and any error encountered
-func (f *FlattenMangler) getTag(sf *reflect.StructField, tags []string, flattenedIndex []int) (reflect.StructTag, []string, error) {
+func (f *FlattenMangler) getTag(sf *reflect.StructField, tags, flattenedPath []string) (reflect.StructTag, []string, error) {
 	tag, ok := sf.Tag.Lookup(f.tag)
 
 	// tag already exists so use the existing tag and append to prefix tags
@@ -186,13 +188,9 @@ func (f *FlattenMangler) getTag(sf *reflect.StructField, tags []string, flattene
 		Options: []string{},
 	})
 
-	fieldPathSlice := []string{}
-	for _, v := range flattenedIndex {
-		fieldPathSlice = append(fieldPathSlice, strconv.Itoa(v))
-	}
 	parsedTag.Set(&structtag.Tag{
 		Key:  DialsFieldPathTag,
-		Name: strings.Join(fieldPathSlice, ","),
+		Name: strings.Join(flattenedPath, ","),
 	})
 
 	return reflect.StructTag(parsedTag.String()), tags, nil
@@ -289,4 +287,36 @@ func getUnderlyingKindType(t reflect.Type) (reflect.Kind, reflect.Type) {
 		k = t.Kind()
 	}
 	return k, t
+}
+
+func stripPtrs(val reflect.Value) reflect.Value {
+	for val.IsValid() {
+		switch val.Kind() {
+		case reflect.Ptr, reflect.Interface:
+			val = val.Elem()
+		default:
+			return val
+		}
+	}
+	return val
+}
+
+// GetField takes in a reflect.Value and returns the value of the field at the
+// given field path or the zero value if it's not populated
+func GetField(v reflect.Value, t reflect.Type, fieldPath string) interface{} {
+	fields := strings.Split(fieldPath, ",")
+	for _, fname := range fields {
+		v = stripPtrs(v)
+		// if the struct isn't populated, return the zero value
+		if !v.IsValid() {
+			// ignore the kind and get the concrete type
+			_, t = getUnderlyingKindType(t)
+			return reflect.Zero(t).Interface()
+		}
+		v = v.FieldByName(fname)
+	}
+
+	v = stripPtrs(v)
+
+	return v.Interface()
 }
