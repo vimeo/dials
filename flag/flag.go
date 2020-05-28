@@ -50,19 +50,19 @@ func DefaultFlagNameConfig() *NameConfig {
 	}
 }
 
-func ptrified(template interface{}) (reflect.Type, error) {
+func ptrified(template interface{}) (reflect.Value, reflect.Type, error) {
 	val := reflect.ValueOf(template)
 	if val.Kind() != reflect.Ptr {
-		return nil, fmt.Errorf("non-pointer-type passed: %s", val.Type())
+		return reflect.Value{}, nil, fmt.Errorf("non-pointer-type passed: %s", val.Type())
 	}
 
 	val = val.Elem()
 	if val.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("pointer-to-non-struct-type passed: %s", val.Type())
+		return reflect.Value{}, nil, fmt.Errorf("pointer-to-non-struct-type passed: %s", val.Type())
 	}
 	typ := val.Type()
 	out := ptrify.Pointerify(typ, val)
-	return out, nil
+	return val, out, nil
 }
 
 // NewCmdLineSet registers flags for the passed template value in the standard
@@ -71,7 +71,7 @@ func ptrified(template interface{}) (reflect.Type, error) {
 // standard library. (or libraries using dials can register flags and let the
 // actual process's Main() call Parse())
 func NewCmdLineSet(cfg *NameConfig, template interface{}) (*Set, error) {
-	ptyp, ptrifyErr := ptrified(template)
+	pval, ptyp, ptrifyErr := ptrified(template)
 	if ptrifyErr != nil {
 		return nil, ptrifyErr
 	}
@@ -85,7 +85,7 @@ func NewCmdLineSet(cfg *NameConfig, template interface{}) (*Set, error) {
 		flagFieldName:   map[string]string{},
 	}
 
-	if err := s.registerFlags(ptyp); err != nil {
+	if err := s.registerFlags(pval, ptyp); err != nil {
 		return nil, err
 	}
 
@@ -94,7 +94,7 @@ func NewCmdLineSet(cfg *NameConfig, template interface{}) (*Set, error) {
 
 // NewSetWithArgs creates a new FlagSet and registers flags in it
 func NewSetWithArgs(cfg *NameConfig, template interface{}, args []string) (*Set, error) {
-	ptyp, ptrifyErr := ptrified(template)
+	pval, ptyp, ptrifyErr := ptrified(template)
 	if ptrifyErr != nil {
 		return nil, ptrifyErr
 	}
@@ -110,7 +110,7 @@ func NewSetWithArgs(cfg *NameConfig, template interface{}, args []string) (*Set,
 		flagFieldName:   map[string]string{},
 	}
 
-	if err := s.registerFlags(ptyp); err != nil {
+	if err := s.registerFlags(pval, ptyp); err != nil {
 		return nil, err
 	}
 
@@ -152,7 +152,7 @@ func (s *Set) parse() error {
 	return nil
 }
 
-func (s *Set) registerFlags(ptyp reflect.Type) error {
+func (s *Set) registerFlags(pval reflect.Value, ptyp reflect.Type) error {
 	fm := transform.NewFlattenMangler(transform.DialsTagName, s.NameCfg.FieldNameEncodeCasing, s.NameCfg.TagEncodeCasing)
 	tfmr := transform.NewTransformer(ptyp, fm)
 	val, TrnslErr := tfmr.Translate()
@@ -195,6 +195,14 @@ func (s *Set) registerFlags(ptyp reflect.Type) error {
 
 		newValPtr := reflect.New(ft)
 		ptr := newValPtr.Interface()
+
+		
+		// TODO: 
+		// fieldPath := sf.Tag.Get(transform.DialsFieldPathTag)
+		// if fieldPath == ""{
+			// panic(fmt.Errorf("dialsfieldpath tag not set in field %s", sf.Name))
+		}
+		// fieldVal := transform.GetField(val, ft, fieldPath)
 		fieldVal := getFieldVal(val, sf)
 
 		switch {
@@ -369,7 +377,7 @@ func (s *Set) Value(t *dials.Type) (reflect.Value, error) {
 			ptyp = s.ptrType
 		}
 
-		if err := s.registerFlags(ptyp); err != nil {
+		if err := s.registerFlags(reflect.Value{}, ptyp); err != nil {
 			return reflect.Value{}, err
 		}
 		s.flagsRegistered = true
