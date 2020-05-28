@@ -316,6 +316,7 @@ func GetField(v reflect.Value, t reflect.Type, fieldPath string) interface{} {
 		v = v.FieldByName(fname)
 	}
 
+	v = stripPtrs(v)
 	// if the final value isn't populated, return the zero value
 	if !v.IsValid() {
 		// ignore the kind and get the concrete type
