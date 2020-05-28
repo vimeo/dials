@@ -692,6 +692,16 @@ func TestGetField(t *testing.T) {
 			expected:  true,
 		},
 		{
+			name: "empty_pointerified fields",
+			testStruct: struct {
+				Hello   string
+				Goodbye *bool
+			}{},
+			fieldPath: "Goodbye",
+			fieldType: reflect.TypeOf(pbool),
+			expected:  false,
+		},
+		{
 			name: "nested_struct",
 			testStruct: struct {
 				Hello   string
