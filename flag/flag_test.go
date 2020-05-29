@@ -63,6 +63,16 @@ func TestDirectBasic(t *testing.T) {
 	}
 }
 
+type tu struct {
+	Text string
+}
+
+// need a concrete type that implements TextUnmarshaler
+func (u tu) UnmarshalText(data []byte) error {
+	u.Text = string(data)
+	return nil
+}
+
 func TestTable(t *testing.T) {
 	for _, itbl := range []struct {
 		name     string
@@ -302,6 +312,19 @@ func TestTable(t *testing.T) {
 				F struct{ A, B int }
 				G struct{ A int }
 			}{F: struct{ A, B int }{A: 42, B: 34}, G: struct{ A int }{A: 76}},
+		}, {
+			name: "non_pointer_text_unmarshal_implementation",
+			tmpl: &struct {
+				T tu
+			}{T: tu{
+				Text: "Hello",
+			}},
+			args: []string{"--t=foobar"},
+			expected: &struct {
+				T tu
+			}{T: tu{
+				Text: "Hello", //shouldn't change since it's non-pointer
+			}},
 		},
 	} {
 		tbl := itbl

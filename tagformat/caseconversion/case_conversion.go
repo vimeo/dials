@@ -77,7 +77,9 @@ func firstCharOfInitialism(s string, i int) bool {
 
 	// ignore the rune length for the previous character
 	r2, _ := utf8.DecodeLastRuneInString(s[:i])
-	return len(s) > i+rl1 && i >= 1 && unicode.IsUpper(r1) && unicode.IsLower(r2)
+
+	// need the equal to for when the rune is the last char in the string (ex: EnvVarA)
+	return len(s) >= i+rl1 && i >= 1 && unicode.IsUpper(r1) && unicode.IsLower(r2)
 }
 
 // firstCharAfterInitialism, as used in DecodeGoCamelCase, attempts to
@@ -103,7 +105,7 @@ func lastCharOfInitialismAtEOS(s string, i int) bool {
 	return i+rl == len(s) && unicode.IsUpper(r)
 }
 
-// TODO: Add EncodeGolangCamelCase function and set as default name encoder in
+// TODO: Add EncodeGoCamelCase function and set as default name encoder in
 // FlattenMangler
 
 // DecodeGoCamelCase decodes UpperCamelCase and lowerCamelCase strings with

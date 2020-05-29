@@ -17,12 +17,12 @@ import (
 
 var (
 	timeDuration         = reflect.TypeOf(time.Nanosecond)
-	flagValue            = reflect.TypeOf((*flag.Value)(nil)).Elem()
+	flagReflectType      = reflect.TypeOf((*flag.Value)(nil)).Elem()
 	stringSlice          = reflect.SliceOf(reflect.TypeOf(""))
 	mapStringStringSlice = reflect.MapOf(reflect.TypeOf(""), stringSlice)
 	mapStringString      = reflect.MapOf(reflect.TypeOf(""), reflect.TypeOf(""))
 	stringSet            = reflect.MapOf(reflect.TypeOf(""), reflect.TypeOf(struct{}{}))
-	textMValue           = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	textMReflectType     = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 
 	// Verify that Set implements the dials.Source interface
 	_ dials.Source = (*Set)(nil)
@@ -38,8 +38,7 @@ type NameConfig struct {
 	TagEncodeCasing caseconversion.EncodeCasingFunc
 }
 
-// TODO(@sachi): update FieldNameEncodeCasing to EncodeGolangCamelCase
-//  once the EncodeGolangCamelCase function exists
+// TODO(@sachi): update FieldNameEncodeCasing to EncodeGoCamelCase once it exists
 
 // DefaultFlagNameConfig defines a reasonably-defaulted NameConfig for field names
 // and tags
@@ -152,7 +151,7 @@ func (s *Set) parse() error {
 	return nil
 }
 
-func (s *Set) registerFlags(pval reflect.Value, ptyp reflect.Type) error {
+func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 	fm := transform.NewFlattenMangler(transform.DialsTagName, s.NameCfg.FieldNameEncodeCasing, s.NameCfg.TagEncodeCasing)
 	tfmr := transform.NewTransformer(ptyp, fm)
 	val, TrnslErr := tfmr.Translate()
@@ -190,33 +189,29 @@ func (s *Set) registerFlags(pval reflect.Value, ptyp reflect.Type) error {
 
 		ft := sf.Type
 
-		isValue := ft.Implements(flagValue)
-		isTextM := ft.Implements(textMValue)
-
-		newValPtr := reflect.New(ft)
-		ptr := newValPtr.Interface()
-
-		
-		// TODO: 
-		// fieldPath := sf.Tag.Get(transform.DialsFieldPathTag)
-		// if fieldPath == ""{
-			// panic(fmt.Errorf("dialsfieldpath tag not set in field %s", sf.Name))
+		k := ft.Kind()
+		for k == reflect.Ptr {
+			ft = ft.Elem()
+			k = ft.Kind()
 		}
-		// fieldVal := transform.GetField(val, ft, fieldPath)
-		fieldVal := getFieldVal(val, sf)
+		isValue := ft.Implements(flagReflectType) || reflect.PtrTo(ft).Implements(flagReflectType)
+		isTextM := ft.Implements(textMReflectType) || reflect.PtrTo(ft).Implements(textMReflectType)
+
+		// get the concrete value of the field from the template
+		fieldVal := transform.GetField(sf, tmpl)
 
 		switch {
 		case isValue:
 			{
-				newVal := newValPtr.Elem().Interface()
+
+				newVal := fieldVal.Addr().Interface()
 				s.Flags.Var(newVal.(flag.Value), name, help)
 				continue
 			}
 		case isTextM:
 			{
 				// Make sure our newVal value actually points to something.
-				newValPtr.Elem().Set(reflect.New(ft.Elem()))
-				newVal := newValPtr.Elem().Interface()
+				newVal := fieldVal.Addr().Interface()
 				s.Flags.Var(marshalWrapper{v: newVal.(encoding.TextUnmarshaler)}, name, help)
 				continue
 			}
@@ -224,12 +219,6 @@ func (s *Set) registerFlags(pval reflect.Value, ptyp reflect.Type) error {
 			s.Flags.Duration(name, fieldVal.Interface().(time.Duration), help)
 			continue
 		default:
-		}
-
-		k := ft.Kind()
-		for k == reflect.Ptr {
-			ft = ft.Elem()
-			k = ft.Kind()
 		}
 
 		switch k {
@@ -288,13 +277,13 @@ func (s *Set) registerFlags(pval reflect.Value, ptyp reflect.Type) error {
 		case reflect.Slice, reflect.Map:
 			switch ft {
 			case stringSlice:
-				s.Flags.Var(&stringSliceFlag{ptr.(*[]string)}, name, help)
+				s.Flags.Var(&stringSliceFlag{fieldVal.Addr().Interface().(*[]string)}, name, help)
 			case mapStringStringSlice:
-				s.Flags.Var(&mapStringStringSliceFlag{ptr.(*map[string][]string)}, name, help)
+				s.Flags.Var(&mapStringStringSliceFlag{fieldVal.Addr().Interface().(*map[string][]string)}, name, help)
 			case mapStringString:
-				s.Flags.Var(&mapStringStringFlag{ptr.(*map[string]string)}, name, help)
+				s.Flags.Var(&mapStringStringFlag{fieldVal.Addr().Interface().(*map[string]string)}, name, help)
 			case stringSet:
-				s.Flags.Var(&stringSetFlag{ptr.(*map[string]struct{})}, name, help)
+				s.Flags.Var(&stringSetFlag{fieldVal.Addr().Interface().(*map[string]struct{})}, name, help)
 			default:
 				return fmt.Errorf("unhandled type %s", ft)
 			}
