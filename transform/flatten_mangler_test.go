@@ -84,7 +84,7 @@ func TestFlattenMangler(t *testing.T) {
 			testStruct: 32,
 			modify: func(t testing.TB, val reflect.Value) {
 				assert.EqualValues(t, "ConfigField", val.Type().Field(0).Tag.Get(DialsTagName))
-				assert.EqualValues(t, "ConfigField", val.Type().Field(0).Tag.Get(DialsFieldPathTag))
+				assert.EqualValues(t, "ConfigField", val.Type().Field(0).Tag.Get(dialsFieldPathTag))
 				i := 32
 				val.Field(0).Set(reflect.ValueOf(&i))
 			},
@@ -97,7 +97,7 @@ func TestFlattenMangler(t *testing.T) {
 			testStruct: map[string]string{},
 			modify: func(t testing.TB, val reflect.Value) {
 				assert.EqualValues(t, "ConfigField", val.Type().Field(0).Tag.Get(DialsTagName))
-				assert.EqualValues(t, "ConfigField", val.Type().Field(0).Tag.Get(DialsFieldPathTag))
+				assert.EqualValues(t, "ConfigField", val.Type().Field(0).Tag.Get(dialsFieldPathTag))
 
 				m := map[string]string{
 					"hello":   "world",
@@ -119,7 +119,7 @@ func TestFlattenMangler(t *testing.T) {
 			modify: func(t testing.TB, val reflect.Value) {
 				assert.Equal(t, "ConfigField", val.Type().Field(0).Name)
 				assert.Equal(t, "ConfigField", val.Type().Field(0).Tag.Get(DialsTagName))
-				assert.Equal(t, "ConfigField", val.Type().Field(0).Tag.Get(DialsFieldPathTag))
+				assert.Equal(t, "ConfigField", val.Type().Field(0).Tag.Get(dialsFieldPathTag))
 				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
 				require.NoError(t, timeErr)
 				val.Field(0).Set(reflect.ValueOf(&curTime))
@@ -174,7 +174,7 @@ func TestFlattenMangler(t *testing.T) {
 
 				for i := 0; i < val.Type().NumField(); i++ {
 					assert.EqualValues(t, expectedDialsTags[i], val.Type().Field(i).Tag.Get(DialsTagName))
-					assert.EqualValues(t, expectedPathTags[i], val.Type().Field(i).Tag.Get(DialsFieldPathTag))
+					assert.EqualValues(t, expectedPathTags[i], val.Type().Field(i).Tag.Get(dialsFieldPathTag))
 				}
 
 				i := 42
@@ -223,7 +223,7 @@ func TestFlattenMangler(t *testing.T) {
 
 				for i := 0; i < val.Type().NumField(); i++ {
 					assert.EqualValues(t, expectedDialsTags[i], val.Type().Field(i).Tag.Get(DialsTagName))
-					assert.EqualValues(t, expectedFieldTags[i], val.Type().Field(i).Tag.Get(DialsFieldPathTag))
+					assert.EqualValues(t, expectedFieldTags[i], val.Type().Field(i).Tag.Get(dialsFieldPathTag))
 
 				}
 
@@ -300,7 +300,7 @@ func TestFlattenMangler(t *testing.T) {
 
 				for i := 0; i < len(expectedTags); i++ {
 					assert.EqualValues(t, expectedTags[i], val.Type().Field(i).Tag.Get(DialsTagName))
-					assert.EqualValues(t, expectedFieldPathTag[i], val.Type().Field(i).Tag.Get(DialsFieldPathTag))
+					assert.EqualValues(t, expectedFieldPathTag[i], val.Type().Field(i).Tag.Get(dialsFieldPathTag))
 
 				}
 
@@ -390,7 +390,7 @@ func TestFlattenMangler(t *testing.T) {
 				vtype := val.Type()
 				for i := 0; i < vtype.NumField(); i++ {
 					assert.EqualValues(t, expectedDialsTags[i], vtype.Field(i).Tag.Get(DialsTagName))
-					assert.EqualValues(t, expectedFieldTags[i], vtype.Field(i).Tag.Get(DialsFieldPathTag))
+					assert.EqualValues(t, expectedFieldTags[i], vtype.Field(i).Tag.Get(dialsFieldPathTag))
 					assert.EqualValues(t, expectedNames[i], vtype.Field(i).Name)
 				}
 
@@ -446,7 +446,7 @@ func TestFlattenMangler(t *testing.T) {
 				vtype := val.Type()
 				for i := 0; i < vtype.NumField(); i++ {
 					assert.EqualValues(t, expectedDialsTags[i], vtype.Field(i).Tag.Get(DialsTagName))
-					assert.EqualValues(t, expectedFieldTags[i], vtype.Field(i).Tag.Get(DialsFieldPathTag))
+					assert.EqualValues(t, expectedFieldTags[i], vtype.Field(i).Tag.Get(dialsFieldPathTag))
 					assert.EqualValues(t, expectedNames[i], vtype.Field(i).Name)
 				}
 
@@ -641,69 +641,66 @@ func TestTopLevelEmbed(t *testing.T) {
 	for i := 0; i < val.Type().NumField(); i++ {
 		assert.Equal(t, expectedNames[i], val.Type().Field(i).Name)
 		assert.EqualValues(t, expectedDialsTags[i], val.Type().Field(i).Tag.Get(DialsTagName))
-		assert.EqualValues(t, expectedFieldTags[i], val.Type().Field(i).Tag.Get(DialsFieldPathTag))
+		assert.EqualValues(t, expectedFieldTags[i], val.Type().Field(i).Tag.Get(dialsFieldPathTag))
 	}
-
-	assert.Equal(t, c.Embed.Foo, GetField(tVal, reflect.TypeOf("string"), "Embed,Foo"))
 }
 
 func TestGetField(t *testing.T) {
 	// used for pointers in tests
 	pbool := true
 	pint := 8
+	pstring := "creative word"
 
 	testcases := []struct {
 		name       string
 		testStruct interface{}
-		fieldType  reflect.Type
-		fieldPath  string
-		expected   interface{}
+		expected   []interface{}
 	}{
 		{
+			name: "zero-valued struct",
+			testStruct: &struct {
+				Hello   string
+				Goodbye bool
+			}{},
+			expected: []interface{}{"", false},
+		},
+		{
 			name: "simple_struct",
-			testStruct: struct {
+			testStruct: &struct {
 				Hello       string
 				littleHello string
 				Goodbye     bool
 			}{
-				Hello: "HeyJude",
+				Hello:   "HeyJude",
+				Goodbye: true,
 			},
-			fieldPath: "Hello",
-			expected:  "HeyJude",
-		},
-		{
-			name: "zero-valued struct",
-			testStruct: struct {
-				Hello   string
-				Goodbye bool
-			}{},
-			fieldPath: "Hello",
-			expected:  "",
+			// only two values in the array because the unexposed field
+			// won't be iterated in reflect.Type.NumField()
+			expected: []interface{}{"HeyJude", true},
 		},
 		{
 			name: "pointerified fields",
-			testStruct: struct {
-				Hello   string
+			testStruct: &struct {
+				Hello   *string
 				Goodbye *bool
 			}{
+				Hello:   &pstring,
 				Goodbye: &pbool,
 			},
-			fieldPath: "Goodbye",
-			expected:  true,
+			expected: []interface {
+			}{pstring, pbool},
 		},
 		{
 			name: "empty_pointerified fields",
-			testStruct: struct {
+			testStruct: &struct {
 				Hello   string
 				Goodbye *bool
 			}{},
-			fieldPath: "Goodbye",
-			fieldType: reflect.TypeOf(pbool),
-			expected:  false,
+			expected: []interface{}{"", false},
 		},
 		{
 			name: "nested_struct",
-			testStruct: struct {
+			testStruct: &struct {
 				Hello   string
 				Goodbye struct {
 					Here   bool
@@ -716,27 +713,24 @@ func TestGetField(t *testing.T) {
 					Comes  *int
 					TheSun string
 				}{
-					Comes: &pint,
+					Here:   true,
+					Comes:  &pint,
+					TheSun: "not the moon",
 				},
 			},
-			fieldPath: "Goodbye,Comes",
-			expected:  8,
+			expected: []interface{}{"", true, pint, "not the moon"},
 		},
 		{
 			name: "nested_empty_pointer_struct",
-			testStruct: struct {
+			testStruct: &struct {
 				Hello   string
 				Goodbye *struct {
 					Here   bool
 					Comes  *int
 					TheSun string
 				}
-			}{
-				Hello: "hello world",
-			},
-			fieldPath: "Goodbye,Comes",
-			fieldType: reflect.TypeOf(&pint),
-			expected:  0,
+			}{},
+			expected: []interface{}{"", false, 0, ""},
 		},
 		{
 			name: "nested_struct_with_embedded_fields",
@@ -748,27 +742,27 @@ func TestGetField(t *testing.T) {
 					Foo: "Foobars",
 				},
 			},
-			fieldPath: "Embed,Foo",
-			expected:  "Foobars",
-		},
-		{
-			name: "nested_struct_with_embedded_pointer_fields",
-			testStruct: &struct {
-				Hello string
-				*Embed
-			}{},
-			fieldPath: "Embed,Foo",
-			fieldType: reflect.TypeOf("string"),
-			expected:  "",
+			expected: []interface{}{"", "Foobars", false},
 		},
 	}
 	for _, testcase := range testcases {
 		tc := testcase
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			val := reflect.ValueOf(tc.testStruct)
-			i := GetField(val, tc.fieldType, tc.fieldPath)
-			assert.Equal(t, tc.expected, i)
+			cType := reflect.TypeOf(tc.testStruct)
+			cVal := reflect.ValueOf(tc.testStruct)
+
+			typeInstance := ptrify.Pointerify(cType.Elem(), cVal.Elem())
+
+			f := DefaultFlattenMangler()
+			tfmr := NewTransformer(typeInstance, f)
+			val, err := tfmr.Translate()
+			require.NoError(t, err)
+
+			for i := 0; i < val.Type().NumField(); i++ {
+				sf := val.Type().Field(i)
+				assert.EqualValues(t, tc.expected[i], GetField(sf, cVal).Interface())
+			}
 		})
 	}
 }

@@ -13,9 +13,9 @@ import (
 const (
 	// DialsTagName is the name of the dials tag.
 	DialsTagName = "dials"
-	// DialsFieldPathTag contains the path to the nested struct field as a
+	// dialsFieldPathTag contains the path to the nested struct field as a
 	// comma separated string of the nested field index.
-	DialsFieldPathTag = "dialsfieldpath"
+	dialsFieldPathTag = "dialsfieldpath"
 )
 
 // textMReflectType is a reflect.Type of TextUnmarshaler
@@ -120,7 +120,7 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix, fieldPath []strin
 		// Need a separate flattenPath slice for the field path instead of just
 		// using the fieldPrefix one because we need to add the names of the
 		// embedded fields to the slice so we can iterate through and get the original field
-		flattenedPath := append(fieldPath, nestedsf.Name)
+		flattenedPath := append(fieldPath[:len(fieldPath):len(fieldPath)], nestedsf.Name)
 
 		// add the tag of the current field to the list of flattened tags
 		tag, flattenedTags, tagErr := f.getTag(&nestedsf, tagPrefix, flattenedPath)
@@ -189,7 +189,7 @@ func (f *FlattenMangler) getTag(sf *reflect.StructField, tags, flattenedPath []s
 	})
 
 	parsedTag.Set(&structtag.Tag{
-		Key:  DialsFieldPathTag,
+		Key:  dialsFieldPathTag,
 		Name: strings.Join(flattenedPath, ","),
 	})
 
@@ -301,28 +301,37 @@ func stripPtrs(val reflect.Value) reflect.Value {
 	return val
 }
 
-// GetField takes in a reflect.Value and returns the value of the field at the
-// given field path or the zero value if it's not populated
-func GetField(v reflect.Value, t reflect.Type, fieldPath string) interface{} {
+// GetField should be called after calling the flatten mangler. It will look at
+// the dialsfieldpath tag of the mangled StructFields (sf) set by the flatten
+// mangler to get the path to the original field. It return the concrete value
+// at the original field and if the original field value isn't populated, it will
+// return the zero value.
+func GetField(sf reflect.StructField, v reflect.Value) reflect.Value {
+	fieldPath := sf.Tag.Get(dialsFieldPathTag)
+	// the tag should always be set after going through the flatten mangler
+	if fieldPath == "" {
+		panic(fmt.Errorf("dialsfieldpath tag not set for field %s", sf.Name))
+	}
 	fields := strings.Split(fieldPath, ",")
 	for _, fname := range fields {
 		v = stripPtrs(v)
 		// if the struct isn't populated, return the zero value
 		if !v.IsValid() {
 			// ignore the kind and get the concrete type
-			_, t = getUnderlyingKindType(t)
-			return reflect.Zero(t).Interface()
+			_, t := getUnderlyingKindType(sf.Type)
+			return reflect.New(t).Elem()
 		}
 		v = v.FieldByName(fname)
 	}
 
 	v = stripPtrs(v)
+
 	// if the final value isn't populated, return the zero value
 	if !v.IsValid() {
 		// ignore the kind and get the concrete type
-		_, t = getUnderlyingKindType(t)
-		return reflect.Zero(t).Interface()
+		_, t := getUnderlyingKindType(sf.Type)
+		return reflect.New(t).Elem()
 	}
 
-	return v.Interface()
+	return v
 }
