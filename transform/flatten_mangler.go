@@ -159,7 +159,7 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix, fieldPath []strin
 	return out, nil
 }
 
-// getTag uses the tag if one already exist or creates one based on the
+// getTag uses the tag if one already exists or creates one based on the
 // configured EncodingCasing function and fieldName. It returns the new parsed
 // StructTag, the updated slice of tags, and any error encountered
 func (f *FlattenMangler) getTag(sf *reflect.StructField, tags, flattenedPath []string) (reflect.StructTag, []string, error) {
