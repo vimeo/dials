@@ -117,7 +117,7 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix, fieldPath []strin
 			flattenedNames = append(fieldPrefix[:len(fieldPrefix):len(fieldPrefix)], nestedsf.Name)
 		}
 
-		// Need a separate flattenPath slice for the field path instead of just
+		// Need a separate flattenedPath slice for the field path instead of just
 		// using the fieldPrefix one because we need to add the names of the
 		// embedded fields to the slice so we can iterate through and get the original field
 		flattenedPath := append(fieldPath[:len(fieldPath):len(fieldPath)], nestedsf.Name)
@@ -301,11 +301,11 @@ func stripPtrs(val reflect.Value) reflect.Value {
 	return val
 }
 
-// GetField should be called after calling the flatten mangler. It will look at
+// GetField should be called after calling the flatten mangler. It uses
 // the dialsfieldpath tag of the mangled StructFields (sf) set by the flatten
 // mangler to get the path to the original field. It returns the concrete value
-// at the original field and if the original field value isn't populated, it will
-// return the zero value.
+// of the original field and if the original field value isn't populated or any
+// intermediate fields are nil, it will return the zero value for its concrete type.
 func GetField(sf reflect.StructField, v reflect.Value) reflect.Value {
 	fieldPath := sf.Tag.Get(dialsFieldPathTag)
 	// the tag should always be set after going through the flatten mangler
