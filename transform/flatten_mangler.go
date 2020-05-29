@@ -303,7 +303,7 @@ func stripPtrs(val reflect.Value) reflect.Value {
 
 // GetField should be called after calling the flatten mangler. It will look at
 // the dialsfieldpath tag of the mangled StructFields (sf) set by the flatten
-// mangler to get the path to the original field. It return the concrete value
+// mangler to get the path to the original field. It returns the concrete value
 // at the original field and if the original field value isn't populated, it will
 // return the zero value.
 func GetField(sf reflect.StructField, v reflect.Value) reflect.Value {
