@@ -294,39 +294,6 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 	return nil
 }
 
-func getFieldVal(val reflect.Value, sf reflect.StructField) reflect.Value {
-
-	fieldVal := reflect.Value{}
-	if val.IsValid() {
-		fieldVal = val.FieldByName(sf.Name)
-	}
-	fieldVal = stripPtrs(fieldVal)
-
-	ft := sf.Type
-	k := ft.Kind()
-	for k == reflect.Ptr {
-		ft = ft.Elem()
-		k = ft.Kind()
-	}
-
-	if !fieldVal.IsValid() {
-		fieldVal = reflect.Zero(ft)
-	}
-	return fieldVal
-}
-
-func stripPtrs(val reflect.Value) reflect.Value {
-	for val.IsValid() {
-		switch val.Kind() {
-		case reflect.Ptr, reflect.Interface:
-			val = val.Elem()
-		default:
-			return val
-		}
-	}
-	return val
-}
-
 // Value fills in the user-provided config struct using flags. It looks up the
 // flags to bind into a given struct field by using that field's `dialsflag`
 // struct tag if present, then its `dials` tag if present, and finally its name.
