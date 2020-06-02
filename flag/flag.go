@@ -8,35 +8,45 @@ import (
 	"reflect"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/vimeo/dials"
 	"github.com/vimeo/dials/ptrify"
+	"github.com/vimeo/dials/tagformat/caseconversion"
+	"github.com/vimeo/dials/transform"
 )
 
 var (
 	timeDuration         = reflect.TypeOf(time.Nanosecond)
-	flagValue            = reflect.TypeOf((*flag.Value)(nil)).Elem()
+	flagReflectType      = reflect.TypeOf((*flag.Value)(nil)).Elem()
 	stringSlice          = reflect.SliceOf(reflect.TypeOf(""))
 	mapStringStringSlice = reflect.MapOf(reflect.TypeOf(""), stringSlice)
 	mapStringString      = reflect.MapOf(reflect.TypeOf(""), reflect.TypeOf(""))
 	stringSet            = reflect.MapOf(reflect.TypeOf(""), reflect.TypeOf(struct{}{}))
-	textMValue           = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	textMReflectType     = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 
 	// Verify that Set implements the dials.Source interface
 	_ dials.Source = (*Set)(nil)
 )
 
+const dialsFlagTag = "dialsflag"
+
 // NameConfig defines the parameters for separating components of a flag-name
 type NameConfig struct {
-	FieldSep string
-	WordSep  string
+	// FieldNameEncodeCasing is for the field names used by the flatten mangler
+	FieldNameEncodeCasing caseconversion.EncodeCasingFunc
+	// TagEncodeCasing is for the tag names used by the flatten mangler
+	TagEncodeCasing caseconversion.EncodeCasingFunc
 }
 
-// DashesNameConfig defines a reasonably-defaulted NameConfig with dashes for
-// both separators.
-func DashesNameConfig() NameConfig {
-	return NameConfig{FieldSep: "-", WordSep: "-"}
+// TODO(@sachi): update FieldNameEncodeCasing to EncodeGoCamelCase once it exists
+
+// DefaultFlagNameConfig defines a reasonably-defaulted NameConfig for field names
+// and tags
+func DefaultFlagNameConfig() *NameConfig {
+	return &NameConfig{
+		FieldNameEncodeCasing: caseconversion.EncodeUpperCamelCase,
+		TagEncodeCasing:       caseconversion.EncodeKebabCase,
+	}
 }
 
 func ptrified(template interface{}) (reflect.Value, reflect.Type, error) {
@@ -59,8 +69,8 @@ func ptrified(template interface{}) (reflect.Value, reflect.Type, error) {
 // configuration can play nicely with libraries that register flags with the
 // standard library. (or libraries using dials can register flags and let the
 // actual process's Main() call Parse())
-func NewCmdLineSet(cfg NameConfig, template interface{}) (*Set, error) {
-	tmpl, ptyp, ptrifyErr := ptrified(template)
+func NewCmdLineSet(cfg *NameConfig, template interface{}) (*Set, error) {
+	pval, ptyp, ptrifyErr := ptrified(template)
 	if ptrifyErr != nil {
 		return nil, ptrifyErr
 	}
@@ -69,12 +79,12 @@ func NewCmdLineSet(cfg NameConfig, template interface{}) (*Set, error) {
 		Flags:           flag.CommandLine,
 		ParseFunc:       func() error { flag.Parse(); return nil },
 		ptrType:         ptyp,
-		fieldPaths:      map[string][]int{},
 		flagsRegistered: true,
 		NameCfg:         cfg,
+		flagFieldName:   map[string]string{},
 	}
 
-	if err := s.walk("", []int{}, tmpl, ptyp); err != nil {
+	if err := s.registerFlags(pval, ptyp); err != nil {
 		return nil, err
 	}
 
@@ -82,23 +92,24 @@ func NewCmdLineSet(cfg NameConfig, template interface{}) (*Set, error) {
 }
 
 // NewSetWithArgs creates a new FlagSet and registers flags in it
-func NewSetWithArgs(cfg NameConfig, template interface{}, args []string) (*Set, error) {
-	tmpl, ptyp, ptrifyErr := ptrified(template)
+func NewSetWithArgs(cfg *NameConfig, template interface{}, args []string) (*Set, error) {
+	pval, ptyp, ptrifyErr := ptrified(template)
 	if ptrifyErr != nil {
 		return nil, ptrifyErr
 	}
 
 	fs := flag.NewFlagSet("", flag.ContinueOnError)
+
 	s := Set{
 		Flags:           fs,
 		ParseFunc:       func() error { return fs.Parse(args) },
 		ptrType:         ptyp,
-		fieldPaths:      map[string][]int{},
 		flagsRegistered: true,
 		NameCfg:         cfg,
+		flagFieldName:   map[string]string{},
 	}
 
-	if err := s.walk("", []int{}, tmpl, ptyp); err != nil {
+	if err := s.registerFlags(pval, ptyp); err != nil {
 		return nil, err
 	}
 
@@ -121,12 +132,13 @@ type Set struct {
 	ptrType reflect.Type
 
 	// NameCfg defines tunables for constructing flag-names
-	NameCfg NameConfig
-
-	// Map from flag-name to field-path (offsets)
-	fieldPaths map[string][]int
+	NameCfg *NameConfig
 
 	flagsRegistered bool
+	tfmr            *transform.Transformer
+	trnslVal        reflect.Value
+	// Map to store the flag name (key) and field name (value)
+	flagFieldName map[string]string
 }
 
 func (s *Set) parse() error {
@@ -139,188 +151,154 @@ func (s *Set) parse() error {
 	return nil
 }
 
-func (s *Set) registerFieldFlag(name string, idxs []int, fieldVal reflect.Value, sf reflect.StructField) error {
-	ft := sf.Type
-	help := DefaultFlagHelpText
-	if x, ok := sf.Tag.Lookup(HelpTextTag); ok {
-		help = x
-	}
-	newValPtr := reflect.New(ft)
-	ptr := newValPtr.Interface()
-	k := fieldVal.Kind()
-
-	isValue := ft.Implements(flagValue)
-	isTextM := ft.Implements(textMValue)
-	if k == reflect.Struct && !(isValue || isTextM) {
-		if walkErr := s.walk(name+s.NameCfg.FieldSep, idxs, fieldVal, ft); walkErr != nil {
-			return fmt.Errorf("failed to walk field %q: %s", name, walkErr)
-		}
-		return nil
+func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
+	fm := transform.NewFlattenMangler(transform.DialsTagName, s.NameCfg.FieldNameEncodeCasing, s.NameCfg.TagEncodeCasing)
+	tfmr := transform.NewTransformer(ptyp, fm)
+	val, TrnslErr := tfmr.Translate()
+	if TrnslErr != nil {
+		return TrnslErr
 	}
 
-	switch {
-	case isValue:
-		{
-			newVal := newValPtr.Elem().Interface()
-			s.Flags.Var(newVal.(flag.Value), name, help)
-			return nil
-		}
-	case isTextM:
-		{
-			// Make sure our newVal value actually points to something.
-			newValPtr.Elem().Set(reflect.New(ft.Elem()))
-			newVal := newValPtr.Elem().Interface()
-			s.Flags.Var(marshalWrapper{v: newVal.(encoding.TextUnmarshaler)}, name, help)
-			return nil
-		}
-	case fieldVal.Type() == timeDuration:
-		s.Flags.Duration(name, fieldVal.Interface().(time.Duration), help)
-		return nil
-	default:
-	}
-	switch k {
-	case reflect.String:
-		s.Flags.String(name, fieldVal.Interface().(string), help)
-	case reflect.Bool:
-		s.Flags.Bool(name, fieldVal.Interface().(bool), help)
-	case reflect.Float64:
-		s.Flags.Float64(name, fieldVal.Interface().(float64), help)
-	case reflect.Float32:
-		s.Flags.Float64(name, float64(fieldVal.Interface().(float32)), help)
-	case reflect.Complex64:
-		s.Flags.Var(&complex64Var{c: fieldVal.Interface().(complex64)}, name, help)
-	case reflect.Complex128:
-		s.Flags.Var(&complex128Var{c: fieldVal.Interface().(complex128)}, name, help)
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32:
-		{
-			fvToInt := func() int {
-				switch v := fieldVal.Interface().(type) {
-				case int:
-					return v
-				case int8:
-					return int(v)
-				case int16:
-					return int(v)
-				case int32:
-					return int(v)
-				default:
-					return 0
-				}
-			}
-			s.Flags.Int(name, fvToInt(), help)
-		}
-	case reflect.Int64:
-		s.Flags.Int64(name, fieldVal.Int(), help)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32:
-		{
-			fvToInt := func() uint {
-				switch v := fieldVal.Interface().(type) {
-				case uint:
-					return v
-				case uint8:
-					return uint(v)
-				case uint16:
-					return uint(v)
-				case uint32:
-					return uint(v)
-				default:
-					return 0
-				}
-			}
-			s.Flags.Uint(name, fvToInt(), help)
-		}
-	case reflect.Uint64:
-		s.Flags.Uint64(name, fieldVal.Interface().(uint64), help)
-	case reflect.Slice, reflect.Map:
-		switch ft {
-		case stringSlice:
-			s.Flags.Var(&stringSliceFlag{ptr.(*[]string)}, name, help)
-		case mapStringStringSlice:
-			s.Flags.Var(&mapStringStringSliceFlag{ptr.(*map[string][]string)}, name, help)
-		case mapStringString:
-			s.Flags.Var(&mapStringStringFlag{ptr.(*map[string]string)}, name, help)
-		case stringSet:
-			s.Flags.Var(&stringSetFlag{ptr.(*map[string]struct{})}, name, help)
-		default:
-			return fmt.Errorf("unhandled type %s",
-				ft)
-		}
-	default:
-		return fmt.Errorf("unhandled type %s", ft)
-	}
-	return nil
-}
+	s.tfmr = tfmr
+	s.trnslVal = val
 
-func stripPtrs(val reflect.Value) reflect.Value {
-	for val.IsValid() {
-		switch val.Kind() {
-		case reflect.Ptr, reflect.Interface:
-			val = val.Elem()
-		default:
-			return val
-		}
-	}
-	return val
-}
+	t := val.Type()
 
-func (s *Set) walk(prefix string, pathIdxs []int, tmplVal reflect.Value, t reflect.Type) error {
-	switch outerK := t.Kind(); outerK {
-	case reflect.Struct:
-	case reflect.Ptr:
-		if t.Elem().Kind() != reflect.Struct {
-			return fmt.Errorf("flag: type passed was a pointer to a non-struct (%s)", t)
-		}
-		// Make sure to handle the pointerified field-values
+	k := t.Kind()
+	for k == reflect.Ptr {
 		t = t.Elem()
-	default:
-		return fmt.Errorf("flag: type passed was not a struct or pointer to struct (%s)", t)
+		k = t.Kind()
 	}
+
+	// the input kind will be struct after calling Translate on it
 	for i := 0; i < t.NumField(); i++ {
-		// assemble the fieldname->index-list value
-		idxs := make([]int, len(pathIdxs), len(pathIdxs)+1)
-		copy(idxs, pathIdxs)
-		idxs = append(idxs, i)
-
 		sf := t.Field(i)
-		// Make sure we're pointerized (or nilable)
-		switch sf.Type.Kind() {
-		case reflect.Ptr, reflect.Map, reflect.Slice:
-		default:
-			return fmt.Errorf("flag: programmer error: expected pointerized fields, got %s in %s",
-				sf.Type, t)
+		help := DefaultFlagHelpText
+		if x, ok := sf.Tag.Lookup(HelpTextTag); ok {
+			help = x
 		}
 
-		fieldVal := reflect.Value{}
-		if tmplVal.IsValid() {
-			fieldVal = tmplVal.FieldByName(sf.Name)
+		name := s.mkname(sf)
+		s.flagFieldName[name] = sf.Name
+
+		// if the flag already exists, don't register so the user can override
+		// our behavior
+		if s.Flags.Lookup(name) != nil {
+			continue
 		}
-		fieldVal = stripPtrs(fieldVal)
 
 		ft := sf.Type
+
 		k := ft.Kind()
 		for k == reflect.Ptr {
 			ft = ft.Elem()
 			k = ft.Kind()
 		}
+		isValue := ft.Implements(flagReflectType) || reflect.PtrTo(ft).Implements(flagReflectType)
+		isTextM := ft.Implements(textMReflectType) || reflect.PtrTo(ft).Implements(textMReflectType)
 
-		if !fieldVal.IsValid() {
-			fieldVal = reflect.Zero(ft)
-		}
-		name := prefix + mkname(t, sf)
-		s.fieldPaths[name] = idxs
-		// Do a lookup so that a caller can override our behavior.
-		if s.Flags.Lookup(name) != nil {
+		// get the concrete value of the field from the template
+		fieldVal := transform.GetField(sf, tmpl)
+
+		switch {
+		case isValue:
+			{
+
+				newVal := fieldVal.Addr().Interface()
+				s.Flags.Var(newVal.(flag.Value), name, help)
+				continue
+			}
+		case isTextM:
+			{
+				// Make sure our newVal value actually points to something.
+				newVal := fieldVal.Addr().Interface()
+				s.Flags.Var(marshalWrapper{v: newVal.(encoding.TextUnmarshaler)}, name, help)
+				continue
+			}
+		case fieldVal.Type() == timeDuration:
+			s.Flags.Duration(name, fieldVal.Interface().(time.Duration), help)
 			continue
+		default:
 		}
-		if regErr := s.registerFieldFlag(name, idxs, fieldVal, sf); regErr != nil {
-			return fmt.Errorf("failed to register flag(s) for field index %d in type %s: %s", i, t, regErr)
+
+		switch k {
+		case reflect.String:
+			s.Flags.String(name, fieldVal.Interface().(string), help)
+		case reflect.Bool:
+			s.Flags.Bool(name, fieldVal.Interface().(bool), help)
+		case reflect.Float64:
+			s.Flags.Float64(name, fieldVal.Interface().(float64), help)
+		case reflect.Float32:
+			s.Flags.Float64(name, float64(fieldVal.Interface().(float32)), help)
+		case reflect.Complex64:
+			s.Flags.Var(&complex64Var{c: fieldVal.Interface().(complex64)}, name, help)
+		case reflect.Complex128:
+			s.Flags.Var(&complex128Var{c: fieldVal.Interface().(complex128)}, name, help)
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32:
+			{
+				fvToInt := func() int {
+					switch v := fieldVal.Interface().(type) {
+					case int:
+						return v
+					case int8:
+						return int(v)
+					case int16:
+						return int(v)
+					case int32:
+						return int(v)
+					default:
+						return 0
+					}
+				}
+				s.Flags.Int(name, fvToInt(), help)
+			}
+		case reflect.Int64:
+			s.Flags.Int64(name, fieldVal.Int(), help)
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32:
+			{
+				fvToInt := func() uint {
+					switch v := fieldVal.Interface().(type) {
+					case uint:
+						return v
+					case uint8:
+						return uint(v)
+					case uint16:
+						return uint(v)
+					case uint32:
+						return uint(v)
+					default:
+						return 0
+					}
+				}
+				s.Flags.Uint(name, fvToInt(), help)
+			}
+		case reflect.Uint64:
+			s.Flags.Uint64(name, fieldVal.Interface().(uint64), help)
+		case reflect.Slice, reflect.Map:
+			switch ft {
+			case stringSlice:
+				s.Flags.Var(&stringSliceFlag{fieldVal.Addr().Interface().(*[]string)}, name, help)
+			case mapStringStringSlice:
+				s.Flags.Var(&mapStringStringSliceFlag{fieldVal.Addr().Interface().(*map[string][]string)}, name, help)
+			case mapStringString:
+				s.Flags.Var(&mapStringStringFlag{fieldVal.Addr().Interface().(*map[string]string)}, name, help)
+			case stringSet:
+				s.Flags.Var(&stringSetFlag{fieldVal.Addr().Interface().(*map[string]struct{})}, name, help)
+			default:
+				return fmt.Errorf("unhandled type %s", ft)
+			}
+		default:
+			return fmt.Errorf("unhandled type %s", ft)
 		}
 	}
 	return nil
 }
 
-// Value implements dials.Source, taking a dials type and returning a
-// reflect.Value representing the values of the flags.
+// Value fills in the user-provided config struct using flags. It looks up the
+// flags to bind into a given struct field by using that field's `dialsflag`
+// struct tag if present, then its `dials` tag if present, and finally its name.
+// If the struct has nested fields, Value will flatten the fields so flags can
+// be defined for nested fields.
 func (s *Set) Value(t *dials.Type) (reflect.Value, error) {
 	// Check whether we've gone through the exercise of parsing flags yet
 	// (and types are compatible).
@@ -332,8 +310,8 @@ func (s *Set) Value(t *dials.Type) (reflect.Value, error) {
 		}
 	}
 
-	if s.fieldPaths == nil {
-		s.fieldPaths = map[string][]int{}
+	if s.flagFieldName == nil {
+		s.flagFieldName = map[string]string{}
 	}
 	if s.Flags == nil {
 		// TODO: remove this fallback
@@ -342,8 +320,20 @@ func (s *Set) Value(t *dials.Type) (reflect.Value, error) {
 			s.ParseFunc = func() error { return s.Flags.Parse(os.Args[1:]) }
 		}
 	}
+
+	if s.NameCfg == nil {
+		s.NameCfg = DefaultFlagNameConfig()
+	}
+
 	if !s.flagsRegistered {
-		if err := s.walk("", []int{}, reflect.Value{}, t.Type()); err != nil {
+		var ptyp reflect.Type
+		if s.ptrType == nil {
+			ptyp = t.Type()
+		} else {
+			ptyp = s.ptrType
+		}
+
+		if err := s.registerFlags(reflect.Value{}, ptyp); err != nil {
 			return reflect.Value{}, err
 		}
 		s.flagsRegistered = true
@@ -356,25 +346,18 @@ func (s *Set) Value(t *dials.Type) (reflect.Value, error) {
 	var setErr error
 	val := reflect.New(t.Type())
 	s.Flags.Visit(func(f *flag.Flag) {
-		fieldIdxs, ok := s.fieldPaths[f.Name]
+		fieldName, ok := s.flagFieldName[f.Name]
 		if !ok {
 			return
 		}
-		// Iteratively initialize unset values
-		for i := 1; i < len(fieldIdxs); i++ {
-			interimField := val.Elem().FieldByIndex(fieldIdxs[:i])
-			if !interimField.IsNil() {
-				// If this field isn't nil, continue, we don't
-				// want to overwrite a populated field with an
-				// empty one. (since that would prevent us from
-				// seeing other fields in the same (or
-				// parallel) sub-structs.
-				continue
-			}
-			interimPtr := reflect.New(interimField.Type().Elem())
-			interimField.Set(interimPtr)
+
+		ffield := s.trnslVal.FieldByName(fieldName)
+		if !ffield.IsNil() {
+			// there's a 1:1 mapping between flags and field names so panic if
+			// this happens
+			panic(fmt.Errorf("Field name %s with flag %s is nil", fieldName, f.Name))
 		}
-		ffield := val.Elem().FieldByIndex(fieldIdxs)
+
 		// We'll assume we're in a pointerified struct that matches
 		// what we expected before, here.
 		ptrVal := reflect.New(stripTypePtr(ffield.Type()))
@@ -389,6 +372,7 @@ func (s *Set) Value(t *dials.Type) (reflect.Value, error) {
 				ffield.Set(fval)
 				return
 			}
+
 			if willOverflow(fval, ptrVal.Elem()) {
 				setErr = fmt.Errorf("value for flag %q (%s) would overflow type %s",
 					f.Name, f.Value.String(), ptrVal.Type().Elem())
@@ -410,7 +394,7 @@ func (s *Set) Value(t *dials.Type) (reflect.Value, error) {
 		return val.Elem(), setErr
 	}
 
-	return val.Elem(), nil
+	return s.tfmr.ReverseTranslate(s.trnslVal)
 }
 
 func stripTypePtr(t reflect.Type) reflect.Type {
@@ -442,40 +426,21 @@ func willOverflow(val, target reflect.Value) bool {
 
 }
 
-// Mkname runs a heuristic to turn a struct path into a flag name.
-//
-// It doesn't handle intercapped acronyms.
-func mkname(root reflect.Type, sf reflect.StructField) string {
-	if name, ok := sf.Tag.Lookup("dialsflag"); ok {
+// mkname creates a flag name based on the values of the dialsflag/dials tag or
+// decoded field name and converting it into kebab case
+func (s *Set) mkname(sf reflect.StructField) string {
+	// use the name from the dialsflag tag for the flag name
+	if name, ok := sf.Tag.Lookup(dialsFlagTag); ok {
 		return name
 	}
-	if name, ok := sf.Tag.Lookup("dials"); ok {
-		return name
+	// check if the dials tag is populated (it should be once it goes through
+	// the flatten mangler).
+	if name, ok := sf.Tag.Lookup(transform.DialsTagName); ok {
+		return strings.ToLower(name)
 	}
-	b := &strings.Builder{}
-	key := make([]int, len(sf.Index))
-	for i, idx := range sf.Index {
-		key[i] = idx
-		f := root.FieldByIndex(key[:i+1])
-		switch {
-		case strings.IndexFunc(f.Name, unicode.IsLower) == -1: // All upper
-			fallthrough
-		case strings.LastIndexFunc(f.Name, unicode.IsUpper) == 0: // Initial cap
-			b.WriteString(strings.ToLower(f.Name))
-		default:
-			for i, c := range f.Name {
-				if unicode.IsUpper(c) {
-					if i != 0 {
-						b.WriteByte('-')
-					}
-					c = unicode.ToLower(c)
-				}
-				b.WriteRune(c)
-			}
-		}
-		if i != len(sf.Index)-1 {
-			b.WriteRune('.')
-		}
-	}
-	return b.String()
+
+	// panic because flatten mangler should set the dials tag so panic if that
+	// wasn't set
+	panic(fmt.Errorf("Expected dials tag name for struct field %q", sf.Name))
+
 }

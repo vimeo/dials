@@ -30,7 +30,7 @@ func (e *Source) Value(t *dials.Type) (reflect.Value, error) {
 	// flatten the nested fields
 	flattenMangler := transform.NewFlattenMangler(transform.DialsTagName, caseconversion.EncodeUpperCamelCase, caseconversion.EncodeUpperCamelCase)
 	// reformat the tags so they are SCREAMING_SNAKE_CASE
-	reformatTagMangler := tagformat.NewTagReformattingMangler(transform.DialsTagName, caseconversion.DecodeGolangCamelCase, caseconversion.EncodeUpperSnakeCase)
+	reformatTagMangler := tagformat.NewTagReformattingMangler(transform.DialsTagName, caseconversion.DecodeGoCamelCase, caseconversion.EncodeUpperSnakeCase)
 	// copy tags from "dials" to "dials_env" tag
 	tagCopyingMangler := &tagformat.TagCopyingMangler{SrcTag: transform.DialsTagName, NewTag: envTagName}
 	// convert all the fields in the flattened struct to string type so the environment variables can be set

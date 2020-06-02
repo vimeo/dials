@@ -10,19 +10,27 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vimeo/dials"
+	"github.com/vimeo/dials/tagformat/caseconversion"
 )
 
 func TestDirectBasic(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
+	type Embed struct {
+		Foo string `dialsflag:"foofoo"`
+		Bar bool   // will have dials tag "Bar" after flatten mangler
+	}
 	type Config struct {
 		Hello string
 		World bool
+		Embed
 	}
 	fs := flag.NewFlagSet("test flags", flag.ContinueOnError)
 	src := &Set{
-		Flags:     fs,
-		ParseFunc: func() error { return fs.Parse([]string{"-world", "-hello=foobar"}) },
+		Flags: fs,
+		ParseFunc: func() error {
+			return fs.Parse([]string{"-world", "-hello=foobar", "-foofoo=something", "-bar"})
+		},
 	}
 	buf := &bytes.Buffer{}
 	src.Flags.SetOutput(buf)
@@ -45,6 +53,24 @@ func TestDirectBasic(t *testing.T) {
 	if !got.World {
 		t.Errorf("expected World to be true, got %t", got.World)
 	}
+
+	if got.Foo != "something" {
+		t.Errorf("expected \"something\" for Foo, got %q", got.Foo)
+	}
+
+	if !got.Bar {
+		t.Errorf("expected Bar to be true, got %t", got.Bar)
+	}
+}
+
+type tu struct {
+	Text string
+}
+
+// need a concrete type that implements TextUnmarshaler
+func (u tu) UnmarshalText(data []byte) error {
+	u.Text = string(data)
+	return nil
 }
 
 func TestTable(t *testing.T) {
@@ -131,15 +157,15 @@ func TestTable(t *testing.T) {
 		},
 		{
 			name:     "map_string_string_slice_set",
-			tmpl:     &struct{ A map[string][]string }{A: map[string][]string{"z": []string{"i"}}},
+			tmpl:     &struct{ A map[string][]string }{A: map[string][]string{"z": {"i"}}},
 			args:     []string{"--a=l:v,l:z"},
-			expected: &struct{ A map[string][]string }{A: map[string][]string{"l": []string{"v", "z"}}},
+			expected: &struct{ A map[string][]string }{A: map[string][]string{"l": {"v", "z"}}},
 		},
 		{
 			name:     "map_string_string_slice_default",
-			tmpl:     &struct{ A map[string][]string }{A: map[string][]string{"z": []string{"i"}}},
+			tmpl:     &struct{ A map[string][]string }{A: map[string][]string{"z": {"i"}}},
 			args:     []string{},
-			expected: &struct{ A map[string][]string }{A: map[string][]string{"z": []string{"i"}}},
+			expected: &struct{ A map[string][]string }{A: map[string][]string{"z": {"i"}}},
 		},
 		{
 			name:     "string_slice_set",
@@ -155,15 +181,15 @@ func TestTable(t *testing.T) {
 		},
 		{
 			name:     "string_set_set",
-			tmpl:     &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": struct{}{}}},
+			tmpl:     &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
 			args:     []string{"--a=v"},
-			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"v": struct{}{}}},
+			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"v": {}}},
 		},
 		{
 			name:     "string_set_default",
-			tmpl:     &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": struct{}{}}},
+			tmpl:     &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
 			args:     []string{},
-			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": struct{}{}}},
+			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
 		},
 		{
 			name:     "basic_duration_default",
@@ -178,7 +204,7 @@ func TestTable(t *testing.T) {
 			expected: &struct{ A time.Duration }{A: 3 * time.Millisecond},
 		},
 		{
-			// use time.Time for a couple test-cases since it implementes the UnmarshalText method.
+			// use time.Time for a of couple test-cases since it implements TextUnmarshaler
 			name:     "marshaler_time_set",
 			tmpl:     &struct{ A time.Time }{A: time.Time{}},
 			args:     []string{"--a=2019-12-18T14:00:12Z"},
@@ -262,12 +288,57 @@ func TestTable(t *testing.T) {
 				G struct{ A int }
 			}{F: struct{ A, B int }{A: 42, B: 34}, G: struct{ A int }{A: 5}},
 		},
+		{
+			name: "hierarchical_ints_multi_struct_partially_defaulted _with_tags",
+			tmpl: &struct {
+				F struct {
+					A int `dials:"NotA"`
+					B int
+				}
+				G struct {
+					A int `dialsflag:"NotB"`
+				}
+			}{F: struct {
+				A int `dials:"NotA"`
+				B int
+			}{
+				A: 4, B: 34,
+			},
+				G: struct {
+					A int `dialsflag:"NotB"`
+				}{A: 5234}},
+			args: []string{"--f-nota=42", "--NotB=76"},
+			expected: &struct {
+				F struct{ A, B int }
+				G struct{ A int }
+			}{F: struct{ A, B int }{A: 42, B: 34}, G: struct{ A int }{A: 76}},
+		}, {
+			name: "non_pointer_text_unmarshal_implementation",
+			tmpl: &struct {
+				T tu
+			}{T: tu{
+				Text: "Hello",
+			}},
+			args: []string{"--t=foobar"},
+			expected: &struct {
+				T tu
+			}{T: tu{
+				Text: "Hello", //shouldn't change since it's non-pointer
+			}},
+		},
 	} {
 		tbl := itbl
 		t.Run(tbl.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			s, setupErr := NewSetWithArgs(DashesNameConfig(), tbl.tmpl, tbl.args)
+			// use UpperSnakeCase instead of default (CamelCase) since
+			// single character field names like A and B make it hard to decode
+			// between different fields
+			nameConfig := &NameConfig{
+				FieldNameEncodeCasing: caseconversion.EncodeUpperSnakeCase,
+				TagEncodeCasing:       caseconversion.EncodeKebabCase,
+			}
+			s, setupErr := NewSetWithArgs(nameConfig, tbl.tmpl, tbl.args)
 			require.NoError(t, setupErr, "failed to setup Set")
 
 			d, cfgErr := dials.Config(ctx, tbl.tmpl, s)
@@ -276,7 +347,6 @@ func TestTable(t *testing.T) {
 				return
 			}
 			require.NoError(t, cfgErr, "failed to stack/Value()")
-
 			assert.EqualValues(t, tbl.expected, d.View())
 		})
 	}

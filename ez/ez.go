@@ -53,7 +53,7 @@ func fileSource(cfgPath string, decoder dials.Decoder, watch bool) (dials.Source
 func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, decoderFactory func(string) dials.Decoder, watch bool) (*dials.Dials, error) {
 	blank := sourcewrap.Blank{}
 
-	fset, flagErr := flag.NewCmdLineSet(flag.DashesNameConfig(), cfg)
+	fset, flagErr := flag.NewCmdLineSet(flag.DefaultFlagNameConfig(), cfg)
 	if flagErr != nil {
 		return nil, fmt.Errorf("failed to register commandline flags: %s", flagErr)
 	}
