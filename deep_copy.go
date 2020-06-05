@@ -2,6 +2,7 @@ package dials
 
 import (
 	"fmt"
+	"go/token"
 	"reflect"
 )
 
@@ -16,9 +17,14 @@ func deepCopyValue(v reflect.Value) reflect.Value {
 	return d.deepCopyValue(v)
 }
 
+type ptrKey struct {
+	ptr uintptr
+	typ reflect.Type
+}
+
 func newDeepCopier() *deepCopier {
 	return &deepCopier{
-		ptrMap:   map[interface{}]interface{}{},
+		ptrMap:   map[ptrKey]reflect.Value{},
 		sliceMap: map[uintptr]sliceInfo{},
 		mapMap:   map[uintptr]reflect.Value{},
 	}
@@ -33,7 +39,7 @@ type sliceInfo struct {
 type deepCopier struct {
 	// map from input pointer to output pointer to handle reference-cycles
 	// and splitting pointers to the same object.
-	ptrMap map[interface{}]interface{}
+	ptrMap map[ptrKey]reflect.Value
 
 	// map from input slice-pointer to output-slice-pointer to handle
 	// reference cycles, and prevent splitting large backing arrays.
@@ -52,6 +58,14 @@ func (d *deepCopier) deepCopyValue(v reflect.Value) reflect.Value {
 	return out
 }
 
+func (d *deepCopier) registerPair(in, out reflect.Value) {
+	if in.CanAddr() && out.CanAddr() {
+		p := in.Addr()
+		pKey := ptrKey{ptr: p.Pointer(), typ: p.Type()}
+		d.ptrMap[pKey] = out.Addr()
+	}
+}
+
 // takes a concrete value for in, an assignable value in out.
 func (d *deepCopier) deepCopy(in, out reflect.Value) {
 
@@ -63,9 +77,8 @@ func (d *deepCopier) deepCopy(in, out reflect.Value) {
 		out.Set(in)
 	}
 
-	if in.CanAddr() && out.CanAddr() && in.Addr().CanInterface() && out.Addr().CanInterface() {
-		d.ptrMap[in.Addr().Interface()] = out.Addr().Interface()
-	}
+	d.registerPair(in, out)
+
 	switch in.Kind() {
 	case reflect.Struct:
 		d.deepCopyStruct(in, out)
@@ -126,8 +139,9 @@ func (d *deepCopier) deepCopyPtr(in, out reflect.Value) {
 	if in.IsNil() {
 		return
 	}
-	if ov, ok := d.ptrMap[in.Interface()]; ok {
-		out.Set(reflect.ValueOf(ov))
+	pKey := ptrKey{ptr: in.Pointer(), typ: in.Type()}
+	if ov, ok := d.ptrMap[pKey]; ok {
+		out.Set(ov)
 		// The deep part of the copying has already been taken care of
 		return
 	}
@@ -135,15 +149,24 @@ func (d *deepCopier) deepCopyPtr(in, out reflect.Value) {
 	inType := in.Type()
 	newVal := reflect.New(inType.Elem())
 	out.Set(newVal)
-	d.ptrMap[in.Interface()] = out.Interface()
+	d.ptrMap[pKey] = out
 	d.deepCopy(in.Elem(), out.Elem())
 }
 
 // deepCopyStruct does a deep-copy of the passed struct-type from in into out.
 func (d *deepCopier) deepCopyStruct(in, out reflect.Value) {
 	for i := 0; i < in.NumField(); i++ {
+		ifld := in.Type().Field(i)
 		f := in.Field(i)
 		of := out.Field(i)
+		if !token.IsExported(ifld.Name) {
+			// The field is not exported, and Go's reflect package
+			// goes to great lengths to consider values from such
+			// fields poisoned. Don't try to bypass it, since we're
+			// dealing with config structs which are assembled from
+			// different sources, not general-purpose values.
+			continue
+		}
 		d.deepCopy(f, of)
 	}
 }

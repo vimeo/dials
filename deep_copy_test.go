@@ -2,6 +2,7 @@ package dials
 
 import (
 	"fmt"
+	"go/token"
 	"reflect"
 	"testing"
 )
@@ -252,6 +253,44 @@ func TestDeepCopy(t *testing.T) {
 				}
 			},
 		},
+		"struct_with_ptr_ref_to_unexported_field": {i: func() interface{} {
+			b := &struct {
+				r RefCycleJ
+				R *RefCycleJ
+			}{
+				r: RefCycleJ{
+					B:  false,
+					Bs: nil,
+					J:  &RefCycleJ{},
+				},
+			}
+			b.r.Bs = &b.r.B
+			b.r.J = &b.r
+			b.R = &b.r
+			return b
+		}(),
+			check: func(t testing.TB, in, out interface{}) {
+				i := in.(*struct {
+					r RefCycleJ
+					R *RefCycleJ
+				})
+				b := out.(*struct {
+					r RefCycleJ
+					R *RefCycleJ
+				})
+				// We can't do anything about values within
+				// unexported fields
+				if &i.r.B != b.r.Bs {
+					t.Errorf("referential consistency violation: b.r.Bs: got %p; want: %p; at %p",
+						b.r.Bs, &i.r.B, &b.r.Bs)
+				}
+				if &i.r != b.r.J {
+					t.Errorf("referential consistency violation: b.r.J: got %p; want: %p",
+						b.r.J, &i.r)
+
+				}
+			},
+		},
 		"struct_with_map_ref_cycle": {i: func() interface{} {
 			b := &RefCycleMapJ{
 				B: true,
@@ -358,7 +397,15 @@ func verifyDifferentPointers(t testing.TB, seenPtrs map[uintptr]struct{}, fname 
 			verifyDifferentPointers(t, seenPtrs, fmt.Sprintf("%s[%s]", fname, k), inElem, outElem)
 		}
 	case reflect.Struct:
+		it := in.Type()
 		for z := 0; z < in.NumField(); z++ {
+			ifield := it.Field(z)
+			if !token.IsExported(ifield.Name) {
+				// field's not exported, so we can't recurse
+				// into it to set values/pull-out-pointers
+				// anyway.
+				return
+			}
 			inFieldType := in.Type().Field(z)
 			inField := in.Field(z)
 			outField := out.Field(z)
