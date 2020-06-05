@@ -9,9 +9,21 @@ import (
 func TestDeepCopy(t *testing.T) {
 	type sInt struct{ J int }
 	type sBool struct{ J bool }
+	type RefCycleJ struct {
+		B  bool
+		Bs *bool
+		J  *RefCycleJ
+	}
+	type RefCycleMapJ struct {
+		B  bool
+		Bs *bool
+		J  map[string]*RefCycleMapJ
+		Js map[string]*RefCycleMapJ
+	}
 
 	for name, inst := range map[string]struct {
-		i interface{}
+		i     interface{}
+		check func(t testing.TB, in, out interface{})
 	}{
 		"just_int": {i: sInt{J: 3}},
 		"one_public_one_private_int": {i: struct {
@@ -136,6 +148,137 @@ func TestDeepCopy(t *testing.T) {
 		}{J: true,
 			S: []*sInt{{1}, {2}, {3}, {4}, {5}},
 		}},
+		"bool_with_internal_ref": {i: func() *struct {
+			B  bool
+			Bs *bool
+		} {
+			// note: this must be a pointer-type so the
+			// struct-value itself is addressable, since otherwise
+			// the fields aren't addressable either.
+			b := &struct {
+				B  bool
+				Bs *bool
+			}{
+				B: true,
+			}
+			b.Bs = &b.B
+			return b
+		}(),
+			check: func(t testing.TB, in, out interface{}) {
+				b := out.(*struct {
+					B  bool
+					Bs *bool
+				})
+				if &b.B != b.Bs {
+					t.Errorf("referential consistency violation: b.Bs: got %p; want: %p; at %p",
+						b.Bs, &b.B, &b.Bs)
+				}
+			},
+		},
+		"bool_ptrs_with_common_ref": {i: func() *struct {
+			B  *bool
+			Bs *bool
+		} {
+			z := true
+			// note: this must be a pointer-type so the
+			// struct-value itself is addressable, since otherwise
+			// the fields aren't addressable either.
+			b := &struct {
+				B  *bool
+				Bs *bool
+			}{
+				B:  &z,
+				Bs: &z,
+			}
+			return b
+		}(),
+			check: func(t testing.TB, in, out interface{}) {
+				b := out.(*struct {
+					B  *bool
+					Bs *bool
+				})
+				if b.B != b.Bs {
+					t.Errorf("referential consistency violation: b.Bs and b.B should match: got %p; want: %p",
+						b.Bs, b.B)
+				}
+			},
+		},
+		"bool_ptrs_with_common_ref_unaddressable_struct": {i: func() struct {
+			B  *bool
+			Bs *bool
+		} {
+			z := true
+			// note: this must be a pointer-type so the
+			// struct-value itself is addressable, since otherwise
+			// the fields aren't addressable either.
+			b := struct {
+				B  *bool
+				Bs *bool
+			}{
+				B:  &z,
+				Bs: &z,
+			}
+			return b
+		}(),
+			check: func(t testing.TB, in, out interface{}) {
+				b := out.(struct {
+					B  *bool
+					Bs *bool
+				})
+				if b.B != b.Bs {
+					t.Errorf("referential consistency violation: b.Bs and b.B should match: got %p; want: %p",
+						b.Bs, b.B)
+				}
+			},
+		},
+		"struct_with_ptr_ref_cycle": {i: func() interface{} {
+			b := &RefCycleJ{
+				B: true,
+			}
+			b.Bs = &b.B
+			b.J = b
+			return b
+		}(),
+			check: func(t testing.TB, in, out interface{}) {
+				b := out.(*RefCycleJ)
+				if &b.B != b.Bs {
+					t.Errorf("referential consistency violation: b.Bs: got %p; want: %p; at %p",
+						b.Bs, &b.B, &b.Bs)
+				}
+				if b != b.J {
+					t.Errorf("referential consistency violation: b.J: got %p; want: %p; at %p",
+						b.J, b, &b.J)
+
+				}
+			},
+		},
+		"struct_with_map_ref_cycle": {i: func() interface{} {
+			b := &RefCycleMapJ{
+				B: true,
+			}
+			b.Bs = &b.B
+			b.J = map[string]*RefCycleMapJ{"fimbat": b}
+			b.Js = b.J
+			return b
+		}(),
+			check: func(t testing.TB, in, out interface{}) {
+				b := out.(*RefCycleMapJ)
+				if &b.B != b.Bs {
+					t.Errorf("referential consistency violation: b.Bs: got %p; want: %p; at %p",
+						b.Bs, &b.B, &b.Bs)
+				}
+				if b != b.J["fimbat"] {
+					t.Errorf("referential consistency violation: b.J: got %p; want: %p",
+						b.J, b)
+
+				}
+				// verify that the maps have the same underlying pointer
+				if reflect.ValueOf(b.J).Pointer() != reflect.ValueOf(b.Js).Pointer() {
+					t.Errorf("map referential consistency violation: b.J != b.Js: got %d; want: %d",
+						reflect.ValueOf(b.J).Pointer(), reflect.ValueOf(b.Js).Pointer())
+				}
+			},
+		},
 	} {
 		entry := inst
 		t.Run(name, func(t *testing.T) {
@@ -147,13 +290,16 @@ func TestDeepCopy(t *testing.T) {
 				t.Errorf("unequal values in: %+v, out: %+v",
 					entry.i, iface)
 			}
-			verifyDifferentPointers(t, "", reflect.ValueOf(entry.i), out)
+			verifyDifferentPointers(t, nil, "", reflect.ValueOf(entry.i), out)
+			if entry.check != nil {
+				entry.check(t, entry.i, iface)
+			}
 		})
 
 	}
 }
 
-func verifyDifferentPointers(t testing.TB, fname string, in, out reflect.Value) {
+func verifyDifferentPointers(t testing.TB, seenPtrs map[uintptr]struct{}, fname string, in, out reflect.Value) {
 	t.Helper()
 	if !in.IsValid() {
 		t.Fatalf("invalid input value at %s", fname)
@@ -161,6 +307,11 @@ func verifyDifferentPointers(t testing.TB, fname string, in, out reflect.Value) 
 	if !out.IsValid() {
 		t.Fatalf("invalid output value at %s", fname)
 	}
+
+	if seenPtrs == nil {
+		seenPtrs = make(map[uintptr]struct{}, 1)
+	}
+
 	switch in.Kind() {
 	case reflect.Ptr:
 		if in.Pointer() == out.Pointer() {
@@ -169,12 +320,17 @@ func verifyDifferentPointers(t testing.TB, fname string, in, out reflect.Value) 
 		if in.IsNil() {
 			return
 		}
-		verifyDifferentPointers(t, "(*"+fname+")", in.Elem(), out.Elem())
+		if _, ok := seenPtrs[in.Pointer()]; ok {
+			// we've already checked this input pointer
+			return
+		}
+		seenPtrs[in.Pointer()] = struct{}{}
+		verifyDifferentPointers(t, seenPtrs, "(*"+fname+")", in.Elem(), out.Elem())
 	case reflect.Interface:
 		if in.IsNil() {
 			return
 		}
-		verifyDifferentPointers(t, fname, in.Elem(), out.Elem())
+		verifyDifferentPointers(t, seenPtrs, fname, in.Elem(), out.Elem())
 	case reflect.Slice:
 		if in.IsNil() {
 			return
@@ -185,7 +341,7 @@ func verifyDifferentPointers(t testing.TB, fname string, in, out reflect.Value) 
 		fallthrough
 	case reflect.Array:
 		for z := 0; z < in.Len(); z++ {
-			verifyDifferentPointers(t, fmt.Sprintf("%s[%d]", fname, z), in.Index(z), out.Index(z))
+			verifyDifferentPointers(t, seenPtrs, fmt.Sprintf("%s[%d]", fname, z), in.Index(z), out.Index(z))
 		}
 	case reflect.Map:
 		if in.IsNil() {
@@ -199,14 +355,14 @@ func verifyDifferentPointers(t testing.TB, fname string, in, out reflect.Value) 
 			inElem := in.MapIndex(k)
 			outElem := out.MapIndex(k)
 
-			verifyDifferentPointers(t, fmt.Sprintf("%s[%s]", fname, k), inElem, outElem)
+			verifyDifferentPointers(t, seenPtrs, fmt.Sprintf("%s[%s]", fname, k), inElem, outElem)
 		}
 	case reflect.Struct:
 		for z := 0; z < in.NumField(); z++ {
 			inFieldType := in.Type().Field(z)
 			inField := in.Field(z)
 			outField := out.Field(z)
-			verifyDifferentPointers(t, fname+"."+inFieldType.Name, inField, outField)
+			verifyDifferentPointers(t, seenPtrs, fname+"."+inFieldType.Name, inField, outField)
 		}
 	case reflect.Chan, reflect.Func:
 		if in.IsNil() {

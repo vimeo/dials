@@ -18,14 +18,32 @@ func deepCopyValue(v reflect.Value) reflect.Value {
 
 func newDeepCopier() *deepCopier {
 	return &deepCopier{
-		ptrMap: map[interface{}]interface{}{},
+		ptrMap:   map[interface{}]interface{}{},
+		sliceMap: map[uintptr]sliceInfo{},
+		mapMap:   map[uintptr]reflect.Value{},
 	}
 }
 
+type sliceInfo struct {
+	outBaseptr uintptr
+	maxCap     int
+	refs       []reflect.Value
+}
+
 type deepCopier struct {
-	// map from in put pointer to output pointer to handle reference-cycles
+	// map from input pointer to output pointer to handle reference-cycles
 	// and splitting pointers to the same object.
 	ptrMap map[interface{}]interface{}
+
+	// map from input slice-pointer to output-slice-pointer to handle
+	// reference cycles, and prevent splitting large backing arrays.
+	// Keeps back-references so if later references have larger capacities
+	// we can go back and fix those refs.
+	sliceMap map[uintptr]sliceInfo
+
+	// map from input map-pointer to output-map to handle
+	// reference cycles.
+	mapMap map[uintptr]reflect.Value
 }
 
 func (d *deepCopier) deepCopyValue(v reflect.Value) reflect.Value {
@@ -36,12 +54,17 @@ func (d *deepCopier) deepCopyValue(v reflect.Value) reflect.Value {
 
 // takes a concrete value for in, an assignable value in out.
 func (d *deepCopier) deepCopy(in, out reflect.Value) {
+
 	// Start with setting the value directly if possible, so we get private
 	// fields.
 	// Note that this should copy channels and functions over such that
 	// they have the same identity
 	if out.CanSet() {
 		out.Set(in)
+	}
+
+	if in.CanAddr() && out.CanAddr() && in.Addr().CanInterface() && out.Addr().CanInterface() {
+		d.ptrMap[in.Addr().Interface()] = out.Addr().Interface()
 	}
 	switch in.Kind() {
 	case reflect.Struct:
@@ -103,9 +126,16 @@ func (d *deepCopier) deepCopyPtr(in, out reflect.Value) {
 	if in.IsNil() {
 		return
 	}
+	if ov, ok := d.ptrMap[in.Interface()]; ok {
+		out.Set(reflect.ValueOf(ov))
+		// The deep part of the copying has already been taken care of
+		return
+	}
+
 	inType := in.Type()
 	newVal := reflect.New(inType.Elem())
 	out.Set(newVal)
+	d.ptrMap[in.Interface()] = out.Interface()
 	d.deepCopy(in.Elem(), out.Elem())
 }
 
@@ -127,10 +157,20 @@ func (d *deepCopier) deepCopySlice(in, out reflect.Value) {
 	if in.IsNil() {
 		return
 	}
+
+	if in.Cap() > 0 {
+	}
+
 	if (out.IsNil() || out.Pointer() == in.Pointer()) && out.CanSet() {
 		out.Set(reflect.MakeSlice(in.Type(), in.Len(), in.Cap()))
 	}
-	d.deepCopyArray(in, out)
+	d.sliceMap[in.Pointer()] = sliceInfo{
+		outBaseptr: out.Pointer(),
+		maxCap:     in.Cap(),
+		refs:       []reflect.Value{out},
+	}
+	// Copy the entire backing array
+	d.deepCopyArray(in.Slice(0, in.Cap()), out.Slice(0, out.Cap()))
 }
 
 // deepCopyArray copies values in an array, or a pre-allocated slice.
@@ -152,6 +192,15 @@ func (d *deepCopier) deepCopyMap(in, out reflect.Value) {
 	if in.IsNil() {
 		return
 	}
+	if mv, ok := d.mapMap[in.Pointer()]; ok && out.CanSet() {
+		// We've seen this map before, let's take advantage of it.
+		out.Set(mv)
+		return
+	}
+	// Mark this map's backing pointer as handled, so back-references get
+	// handled properly if they occur in values.
+	d.mapMap[in.Pointer()] = out
+
 	if (out.IsNil() || out.Pointer() == in.Pointer()) && out.CanSet() {
 		out.Set(reflect.MakeMapWithSize(in.Type(), in.Len()))
 	}
