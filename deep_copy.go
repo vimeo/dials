@@ -8,13 +8,34 @@ import (
 // takes a concrete value for in and returns a concrete deep copy Value
 func realDeepCopy(in interface{}) reflect.Value {
 	v := reflect.ValueOf(in)
+	return deepCopyValue(v)
+}
+
+func deepCopyValue(v reflect.Value) reflect.Value {
+	d := newDeepCopier()
+	return d.deepCopyValue(v)
+}
+
+func newDeepCopier() *deepCopier {
+	return &deepCopier{
+		ptrMap: map[interface{}]interface{}{},
+	}
+}
+
+type deepCopier struct {
+	// map from in put pointer to output pointer to handle reference-cycles
+	// and splitting pointers to the same object.
+	ptrMap map[interface{}]interface{}
+}
+
+func (d *deepCopier) deepCopyValue(v reflect.Value) reflect.Value {
 	out := reflect.New(v.Type()).Elem()
-	deepCopy(v, out)
+	d.deepCopy(v, out)
 	return out
 }
 
 // takes a concrete value for in, an assignable value in out.
-func deepCopy(in, out reflect.Value) {
+func (d *deepCopier) deepCopy(in, out reflect.Value) {
 	// Start with setting the value directly if possible, so we get private
 	// fields.
 	// Note that this should copy channels and functions over such that
@@ -24,22 +45,22 @@ func deepCopy(in, out reflect.Value) {
 	}
 	switch in.Kind() {
 	case reflect.Struct:
-		deepCopyStruct(in, out)
+		d.deepCopyStruct(in, out)
 	case reflect.Ptr:
-		deepCopyPtr(in, out)
+		d.deepCopyPtr(in, out)
 	case reflect.Interface:
-		deepCopyIface(in, out)
+		d.deepCopyIface(in, out)
 	case reflect.Map:
-		deepCopyMap(in, out)
+		d.deepCopyMap(in, out)
 	case reflect.Slice:
-		deepCopySlice(in, out)
+		d.deepCopySlice(in, out)
 	case reflect.Array:
-		deepCopyArray(in, out)
+		d.deepCopyArray(in, out)
 	default:
 	}
 }
 
-func deepCopyIface(in, out reflect.Value) {
+func (d *deepCopier) deepCopyIface(in, out reflect.Value) {
 	if in.IsNil() {
 		return
 	}
@@ -48,11 +69,11 @@ func deepCopyIface(in, out reflect.Value) {
 	case reflect.Ptr:
 		newVal := reflect.New(inElem.Type().Elem())
 		out.Set(newVal)
-		deepCopy(inElem.Elem(), newVal.Elem())
+		d.deepCopy(inElem.Elem(), newVal.Elem())
 		return
 	case reflect.Struct:
 		newVal := reflect.New(inElem.Type())
-		deepCopy(inElem, newVal.Elem())
+		d.deepCopy(inElem, newVal.Elem())
 		out.Set(newVal.Elem())
 		return
 	case reflect.Map:
@@ -60,46 +81,46 @@ func deepCopyIface(in, out reflect.Value) {
 			return
 		}
 		out.Set(reflect.MakeMapWithSize(inElem.Type(), inElem.Len()))
-		deepCopy(inElem, out.Elem())
+		d.deepCopy(inElem, out.Elem())
 		return
 	case reflect.Slice:
 		if inElem.IsNil() {
 			return
 		}
 		out.Set(reflect.MakeSlice(inElem.Type(), inElem.Len(), inElem.Cap()))
-		deepCopy(inElem, out.Elem())
+		d.deepCopy(inElem, out.Elem())
 		return
 	case reflect.Array:
 		newVal := reflect.New(inElem.Type())
-		deepCopyArray(inElem, newVal.Elem())
+		d.deepCopyArray(inElem, newVal.Elem())
 		out.Set(newVal.Elem())
 		return
 	}
 	// not a pointer, struct or map
 	out.Set(inElem)
 }
-func deepCopyPtr(in, out reflect.Value) {
+func (d *deepCopier) deepCopyPtr(in, out reflect.Value) {
 	if in.IsNil() {
 		return
 	}
 	inType := in.Type()
 	newVal := reflect.New(inType.Elem())
 	out.Set(newVal)
-	deepCopy(in.Elem(), out.Elem())
+	d.deepCopy(in.Elem(), out.Elem())
 }
 
 // deepCopyStruct does a deep-copy of the passed struct-type from in into out.
-func deepCopyStruct(in, out reflect.Value) {
+func (d *deepCopier) deepCopyStruct(in, out reflect.Value) {
 	for i := 0; i < in.NumField(); i++ {
 		f := in.Field(i)
 		of := out.Field(i)
-		deepCopy(f, of)
+		d.deepCopy(f, of)
 	}
 }
 
 // deepCopySlice allocates a new slice copying values from in, and assigns it
 // to out.
-func deepCopySlice(in, out reflect.Value) {
+func (d *deepCopier) deepCopySlice(in, out reflect.Value) {
 	if in.Kind() != reflect.Slice || out.Kind() != reflect.Slice {
 		panic(fmt.Errorf("unexpected type: in: %s; out: %s", in.Type(), out.Type()))
 	}
@@ -109,11 +130,11 @@ func deepCopySlice(in, out reflect.Value) {
 	if (out.IsNil() || out.Pointer() == in.Pointer()) && out.CanSet() {
 		out.Set(reflect.MakeSlice(in.Type(), in.Len(), in.Cap()))
 	}
-	deepCopyArray(in, out)
+	d.deepCopyArray(in, out)
 }
 
 // deepCopyArray copies values in an array, or a pre-allocated slice.
-func deepCopyArray(in, out reflect.Value) {
+func (d *deepCopier) deepCopyArray(in, out reflect.Value) {
 	if in.Type() != out.Type() {
 		panic(fmt.Errorf("mismatched array-ish types: in: %s; out: %s", in.Type(), out.Type()))
 	}
@@ -123,11 +144,11 @@ func deepCopyArray(in, out reflect.Value) {
 		panic(fmt.Errorf("non-array-ish types: in: %s; out: %s", in.Type(), out.Type()))
 	}
 	for z := 0; z < in.Len(); z++ {
-		deepCopy(in.Index(z), out.Index(z))
+		d.deepCopy(in.Index(z), out.Index(z))
 	}
 }
 
-func deepCopyMap(in, out reflect.Value) {
+func (d *deepCopier) deepCopyMap(in, out reflect.Value) {
 	if in.IsNil() {
 		return
 	}
@@ -140,8 +161,8 @@ func deepCopyMap(in, out reflect.Value) {
 		oldVal := iter.Value()
 		newKey := reflect.New(oldKey.Type()).Elem()
 		newVal := reflect.New(oldVal.Type()).Elem()
-		deepCopy(oldKey, newKey)
-		deepCopy(oldVal, newVal)
+		d.deepCopy(oldKey, newKey)
+		d.deepCopy(oldVal, newVal)
 		out.SetMapIndex(newKey, newVal)
 	}
 }

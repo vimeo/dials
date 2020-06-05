@@ -383,7 +383,8 @@ func TestOverlay(t *testing.T) {
 
 			base := reflect.ValueOf(entry.base).Elem()
 			overlay := reflect.ValueOf(entry.overlay)
-			if err := overlayStruct(base, overlay); err != nil {
+			o := newOverlayer()
+			if err := o.overlayStruct(base, overlay); err != nil {
 				t.Fatalf("failed to overlay struct: %s",
 					err)
 			}
