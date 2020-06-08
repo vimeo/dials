@@ -23,3 +23,7 @@ func (w marshalWrapper) Set(s string) error {
 func (w marshalWrapper) Get() interface{} {
 	return w.v
 }
+
+func (w marshalWrapper) Type() string {
+	return fmt.Sprintf("%T", w.v)
+}

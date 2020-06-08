@@ -190,11 +190,9 @@ func (s *PflagSet) registerPFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 		case reflect.Float32:
 			f = s.Flags.Float64P(name, shorthand, float64(fieldVal.Interface().(float32)), help)
 		case reflect.Complex64:
-			f = &complex64Var{c: fieldVal.Interface().(complex64)}
-			s.Flags.VarP(f.(pflag.Value), name, shorthand, help)
+			f = s.Flags.VarPF(&complex64Var{c: fieldVal.Interface().(complex64)}, name, shorthand, help)
 		case reflect.Complex128:
-			f = &complex128Var{c: fieldVal.Interface().(complex128)}
-			s.Flags.VarP(f.(pflag.Value), name, shorthand, help)
+			f = s.Flags.VarPF(&complex128Var{c: fieldVal.Interface().(complex128)}, name, shorthand, help)
 		case reflect.Int:
 			f = s.Flags.IntP(name, shorthand, fieldVal.Interface().(int), help)
 		case reflect.Int8:

@@ -28,6 +28,10 @@ func (v *complex128Var) Get() interface{} {
 	return v.c
 }
 
+func (v *complex128Var) Type() string {
+	return fmt.Sprintf("%T", v.c)
+}
+
 type complex64Var struct {
 	c complex64
 }
@@ -48,4 +52,8 @@ func (v *complex64Var) String() string {
 
 func (v *complex64Var) Get() interface{} {
 	return v.c
+}
+
+func (v *complex64Var) Type() string {
+	return fmt.Sprintf("%T", v.c)
 }

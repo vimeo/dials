@@ -1,6 +1,7 @@
 package flag
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"strconv"
@@ -89,6 +90,10 @@ type mapStringStringSliceFlag struct {
 	s *map[string][]string
 }
 
+func (v *stringSetFlag) Type() string {
+	return fmt.Sprintf("%T", v.s)
+}
+
 func (v *mapStringStringSliceFlag) Set(s string) error {
 	parsed, err := parsestring.ParseStringStringSliceMap(s)
 	if err != nil {
@@ -129,6 +134,10 @@ func (v *mapStringStringSliceFlag) String() string {
 		}
 	}
 	return b.String()
+}
+
+func (v *mapStringStringSliceFlag) Type() string {
+	return fmt.Sprintf("%T", v.s)
 }
 
 type mapStringStringFlag struct {
@@ -172,4 +181,8 @@ func (v *mapStringStringFlag) String() string {
 		}
 	}
 	return b.String()
+}
+
+func (v *mapStringStringFlag) Type() string {
+	return fmt.Sprintf("%T", v.s)
 }
