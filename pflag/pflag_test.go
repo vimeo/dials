@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vimeo/dials"
+	"github.com/vimeo/dials/tagformat/caseconversion"
+
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vimeo/dials"
-	"github.com/vimeo/dials/tagformat/caseconversion"
 )
 
 func TestDirectBasicPFlag(t *testing.T) {
@@ -27,7 +28,7 @@ func TestDirectBasicPFlag(t *testing.T) {
 	}
 	fs := pflag.NewFlagSet("test flags", pflag.ContinueOnError)
 	fs.Usage = pflag.Usage
-	src := &PflagSet{
+	src := &Set{
 		Flags: fs,
 		ParseFunc: func() error {
 			return fs.Parse([]string{"--world", "--hello=foobar", "--foofoo=something", "--bar"})
@@ -62,6 +63,16 @@ func TestDirectBasicPFlag(t *testing.T) {
 	if !got.Bar {
 		t.Errorf("expected Bar to be true, got %t", got.Bar)
 	}
+}
+
+type tu struct {
+	Text string
+}
+
+// need a concrete type that implements TextUnmarshaler
+func (u tu) UnmarshalText(data []byte) error {
+	u.Text = string(data)
+	return nil
 }
 
 func TestPFlags(t *testing.T) {
@@ -338,7 +349,7 @@ func TestPFlags(t *testing.T) {
 				FieldNameEncodeCasing: caseconversion.EncodeUpperSnakeCase,
 				TagEncodeCasing:       caseconversion.EncodeKebabCase,
 			}
-			s, setupErr := NewPFlagSetWithArgs(nameConfig, tbl.tmpl, tbl.args)
+			s, setupErr := NewSetWithArgs(nameConfig, tbl.tmpl, tbl.args)
 			require.NoError(t, setupErr, "failed to setup Set")
 
 			d, cfgErr := dials.Config(ctx, tbl.tmpl, s)

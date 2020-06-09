@@ -2,58 +2,108 @@ package flag
 
 import (
 	"encoding"
-	"flag"
 	"fmt"
 	"os"
 	"reflect"
 	"strings"
 	"time"
 
-	"github.com/spf13/pflag"
 	"github.com/vimeo/dials"
+	"github.com/vimeo/dials/flaghelper"
+	"github.com/vimeo/dials/ptrify"
+	"github.com/vimeo/dials/tagformat/caseconversion"
 	"github.com/vimeo/dials/transform"
+
+	"github.com/spf13/pflag"
 )
 
 var (
-	// Verify that PflagSet implements the dials.Source interface
-	_ dials.Source = (*PflagSet)(nil)
+	// Verify that Set implements the dials.Source interface
+	pflagReflectType     = reflect.TypeOf((*pflag.Value)(nil)).Elem()
+	textMReflectType     = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	timeDuration         = reflect.TypeOf(time.Nanosecond)
+	stringSlice          = reflect.SliceOf(reflect.TypeOf(""))
+	mapStringStringSlice = reflect.MapOf(reflect.TypeOf(""), stringSlice)
+	mapStringString      = reflect.MapOf(reflect.TypeOf(""), reflect.TypeOf(""))
+	stringSet            = reflect.MapOf(reflect.TypeOf(""), reflect.TypeOf(struct{}{}))
+
+	_ dials.Source = (*Set)(nil)
 )
 
 const (
 	dialsPFlagTag      = "dialspflag"
 	dialsPFlagShortTag = "dialspflagshort"
+	// HelpTextTag is the name of the struct tags for flag descriptions
+	HelpTextTag = "dialsdesc"
+	// DefaultFlagHelpText is the default help-text for fields with an
+	// unset dialsdesc tag.
+	DefaultFlagHelpText = "unset description (`" + HelpTextTag + "` struct tag)"
 )
 
-// NewCmdLinePflagSet registers flags for the passed template value in the standard
+// NameConfig defines the parameters for separating components of a flag-name
+type NameConfig struct {
+	// FieldNameEncodeCasing is for the field names used by the flatten mangler
+	FieldNameEncodeCasing caseconversion.EncodeCasingFunc
+	// TagEncodeCasing is for the tag names used by the flatten mangler
+	TagEncodeCasing caseconversion.EncodeCasingFunc
+}
+
+// TODO(@sachi): update FieldNameEncodeCasing to EncodeGoCamelCase once it exists
+
+// DefaultFlagNameConfig defines a reasonably-defaulted NameConfig for field names
+// and tags
+func DefaultFlagNameConfig() *NameConfig {
+	return &NameConfig{
+		FieldNameEncodeCasing: caseconversion.EncodeUpperCamelCase,
+		TagEncodeCasing:       caseconversion.EncodeKebabCase,
+	}
+}
+
+func ptrified(template interface{}) (reflect.Value, reflect.Type, error) {
+	val := reflect.ValueOf(template)
+	if val.Kind() != reflect.Ptr {
+		return reflect.Value{}, nil, fmt.Errorf("non-pointer-type passed: %s", val.Type())
+	}
+
+	val = val.Elem()
+	if val.Kind() != reflect.Struct {
+		return reflect.Value{}, nil, fmt.Errorf("pointer-to-non-struct-type passed: %s", val.Type())
+	}
+	typ := val.Type()
+	out := ptrify.Pointerify(typ, val)
+	return val, out, nil
+}
+
+// NewCmdLineSet registers flags for the passed template value in the standard
 // library's main flag.CommandLine FlagSet so binaries using dials for flag
 // configuration can play nicely with libraries that register flags with the
 // standard library. (or libraries using dials can register flags and let the
 // actual process's Main() call Parse())
-func NewCmdLinePflagSet(cfg *NameConfig, template interface{}) (*PflagSet, error) {
+func NewCmdLineSet(cfg *NameConfig, template interface{}) (*Set, error) {
 	pval, ptyp, ptrifyErr := ptrified(template)
 	if ptrifyErr != nil {
 		return nil, ptrifyErr
 	}
 
-	s := PflagSet{
+	s := Set{
 		Flags:           pflag.CommandLine,
-		ParseFunc:       func() error { flag.Parse(); return nil },
+		ParseFunc:       func() error { pflag.Parse(); return nil },
 		ptrType:         ptyp,
 		flagsRegistered: true,
 		NameCfg:         cfg,
 		flagFieldName:   map[string]string{},
-		flagValues:      map[string]interface{}{},
+		flagValues:      map[string]reflect.Value{},
 	}
 
-	if err := s.registerPFlags(pval, ptyp); err != nil {
+	if err := s.registerFlags(pval, ptyp); err != nil {
 		return nil, err
 	}
 
 	return &s, nil
 }
 
-// NewPFlagSetWithArgs creates a new FlagSet and registers flags in it
-func NewPFlagSetWithArgs(cfg *NameConfig, template interface{}, args []string) (*PflagSet, error) {
+// NewSetWithArgs creates a new pflag FlagSet and registers flags in it
+func NewSetWithArgs(cfg *NameConfig, template interface{}, args []string) (*Set, error) {
 	pval, ptyp, ptrifyErr := ptrified(template)
 	if ptrifyErr != nil {
 		return nil, ptrifyErr
@@ -61,26 +111,26 @@ func NewPFlagSetWithArgs(cfg *NameConfig, template interface{}, args []string) (
 
 	fs := pflag.NewFlagSet("", pflag.ContinueOnError)
 
-	s := PflagSet{
+	s := Set{
 		Flags:           fs,
 		ParseFunc:       func() error { return fs.Parse(args) },
 		ptrType:         ptyp,
 		flagsRegistered: true,
 		NameCfg:         cfg,
 		flagFieldName:   map[string]string{},
-		flagValues:      map[string]interface{}{},
+		flagValues:      map[string]reflect.Value{},
 	}
 
-	if err := s.registerPFlags(pval, ptyp); err != nil {
+	if err := s.registerFlags(pval, ptyp); err != nil {
 		return nil, err
 	}
 
 	return &s, nil
 }
 
-// PflagSet is a flagset. Please only use PflagSet when using cobra command line
-// tool. Use Set for flags functionality for other cases
-type PflagSet struct {
+// Set is a flagset. Please only use pflag.Set when using cobra command line
+// tool. Use flag.Set for flags functionality for other cases
+type Set struct {
 	Flags     *pflag.FlagSet
 	ParseFunc func() error
 
@@ -94,10 +144,10 @@ type PflagSet struct {
 	trnslVal        reflect.Value
 	// Map to store the flag name (key) and field name (value)
 	flagFieldName map[string]string
-	flagValues    map[string]interface{}
+	flagValues    map[string]reflect.Value
 }
 
-func (s *PflagSet) parse() error {
+func (s *Set) parse() error {
 	if s.ParseFunc == nil {
 		return fmt.Errorf("unparsed flagset with no ParseFunc set")
 	}
@@ -107,7 +157,7 @@ func (s *PflagSet) parse() error {
 	return nil
 }
 
-func (s *PflagSet) registerPFlags(tmpl reflect.Value, ptyp reflect.Type) error {
+func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 	fm := transform.NewFlattenMangler(transform.DialsTagName, s.NameCfg.FieldNameEncodeCasing, s.NameCfg.TagEncodeCasing)
 	tfmr := transform.NewTransformer(ptyp, fm)
 	val, TrnslErr := tfmr.Translate()
@@ -150,7 +200,7 @@ func (s *PflagSet) registerPFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 			ft = ft.Elem()
 			k = ft.Kind()
 		}
-		isValue := ft.Implements(flagReflectType) || reflect.PtrTo(ft).Implements(flagReflectType)
+		isValue := ft.Implements(pflagReflectType) || reflect.PtrTo(ft).Implements(pflagReflectType)
 		isTextM := ft.Implements(textMReflectType) || reflect.PtrTo(ft).Implements(textMReflectType)
 
 		// get the concrete value of the field from the template
@@ -161,21 +211,21 @@ func (s *PflagSet) registerPFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 		switch {
 		case isValue:
 			{
-				f = s.Flags.VarPF(fieldVal.Addr().Interface().(pflag.Value), name, shorthand, help)
-				s.flagValues[name] = f
+				s.Flags.VarP(fieldVal.Addr().Interface().(pflag.Value), name, shorthand, help)
+				s.flagValues[name] = fieldVal.Addr()
 				continue
 			}
 		case isTextM:
 			{
 				// Make sure our newVal value actually points to something.
-				newVal := fieldVal.Addr().Interface()
-				f = s.Flags.VarPF(marshalWrapper{v: newVal.(encoding.TextUnmarshaler)}, name, shorthand, help)
-				s.flagValues[name] = f
+				newVal := fieldVal.Addr().Interface().(encoding.TextUnmarshaler)
+				s.Flags.VarP(flaghelper.NewMarshalWrapper(newVal), name, shorthand, help)
+				s.flagValues[name] = fieldVal.Addr()
 				continue
 			}
 		case fieldVal.Type() == timeDuration:
 			f = s.Flags.DurationP(name, shorthand, fieldVal.Interface().(time.Duration), help)
-			s.flagValues[name] = f
+			s.flagValues[name] = reflect.ValueOf(f)
 			continue
 		default:
 		}
@@ -190,9 +240,11 @@ func (s *PflagSet) registerPFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 		case reflect.Float32:
 			f = s.Flags.Float64P(name, shorthand, float64(fieldVal.Interface().(float32)), help)
 		case reflect.Complex64:
-			f = s.Flags.VarPF(&complex64Var{c: fieldVal.Interface().(complex64)}, name, shorthand, help)
+			f = fieldVal.Addr().Interface()
+			s.Flags.VarP(flaghelper.NewComplex64Var(fieldVal.Addr().Interface().(*complex64)), name, shorthand, help)
 		case reflect.Complex128:
-			f = s.Flags.VarPF(&complex128Var{c: fieldVal.Interface().(complex128)}, name, shorthand, help)
+			f = fieldVal.Addr().Interface()
+			s.Flags.VarP(flaghelper.NewComplex128Var(fieldVal.Addr().Interface().(*complex128)), name, shorthand, help)
 		case reflect.Int:
 			f = s.Flags.IntP(name, shorthand, fieldVal.Interface().(int), help)
 		case reflect.Int8:
@@ -218,11 +270,14 @@ func (s *PflagSet) registerPFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 			case stringSlice:
 				f = s.Flags.StringSliceP(name, shorthand, fieldVal.Interface().([]string), help)
 			case mapStringStringSlice:
-				f = s.Flags.VarPF(&mapStringStringSliceFlag{fieldVal.Addr().Interface().(*map[string][]string)}, name, shorthand, help)
+				f = fieldVal.Addr().Interface()
+				s.Flags.VarP(flaghelper.NewMapStringStringSliceFlag(fieldVal.Addr().Interface().(*map[string][]string)), name, shorthand, help)
 			case mapStringString:
-				f = s.Flags.VarPF(&mapStringStringFlag{fieldVal.Addr().Interface().(*map[string]string)}, name, shorthand, help)
+				f = fieldVal.Addr().Interface()
+				s.Flags.VarP(flaghelper.NewMapStringStringFlag(fieldVal.Addr().Interface().(*map[string]string)), name, shorthand, help)
 			case stringSet:
-				f = s.Flags.VarPF(&stringSetFlag{fieldVal.Addr().Interface().(*map[string]struct{})}, name, shorthand, help)
+				f = fieldVal.Addr().Interface()
+				s.Flags.VarP(flaghelper.NewStringSetFlag(fieldVal.Addr().Interface().(*map[string]struct{})), name, shorthand, help)
 			default:
 				return fmt.Errorf("unhandled type %s", ft)
 			}
@@ -231,7 +286,8 @@ func (s *PflagSet) registerPFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 			return fmt.Errorf("unhandled type %s", ft)
 		}
 
-		s.flagValues[name] = f
+		v := reflect.ValueOf(f)
+		s.flagValues[name] = v
 	}
 	return nil
 }
@@ -241,7 +297,7 @@ func (s *PflagSet) registerPFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 // struct tag if present, then its `dials` tag if present, and finally its name.
 // If the struct has nested fields, Value will flatten the fields so flags can
 // be defined for nested fields.
-func (s *PflagSet) Value(t *dials.Type) (reflect.Value, error) {
+func (s *Set) Value(t *dials.Type) (reflect.Value, error) {
 	// Check whether we've gone through the exercise of parsing flags yet
 	// (and types are compatible).
 	if s.ptrType != nil {
@@ -257,7 +313,7 @@ func (s *PflagSet) Value(t *dials.Type) (reflect.Value, error) {
 	}
 
 	if s.flagValues == nil {
-		s.flagValues = map[string]interface{}{}
+		s.flagValues = map[string]reflect.Value{}
 	}
 	if s.Flags == nil {
 		// TODO: remove this fallback
@@ -279,7 +335,7 @@ func (s *PflagSet) Value(t *dials.Type) (reflect.Value, error) {
 			ptyp = s.ptrType
 		}
 
-		if err := s.registerPFlags(reflect.Value{}, ptyp); err != nil {
+		if err := s.registerFlags(reflect.Value{}, ptyp); err != nil {
 			return reflect.Value{}, err
 		}
 		s.flagsRegistered = true
@@ -307,36 +363,34 @@ func (s *PflagSet) Value(t *dials.Type) (reflect.Value, error) {
 		// We'll assume we're in a pointerified struct that matches
 		// what we expected before, here.
 		ptrVal := reflect.New(stripTypePtr(ffield.Type()))
-		if g, ok := s.flagValues[f.Name]; ok {
-			if flagGetter, isFlag := f.Value.(flag.Getter); isFlag {
-				g = flagGetter.Get()
-			}
-			fval := reflect.ValueOf(g)
-
-			switch fval.Type() {
-			case ffield.Type().Elem():
-				ptrVal.Elem().Set(fval)
-				ffield.Set(ptrVal)
-				return
-			case ffield.Type():
-				ffield.Set(fval)
-				return
-			case ffield.Addr().Type(): // flag is a pointer (*[]string) and ffield isn't ([]string)
-				ffield.Set(fval.Elem())
-				return
-			}
-
-			cfval := fval.Convert(stripTypePtr(ffield.Type()))
-			switch ffield.Kind() {
-			case reflect.Ptr:
-				// common case
-				ptrVal.Elem().Set(cfval)
-				ffield.Set(ptrVal)
-			default:
-				ffield.Set(cfval)
-			}
+		fval, ok := s.flagValues[f.Name]
+		if !ok {
 			return
 		}
+
+		switch fval.Type() {
+		case ffield.Type().Elem():
+			ptrVal.Elem().Set(fval)
+			ffield.Set(ptrVal)
+			return
+		case ffield.Type():
+			ffield.Set(fval)
+			return
+		case ffield.Addr().Type(): // flag is a pointer (*[]string) and ffield isn't ([]string)
+			ffield.Set(fval.Elem())
+			return
+		}
+
+		cfval := fval.Convert(stripTypePtr(ffield.Type()))
+		switch ffield.Kind() {
+		case reflect.Ptr:
+			// common case
+			ptrVal.Elem().Set(cfval)
+			ffield.Set(ptrVal)
+		default:
+			ffield.Set(cfval)
+		}
+		return
 	})
 	if setErr != nil {
 		return val.Elem(), setErr
@@ -345,9 +399,18 @@ func (s *PflagSet) Value(t *dials.Type) (reflect.Value, error) {
 	return s.tfmr.ReverseTranslate(s.trnslVal)
 }
 
+func stripTypePtr(t reflect.Type) reflect.Type {
+	switch t.Kind() {
+	case reflect.Ptr:
+		return t.Elem()
+	default:
+		return t
+	}
+}
+
 // mkname creates a flag name based on the values of the dialspflag/dials tag or
 // decoded field name and converting it into kebab case
-func (s *PflagSet) mkname(sf reflect.StructField) string {
+func (s *Set) mkname(sf reflect.StructField) string {
 	// use the name from the dialspflag tag for the flag name
 	if name, ok := sf.Tag.Lookup(dialsPFlagTag); ok {
 		return name

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vimeo/dials"
+	"github.com/vimeo/dials/flaghelper"
 	"github.com/vimeo/dials/ptrify"
 	"github.com/vimeo/dials/tagformat/caseconversion"
 	"github.com/vimeo/dials/transform"
@@ -211,8 +212,8 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 		case isTextM:
 			{
 				// Make sure our newVal value actually points to something.
-				newVal := fieldVal.Addr().Interface()
-				s.Flags.Var(marshalWrapper{v: newVal.(encoding.TextUnmarshaler)}, name, help)
+				newVal := fieldVal.Addr().Interface().(encoding.TextUnmarshaler)
+				s.Flags.Var(flaghelper.NewMarshalWrapper(newVal), name, help)
 				continue
 			}
 		case fieldVal.Type() == timeDuration:
@@ -231,9 +232,9 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 		case reflect.Float32:
 			s.Flags.Float64(name, float64(fieldVal.Interface().(float32)), help)
 		case reflect.Complex64:
-			s.Flags.Var(&complex64Var{c: fieldVal.Interface().(complex64)}, name, help)
+			s.Flags.Var(flaghelper.NewComplex64Var(fieldVal.Addr().Interface().(*complex64)), name, help)
 		case reflect.Complex128:
-			s.Flags.Var(&complex128Var{c: fieldVal.Interface().(complex128)}, name, help)
+			s.Flags.Var(flaghelper.NewComplex128Var(fieldVal.Addr().Interface().(*complex128)), name, help)
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32:
 			{
 				fvToInt := func() int {
@@ -277,13 +278,13 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 		case reflect.Slice, reflect.Map:
 			switch ft {
 			case stringSlice:
-				s.Flags.Var(&stringSliceFlag{fieldVal.Addr().Interface().(*[]string)}, name, help)
+				s.Flags.Var(flaghelper.NewStringSliceFlag(fieldVal.Addr().Interface().(*[]string)), name, help)
 			case mapStringStringSlice:
-				s.Flags.Var(&mapStringStringSliceFlag{fieldVal.Addr().Interface().(*map[string][]string)}, name, help)
+				s.Flags.Var(flaghelper.NewMapStringStringSliceFlag(fieldVal.Addr().Interface().(*map[string][]string)), name, help)
 			case mapStringString:
-				s.Flags.Var(&mapStringStringFlag{fieldVal.Addr().Interface().(*map[string]string)}, name, help)
+				s.Flags.Var(flaghelper.NewMapStringStringFlag(fieldVal.Addr().Interface().(*map[string]string)), name, help)
 			case stringSet:
-				s.Flags.Var(&stringSetFlag{fieldVal.Addr().Interface().(*map[string]struct{})}, name, help)
+				s.Flags.Var(flaghelper.NewStringSetFlag(fieldVal.Addr().Interface().(*map[string]struct{})), name, help)
 			default:
 				return fmt.Errorf("unhandled type %s", ft)
 			}
@@ -361,34 +362,38 @@ func (s *Set) Value(t *dials.Type) (reflect.Value, error) {
 		// We'll assume we're in a pointerified struct that matches
 		// what we expected before, here.
 		ptrVal := reflect.New(stripTypePtr(ffield.Type()))
-		if g, ok := f.Value.(flag.Getter); ok {
-			fval := reflect.ValueOf(g.Get())
-			switch fval.Type() {
-			case ffield.Type().Elem():
-				ptrVal.Elem().Set(fval)
-				ffield.Set(ptrVal)
-				return
-			case ffield.Type():
-				ffield.Set(fval)
-				return
-			}
 
-			if willOverflow(fval, ptrVal.Elem()) {
-				setErr = fmt.Errorf("value for flag %q (%s) would overflow type %s",
-					f.Name, f.Value.String(), ptrVal.Type().Elem())
-				return
-			}
-			cfval := fval.Convert(stripTypePtr(ffield.Type()))
-			switch ffield.Kind() {
-			case reflect.Ptr:
-				// common case
-				ptrVal.Elem().Set(cfval)
-				ffield.Set(ptrVal)
-			default:
-				ffield.Set(cfval)
-			}
+		g, ok := f.Value.(flag.Getter)
+		if !ok {
 			return
 		}
+
+		fval := reflect.ValueOf(g.Get())
+		switch fval.Type() {
+		case ffield.Type().Elem():
+			ptrVal.Elem().Set(fval)
+			ffield.Set(ptrVal)
+			return
+		case ffield.Type():
+			ffield.Set(fval)
+			return
+		}
+
+		if willOverflow(fval, ptrVal.Elem()) {
+			setErr = fmt.Errorf("value for flag %q (%s) would overflow type %s",
+				f.Name, f.Value.String(), ptrVal.Type().Elem())
+			return
+		}
+		cfval := fval.Convert(stripTypePtr(ffield.Type()))
+		switch ffield.Kind() {
+		case reflect.Ptr:
+			// common case
+			ptrVal.Elem().Set(cfval)
+			ffield.Set(ptrVal)
+		default:
+			ffield.Set(cfval)
+		}
+		return
 	})
 	if setErr != nil {
 		return val.Elem(), setErr
