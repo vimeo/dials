@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/vimeo/dials"
@@ -419,7 +418,7 @@ func (s *Set) mkname(sf reflect.StructField) string {
 	// check if the dials tag is populated (it should be once it goes through
 	// the flatten mangler).
 	if name, ok := sf.Tag.Lookup(transform.DialsTagName); ok {
-		return strings.ToLower(name)
+		return name
 	}
 
 	// panic because flatten mangler should set the dials tag so panic if that
