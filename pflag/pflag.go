@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/vimeo/dials"
-	"github.com/vimeo/dials/flaghelper"
+	"github.com/vimeo/dials/flag/flaghelper"
 	"github.com/vimeo/dials/ptrify"
 	"github.com/vimeo/dials/tagformat/caseconversion"
 	"github.com/vimeo/dials/transform"
@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	// Verify that Set implements the dials.Source interface
+	// the following types are unsupported by the pflag package but are supported
+	// in dials pflag package. We check for these types so we can handle them appropriately
 	pflagReflectType     = reflect.TypeOf((*pflag.Value)(nil)).Elem()
 	textMReflectType     = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 	timeDuration         = reflect.TypeOf(time.Nanosecond)
@@ -27,13 +28,14 @@ var (
 	mapStringString      = reflect.MapOf(reflect.TypeOf(""), reflect.TypeOf(""))
 	stringSet            = reflect.MapOf(reflect.TypeOf(""), reflect.TypeOf(struct{}{}))
 
+	// Verify that Set implements the dials.Source interface
 	_ dials.Source = (*Set)(nil)
 )
 
 const (
 	dialsPFlagTag      = "dialspflag"
 	dialsPFlagShortTag = "dialspflagshort"
-	// HelpTextTag is the name of the struct tags for flag descriptions
+	// HelpTextTag is the name of the struct tag for flag descriptions
 	HelpTextTag = "dialsdesc"
 	// DefaultFlagHelpText is the default help-text for fields with an
 	// unset dialsdesc tag.
@@ -74,46 +76,43 @@ func ptrified(template interface{}) (reflect.Value, reflect.Type, error) {
 	return val, out, nil
 }
 
-// NewCmdLineSet registers flags for the passed template value in the standard
-// library's main flag.CommandLine FlagSet so binaries using dials for flag
+// NewCmdLineSet registers flags for the passed template value in the library's
+// pflag.CommandLine FlagSet so binaries using dials for flag
 // configuration can play nicely with libraries that register flags with the
-// standard library. (or libraries using dials can register flags and let the
+// pflag library. (or libraries using dials can register flags and let the
 // actual process's Main() call Parse())
 func NewCmdLineSet(cfg *NameConfig, template interface{}) (*Set, error) {
-	pval, ptyp, ptrifyErr := ptrified(template)
-	if ptrifyErr != nil {
-		return nil, ptrifyErr
-	}
+	fs := pflag.CommandLine
+	parseFunc := func() error { pflag.Parse(); return nil }
 
-	s := Set{
-		Flags:           pflag.CommandLine,
-		ParseFunc:       func() error { pflag.Parse(); return nil },
-		ptrType:         ptyp,
-		flagsRegistered: true,
-		NameCfg:         cfg,
-		flagFieldName:   map[string]string{},
-		flagValues:      map[string]reflect.Value{},
-	}
-
-	if err := s.registerFlags(pval, ptyp); err != nil {
-		return nil, err
-	}
-
-	return &s, nil
+	return newSet(cfg, template, fs, parseFunc)
 }
 
 // NewSetWithArgs creates a new pflag FlagSet and registers flags in it
 func NewSetWithArgs(cfg *NameConfig, template interface{}, args []string) (*Set, error) {
+
+	fs := pflag.NewFlagSet("", pflag.ContinueOnError)
+	parseFunc := func() error { return fs.Parse(args) }
+
+	return newSet(cfg, template, fs, parseFunc)
+}
+
+// NewSetWithPflagArgs uses the passed in pflag FlagSet and registers flags
+func NewSetWithPflagArgs(cfg *NameConfig, template interface{}, args *pflag.FlagSet) (*Set, error) {
+	return newSet(cfg, template, args, nil)
+
+}
+
+// newSet is a helper function to initialize Set and register flags
+func newSet(cfg *NameConfig, template interface{}, fs *pflag.FlagSet, parseFunc func() error) (*Set, error) {
 	pval, ptyp, ptrifyErr := ptrified(template)
 	if ptrifyErr != nil {
 		return nil, ptrifyErr
 	}
 
-	fs := pflag.NewFlagSet("", pflag.ContinueOnError)
-
 	s := Set{
 		Flags:           fs,
-		ParseFunc:       func() error { return fs.Parse(args) },
+		ParseFunc:       parseFunc,
 		ptrType:         ptyp,
 		flagsRegistered: true,
 		NameCfg:         cfg,
@@ -126,10 +125,11 @@ func NewSetWithArgs(cfg *NameConfig, template interface{}, args []string) (*Set,
 	}
 
 	return &s, nil
+
 }
 
-// Set is a flagset. Please only use pflag.Set when using cobra command line
-// tool. Use flag.Set for flags functionality for other cases
+// Set source is provided for compatibility with the cobra command line
+// framework. Others should prefer to use flag.Set
 type Set struct {
 	Flags     *pflag.FlagSet
 	ParseFunc func() error
@@ -148,8 +148,9 @@ type Set struct {
 }
 
 func (s *Set) parse() error {
+	// ParseFunc will be nil when ge
 	if s.ParseFunc == nil {
-		return fmt.Errorf("unparsed flagset with no ParseFunc set")
+		return nil
 	}
 	if err := s.ParseFunc(); err != nil {
 		return fmt.Errorf("failed to parse pflags: %s", err)

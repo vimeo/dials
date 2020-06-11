@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/vimeo/dials"
-	"github.com/vimeo/dials/flaghelper"
+	"github.com/vimeo/dials/flag/flaghelper"
 	"github.com/vimeo/dials/ptrify"
 	"github.com/vimeo/dials/tagformat/caseconversion"
 	"github.com/vimeo/dials/transform"
