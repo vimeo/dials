@@ -22,14 +22,14 @@ func TestDirectBasic(t *testing.T) {
 	}
 	type Config struct {
 		Hello string
-		World bool
+		World bool `dials:"world"`
 		Embed
 	}
 	fs := flag.NewFlagSet("test flags", flag.ContinueOnError)
 	src := &Set{
 		Flags: fs,
 		ParseFunc: func() error {
-			return fs.Parse([]string{"-world", "-hello=foobar", "-foofoo=something", "-bar"})
+			return fs.Parse([]string{"-world", "-Hello=foobar", "-foofoo=something", "-Bar"})
 		},
 	}
 	buf := &bytes.Buffer{}
@@ -90,7 +90,7 @@ func TestTable(t *testing.T) {
 		{
 			name:     "basic_int_set",
 			tmpl:     &struct{ A int }{A: 4},
-			args:     []string{"--a=42"},
+			args:     []string{"--A=42"},
 			expected: &struct{ A int }{A: 42},
 		},
 		{
@@ -102,7 +102,7 @@ func TestTable(t *testing.T) {
 		{
 			name:     "basic_string_set",
 			tmpl:     &struct{ A string }{A: "foobar"},
-			args:     []string{"--a=bizzleboodle"},
+			args:     []string{"--A=bizzleboodle"},
 			expected: &struct{ A string }{A: "bizzleboodle"},
 		},
 		{
@@ -114,15 +114,15 @@ func TestTable(t *testing.T) {
 		{
 			name:     "basic_int16_set_nooverflow",
 			tmpl:     &struct{ A int16 }{A: 10},
-			args:     []string{"--a=128"},
+			args:     []string{"--A=128"},
 			expected: &struct{ A int16 }{A: 128},
 		},
 		{
 			name:     "basic_int16_set_overflow",
 			tmpl:     &struct{ A int16 }{A: 10},
-			args:     []string{"--a=1000000"},
+			args:     []string{"--A=1000000"},
 			expected: nil,
-			expErr:   "value for flag \"a\" (1000000) would overflow type int16",
+			expErr:   "value for flag \"A\" (1000000) would overflow type int16",
 		},
 		{
 			name:     "basic_int8_default",
@@ -133,20 +133,20 @@ func TestTable(t *testing.T) {
 		{
 			name:     "basic_int8_set_nooverflow",
 			tmpl:     &struct{ A int8 }{A: 10},
-			args:     []string{"--a=125"},
+			args:     []string{"--A=125"},
 			expected: &struct{ A int8 }{A: 125},
 		},
 		{
 			name:     "basic_int8_set_overflow",
 			tmpl:     &struct{ A int8 }{A: 10},
-			args:     []string{"--a=1000000"},
+			args:     []string{"--A=1000000"},
 			expected: nil,
-			expErr:   "value for flag \"a\" (1000000) would overflow type int8",
+			expErr:   "value for flag \"A\" (1000000) would overflow type int8",
 		},
 		{
 			name:     "map_string_string_set",
 			tmpl:     &struct{ A map[string]string }{A: map[string]string{"z": "i"}},
-			args:     []string{"--a=l:v"},
+			args:     []string{"--A=l:v"},
 			expected: &struct{ A map[string]string }{A: map[string]string{"l": "v"}},
 		},
 		{
@@ -158,7 +158,7 @@ func TestTable(t *testing.T) {
 		{
 			name:     "map_string_string_slice_set",
 			tmpl:     &struct{ A map[string][]string }{A: map[string][]string{"z": {"i"}}},
-			args:     []string{"--a=l:v,l:z"},
+			args:     []string{"--A=l:v,l:z"},
 			expected: &struct{ A map[string][]string }{A: map[string][]string{"l": {"v", "z"}}},
 		},
 		{
@@ -170,7 +170,7 @@ func TestTable(t *testing.T) {
 		{
 			name:     "string_slice_set",
 			tmpl:     &struct{ A []string }{A: []string{"i"}},
-			args:     []string{"--a=v"},
+			args:     []string{"--A=v"},
 			expected: &struct{ A []string }{A: []string{"v"}},
 		},
 		{
@@ -182,7 +182,7 @@ func TestTable(t *testing.T) {
 		{
 			name:     "string_set_set",
 			tmpl:     &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
-			args:     []string{"--a=v"},
+			args:     []string{"--A=v"},
 			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"v": {}}},
 		},
 		{
@@ -200,14 +200,14 @@ func TestTable(t *testing.T) {
 		{
 			name:     "basic_duration_set",
 			tmpl:     &struct{ A time.Duration }{A: 10 * time.Nanosecond},
-			args:     []string{"--a=3ms"},
+			args:     []string{"--A=3ms"},
 			expected: &struct{ A time.Duration }{A: 3 * time.Millisecond},
 		},
 		{
 			// use time.Time for a of couple test-cases since it implements TextUnmarshaler
 			name:     "marshaler_time_set",
 			tmpl:     &struct{ A time.Time }{A: time.Time{}},
-			args:     []string{"--a=2019-12-18T14:00:12Z"},
+			args:     []string{"--A=2019-12-18T14:00:12Z"},
 			expected: &struct{ A time.Time }{A: time.Date(2019, time.December, 18, 14, 00, 12, 0, time.UTC)},
 		},
 		{
@@ -225,7 +225,7 @@ func TestTable(t *testing.T) {
 		{
 			name:     "complex128_set_nooverflow",
 			tmpl:     &struct{ A complex128 }{A: 10 + 3i},
-			args:     []string{"--a=128+4i"},
+			args:     []string{"--A=128+4i"},
 			expected: &struct{ A complex128 }{A: 128 + 4i},
 		},
 		{
@@ -237,7 +237,7 @@ func TestTable(t *testing.T) {
 		{
 			name:     "complex64_set_nooverflow",
 			tmpl:     &struct{ A complex64 }{A: 10 + 3i},
-			args:     []string{"--a=128+4i"},
+			args:     []string{"--A=128+4i"},
 			expected: &struct{ A complex64 }{A: 128 + 4i},
 		},
 		{
@@ -249,13 +249,13 @@ func TestTable(t *testing.T) {
 		{
 			name:     "hierarchical_int_set",
 			tmpl:     &struct{ F struct{ A int } }{F: struct{ A int }{A: 4}},
-			args:     []string{"--f-a=42"},
+			args:     []string{"--F-A=42"},
 			expected: &struct{ F struct{ A int } }{F: struct{ A int }{A: 42}},
 		},
 		{
 			name:     "hierarchical_ints_set",
 			tmpl:     &struct{ F struct{ A, B int } }{F: struct{ A, B int }{A: 4, B: 34}},
-			args:     []string{"--f-a=42", "--f-b=4123"},
+			args:     []string{"--F-A=42", "--F-B=4123"},
 			expected: &struct{ F struct{ A, B int } }{F: struct{ A, B int }{A: 42, B: 4123}},
 		},
 		{
@@ -270,7 +270,7 @@ func TestTable(t *testing.T) {
 				F struct{ A, B int }
 				G struct{ A int }
 			}{F: struct{ A, B int }{A: 4, B: 34}, G: struct{ A int }{A: 5234}},
-			args: []string{"--f-a=42", "--f-b=4123", "--g-a=5"},
+			args: []string{"--F-A=42", "--F-B=4123", "--G-A=5"},
 			expected: &struct {
 				F struct{ A, B int }
 				G struct{ A int }
@@ -282,7 +282,7 @@ func TestTable(t *testing.T) {
 				F struct{ A, B int }
 				G struct{ A int }
 			}{F: struct{ A, B int }{A: 4, B: 34}, G: struct{ A int }{A: 5234}},
-			args: []string{"--f-a=42", "--g-a=5"},
+			args: []string{"--F-A=42", "--G-A=5"},
 			expected: &struct {
 				F struct{ A, B int }
 				G struct{ A int }
@@ -307,7 +307,7 @@ func TestTable(t *testing.T) {
 				G: struct {
 					A int `dialsflag:"NotB"`
 				}{A: 5234}},
-			args: []string{"--f-nota=42", "--NotB=76"},
+			args: []string{"--F-NotA=42", "--NotB=76"},
 			expected: &struct {
 				F struct{ A, B int }
 				G struct{ A int }
@@ -319,7 +319,7 @@ func TestTable(t *testing.T) {
 			}{T: tu{
 				Text: "Hello",
 			}},
-			args: []string{"--t=foobar"},
+			args: []string{"--T=foobar"},
 			expected: &struct {
 				T tu
 			}{T: tu{
