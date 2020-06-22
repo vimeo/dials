@@ -83,7 +83,7 @@ func TestFlattenMangler(t *testing.T) {
 			name:       "one member in struct of type int",
 			testStruct: 32,
 			modify: func(t testing.TB, val reflect.Value) {
-				assert.EqualValues(t, "ConfigField", val.Type().Field(0).Tag.Get(DialsTagName))
+				assert.EqualValues(t, "config_field", val.Type().Field(0).Tag.Get(DialsTagName))
 				assert.EqualValues(t, "ConfigField", val.Type().Field(0).Tag.Get(dialsFieldPathTag))
 				i := 32
 				val.Field(0).Set(reflect.ValueOf(&i))
@@ -96,7 +96,7 @@ func TestFlattenMangler(t *testing.T) {
 			name:       "one member in struct of type map",
 			testStruct: map[string]string{},
 			modify: func(t testing.TB, val reflect.Value) {
-				assert.EqualValues(t, "ConfigField", val.Type().Field(0).Tag.Get(DialsTagName))
+				assert.EqualValues(t, "config_field", val.Type().Field(0).Tag.Get(DialsTagName))
 				assert.EqualValues(t, "ConfigField", val.Type().Field(0).Tag.Get(dialsFieldPathTag))
 
 				m := map[string]string{
@@ -118,7 +118,7 @@ func TestFlattenMangler(t *testing.T) {
 			testStruct: time.Time{},
 			modify: func(t testing.TB, val reflect.Value) {
 				assert.Equal(t, "ConfigField", val.Type().Field(0).Name)
-				assert.Equal(t, "ConfigField", val.Type().Field(0).Tag.Get(DialsTagName))
+				assert.Equal(t, "config_field", val.Type().Field(0).Tag.Get(DialsTagName))
 				assert.Equal(t, "ConfigField", val.Type().Field(0).Tag.Get(dialsFieldPathTag))
 				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
 				require.NoError(t, timeErr)
@@ -161,9 +161,9 @@ func TestFlattenMangler(t *testing.T) {
 			modify: func(t testing.TB, val reflect.Value) {
 
 				expectedDialsTags := []string{
-					"ConfigField_TestInt",
-					"ConfigField_TestString",
-					"ConfigField_TestBool",
+					"config_field_TestInt",
+					"config_field_TestString",
+					"config_field_TestBool",
 				}
 
 				expectedPathTags := []string{
@@ -208,10 +208,10 @@ func TestFlattenMangler(t *testing.T) {
 			modify: func(t testing.TB, val reflect.Value) {
 
 				expectedDialsTags := []string{
-					"ConfigField_Name",
-					"ConfigField_Foobar_Location",
-					"ConfigField_Foobar_Coordinates",
-					"ConfigField_AnotherField",
+					"config_field_Name",
+					"config_field_Foobar_Location",
+					"config_field_Foobar_Coordinates",
+					"config_field_AnotherField",
 				}
 
 				expectedFieldTags := []string{
@@ -281,12 +281,12 @@ func TestFlattenMangler(t *testing.T) {
 			}{},
 			modify: func(t testing.TB, val reflect.Value) {
 				expectedTags := []string{
-					"ConfigField_hello_jude",
-					"ConfigField_here_comes_THE_sun",
-					"ConfigField_YESTERDAY_Hello",
-					"ConfigField_YESTERDAY_GoodBye_Penny",
-					"ConfigField_YESTERDAY_GoodBye_Lane",
-					"ConfigField_DayTripper",
+					"config_field_hello_jude",
+					"config_field_here_comes_THE_sun",
+					"config_field_YESTERDAY_hello",
+					"config_field_YESTERDAY_good_bye_penny",
+					"config_field_YESTERDAY_good_bye_lane",
+					"config_field_day_tripper",
 				}
 
 				expectedFieldPathTag := []string{
@@ -367,10 +367,10 @@ func TestFlattenMangler(t *testing.T) {
 			testStruct: efg,
 			modify: func(t testing.TB, val reflect.Value) {
 				expectedDialsTags := []string{
-					"ConfigField_Name",
-					"ConfigField_Location",
-					"ConfigField_Coordinates",
-					"ConfigField_AnotherField",
+					"config_field_Name",
+					"config_field_Location",
+					"config_field_Coordinates",
+					"config_field_AnotherField",
 				}
 
 				expectedFieldTags := []string{
@@ -423,10 +423,10 @@ func TestFlattenMangler(t *testing.T) {
 			testStruct: efgt,
 			modify: func(t testing.TB, val reflect.Value) {
 				expectedDialsTags := []string{
-					"ConfigField_Name",
-					"ConfigField_embeddedFoo_Location",
-					"ConfigField_embeddedFoo_Coordinates",
-					"ConfigField_AnotherField",
+					"config_field_Name",
+					"config_field_embeddedFoo_Location",
+					"config_field_embeddedFoo_Coordinates",
+					"config_field_AnotherField",
 				}
 
 				expectedFieldTags := []string{
@@ -629,9 +629,9 @@ func TestTopLevelEmbed(t *testing.T) {
 	}
 
 	expectedDialsTags := []string{
-		"Hello",
+		"hello",
 		"creative_name_foofoo",
-		"creative_name_Bar",
+		"creative_name_bar",
 	}
 
 	expectedFieldTags := []string{
