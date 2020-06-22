@@ -171,7 +171,13 @@ func (f *FlattenMangler) getTag(sf *reflect.StructField, tags, flattenedPath []s
 	} else if !sf.Anonymous {
 		// tag doesn't already exist so use the field name as long as it's not
 		// Anonymous (embedded field)
-		tags = append(tags[:len(tags):len(tags)], sf.Name)
+
+		// decode the field name assuming it's camel case before appending it
+		decodedField, err := caseconversion.DecodeGoCamelCase(sf.Name)
+		if err != nil {
+			return sf.Tag, nil, fmt.Errorf("Error decoding field name %s: %w", sf.Name, err)
+		}
+		tags = append(tags[:len(tags):len(tags)], decodedField...)
 
 	}
 
