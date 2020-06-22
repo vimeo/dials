@@ -96,10 +96,15 @@ func NewSetWithArgs(cfg *NameConfig, template interface{}, args []string) (*Set,
 	return newSet(cfg, template, fs, parseFunc)
 }
 
-// NewSetWithPflagArgs uses the passed in pflag FlagSet and registers flags
-func NewSetWithPflagArgs(cfg *NameConfig, template interface{}, args *pflag.FlagSet) (*Set, error) {
-	return newSet(cfg, template, args, nil)
+// NewSetWithFlagSet uses the passed in pflag FlagSet and registers flags
+func NewSetWithFlagSet(cfg *NameConfig, template interface{}, flagset *pflag.FlagSet) (*Set, error) {
+	return newSet(cfg, template, flagset, nil)
+}
 
+// NewDefaultSetWithFlagSet uses the passedin pflag FlagSet and registers flags
+// with the DefaultFlagNameConfig
+func NewDefaultSetWithFlagSet(template interface{}, flagset *pflag.FlagSet) (*Set, error) {
+	return newSet(DefaultFlagNameConfig(), template, flagset, nil)
 }
 
 // newSet is a helper function to initialize Set and register flags
