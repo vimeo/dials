@@ -3,21 +3,22 @@ package flag
 import (
 	"bytes"
 	"context"
-	"flag"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/vimeo/dials"
 	"github.com/vimeo/dials/tagformat/caseconversion"
+
+	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestDirectBasic(t *testing.T) {
+func TestDirectBasicPFlag(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	type Embed struct {
-		Foo string `dialsflag:"foofoo"`
+		Foo string `dialspflag:"foofoo"`
 		Bar bool   // will have dials tag "bar" after flatten mangler
 	}
 	type Config struct {
@@ -25,11 +26,12 @@ func TestDirectBasic(t *testing.T) {
 		World bool `dials:"world"`
 		Embed
 	}
-	fs := flag.NewFlagSet("test flags", flag.ContinueOnError)
+	fs := pflag.NewFlagSet("test flags", pflag.ContinueOnError)
+	fs.Usage = pflag.Usage
 	src := &Set{
 		Flags: fs,
 		ParseFunc: func() error {
-			return fs.Parse([]string{"-world", "-hello=foobar", "-foofoo=something", "-bar"})
+			return fs.Parse([]string{"--world", "--hello=foobar", "--foofoo=something", "--bar"})
 		},
 	}
 	buf := &bytes.Buffer{}
@@ -73,7 +75,7 @@ func (u tu) UnmarshalText(data []byte) error {
 	return nil
 }
 
-func TestTable(t *testing.T) {
+func TestPFlags(t *testing.T) {
 	for _, itbl := range []struct {
 		name     string
 		tmpl     interface{}
@@ -106,6 +108,14 @@ func TestTable(t *testing.T) {
 			expected: &struct{ A string }{A: "bizzleboodle"},
 		},
 		{
+			name: "shorthand_string_set",
+			tmpl: &struct {
+				A string `dialspflagshort:"b"`
+			}{A: "foobar"},
+			args:     []string{"-b=bizzleboodle"},
+			expected: &struct{ A string }{A: "bizzleboodle"},
+		},
+		{
 			name:     "basic_int16_default",
 			tmpl:     &struct{ A int16 }{A: 10},
 			args:     []string{},
@@ -122,7 +132,7 @@ func TestTable(t *testing.T) {
 			tmpl:     &struct{ A int16 }{A: 10},
 			args:     []string{"--a=1000000"},
 			expected: nil,
-			expErr:   "value for flag \"a\" (1000000) would overflow type int16",
+			expErr:   "failed to parse pflags: invalid argument \"1000000\" for \"--a\" flag: strconv.ParseInt: parsing \"1000000\": value out of range",
 		},
 		{
 			name:     "basic_int8_default",
@@ -141,7 +151,7 @@ func TestTable(t *testing.T) {
 			tmpl:     &struct{ A int8 }{A: 10},
 			args:     []string{"--a=1000000"},
 			expected: nil,
-			expErr:   "value for flag \"a\" (1000000) would overflow type int8",
+			expErr:   "failed to parse pflags: invalid argument \"1000000\" for \"--a\" flag: strconv.ParseInt: parsing \"1000000\": value out of range",
 		},
 		{
 			name:     "map_string_string_set",
@@ -168,18 +178,6 @@ func TestTable(t *testing.T) {
 			expected: &struct{ A map[string][]string }{A: map[string][]string{"z": {"i"}}},
 		},
 		{
-			name:     "string_slice_set",
-			tmpl:     &struct{ A []string }{A: []string{"i"}},
-			args:     []string{"--a=v"},
-			expected: &struct{ A []string }{A: []string{"v"}},
-		},
-		{
-			name:     "string_slice_default",
-			tmpl:     &struct{ A []string }{A: []string{"i"}},
-			args:     []string{},
-			expected: &struct{ A []string }{A: []string{"i"}},
-		},
-		{
 			name:     "string_set_set",
 			tmpl:     &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
 			args:     []string{"--a=v"},
@@ -190,6 +188,42 @@ func TestTable(t *testing.T) {
 			tmpl:     &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
 			args:     []string{},
 			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
+		},
+		{
+			name:     "complex128_default",
+			tmpl:     &struct{ A complex128 }{A: 10 + 3i},
+			args:     []string{},
+			expected: &struct{ A complex128 }{A: 10 + 3i},
+		},
+		{
+			name:     "complex128_set_nooverflow",
+			tmpl:     &struct{ A complex128 }{A: 10 + 3i},
+			args:     []string{"--a=128+4i"},
+			expected: &struct{ A complex128 }{A: 128 + 4i},
+		},
+		{
+			name:     "complex64_default",
+			tmpl:     &struct{ A complex64 }{A: 10 + 3i},
+			args:     []string{},
+			expected: &struct{ A complex64 }{A: 10 + 3i},
+		},
+		{
+			name:     "complex64_set_nooverflow",
+			tmpl:     &struct{ A complex64 }{A: 10 + 3i},
+			args:     []string{"--a=128+4i"},
+			expected: &struct{ A complex64 }{A: 128 + 4i},
+		},
+		{
+			name:     "string_slice_set",
+			tmpl:     &struct{ A []string }{A: []string{"i"}},
+			args:     []string{"--a=v"},
+			expected: &struct{ A []string }{A: []string{"v"}},
+		},
+		{
+			name:     "string_slice_default",
+			tmpl:     &struct{ A []string }{A: []string{"i"}},
+			args:     []string{},
+			expected: &struct{ A []string }{A: []string{"i"}},
 		},
 		{
 			name:     "basic_duration_default",
@@ -216,30 +250,7 @@ func TestTable(t *testing.T) {
 			args:     []string{},
 			expected: &struct{ A time.Time }{A: time.Time{}},
 		},
-		{
-			name:     "complex128_default",
-			tmpl:     &struct{ A complex128 }{A: 10 + 3i},
-			args:     []string{},
-			expected: &struct{ A complex128 }{A: 10 + 3i},
-		},
-		{
-			name:     "complex128_set_nooverflow",
-			tmpl:     &struct{ A complex128 }{A: 10 + 3i},
-			args:     []string{"--a=128+4i"},
-			expected: &struct{ A complex128 }{A: 128 + 4i},
-		},
-		{
-			name:     "complex64_default",
-			tmpl:     &struct{ A complex64 }{A: 10 + 3i},
-			args:     []string{},
-			expected: &struct{ A complex64 }{A: 10 + 3i},
-		},
-		{
-			name:     "complex64_set_nooverflow",
-			tmpl:     &struct{ A complex64 }{A: 10 + 3i},
-			args:     []string{"--a=128+4i"},
-			expected: &struct{ A complex64 }{A: 128 + 4i},
-		},
+
 		{
 			name:     "hierarchical_int_defaulted",
 			tmpl:     &struct{ F struct{ A int } }{F: struct{ A int }{A: 4}},
@@ -296,7 +307,7 @@ func TestTable(t *testing.T) {
 					B int
 				}
 				G struct {
-					A int `dialsflag:"NotB"`
+					A int `dialspflag:"NotB"`
 				}
 			}{F: struct {
 				A int `dials:"NotA"`
@@ -305,7 +316,7 @@ func TestTable(t *testing.T) {
 				A: 4, B: 34,
 			},
 				G: struct {
-					A int `dialsflag:"NotB"`
+					A int `dialspflag:"NotB"`
 				}{A: 5234}},
 			args: []string{"--f-NotA=42", "--NotB=76"},
 			expected: &struct {
