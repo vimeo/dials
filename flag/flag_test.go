@@ -18,7 +18,7 @@ func TestDirectBasic(t *testing.T) {
 	defer cancel()
 	type Embed struct {
 		Foo string `dialsflag:"foofoo"`
-		Bar bool   // will have dials tag "Bar" after flatten mangler
+		Bar bool   // will have dials tag "bar" after flatten mangler
 	}
 	type Config struct {
 		Hello string

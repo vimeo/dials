@@ -19,7 +19,7 @@ func TestDirectBasicPFlag(t *testing.T) {
 	defer cancel()
 	type Embed struct {
 		Foo string `dialspflag:"foofoo"`
-		Bar bool   // will have dials tag "Bar" after flatten mangler
+		Bar bool   // will have dials tag "bar" after flatten mangler
 	}
 	type Config struct {
 		Hello string
