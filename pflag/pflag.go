@@ -198,6 +198,12 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 			continue
 		}
 
+		// if the dialspflag tag has a hyphen (ex: `dialspflag:"-"`), don't
+		// register the flag
+		if dpt, ok := sf.Tag.Lookup(dialsPFlagTag); ok && (dpt == "-") {
+			continue
+		}
+
 		ft := sf.Type
 
 		k := ft.Kind()

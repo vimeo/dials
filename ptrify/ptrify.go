@@ -4,6 +4,8 @@ import (
 	"encoding"
 	"go/ast"
 	"reflect"
+
+	"github.com/vimeo/dials/transform"
 )
 
 // Note: this looks weird because it is, you need to call TypeOf on a nil
@@ -25,6 +27,10 @@ func Pointerify(original reflect.Type, tmpl reflect.Value) reflect.Type {
 		if !ast.IsExported(originalField.Name) {
 			// reflect.StructOf panics on unexported fields, skip
 			// them.
+			continue
+		}
+		if dtv, ok := originalField.Tag.Lookup(transform.DialsTagName); ok && dtv == "-" {
+			// ignore the fields with "-" tags (ex: `dials:"-"`)
 			continue
 		}
 		sf := pointerifyField(originalField, tmplFieldVal)
