@@ -1,4 +1,4 @@
-package parsestring
+package parse
 
 import (
 	"fmt"

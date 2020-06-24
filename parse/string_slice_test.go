@@ -1,4 +1,4 @@
-package parsestring
+package parse
 
 import (
 	"fmt"
@@ -8,89 +8,82 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseStringSet(t *testing.T) {
-	sv := func(vs ...string) map[string]struct{} {
-		out := make(map[string]struct{}, len(vs))
-		for _, v := range vs {
-			out[v] = struct{}{}
-		}
-		return out
-	}
+func TestParseStringSlice(t *testing.T) {
 	for _, itbl := range []struct {
 		name        string
 		input       string
-		expected    map[string]struct{}
+		expected    []string
 		expectedStr string
 		expectedErr error
 	}{
 		{
 			name:        "empty",
 			input:       "",
-			expected:    sv(),
+			expected:    []string{},
 			expectedStr: "",
 			expectedErr: nil,
 		},
 		{
 			name:        "one_ident",
 			input:       "a",
-			expected:    sv("a"),
+			expected:    []string{"a"},
 			expectedStr: "\"a\"",
 			expectedErr: nil,
 		},
 		{
 			name:        "two_idents",
 			input:       "a,b",
-			expected:    sv("a", "b"),
+			expected:    []string{"a", "b"},
 			expectedStr: "\"a\",\"b\"",
 			expectedErr: nil,
 		},
 		{
 			name:        "one_ident_one_int",
 			input:       "a,33",
-			expected:    sv("a", "33"),
-			expectedStr: "\"33\",\"a\"",
+			expected:    []string{"a", "33"},
+			expectedStr: "\"a\",\"33\"",
 			expectedErr: nil,
 		},
 		{
 			name:        "one_ident_one_float",
 			input:       "a,33.0",
-			expected:    sv("a", "33.0"),
-			expectedStr: `"33.0","a"`,
+			expected:    []string{"a", "33.0"},
+			expectedStr: "\"a\",\"33.0\"",
 			expectedErr: nil,
 		},
 		{
 			name:        "two_strings",
 			input:       `"a","b"`,
-			expected:    sv("a", "b"),
+			expected:    []string{"a", "b"},
 			expectedStr: `"a","b"`,
 			expectedErr: nil,
 		},
 		{
 			name:        "two_strings_with_comma",
 			input:       `"a","b,"`,
-			expected:    sv("a", "b,"),
+			expected:    []string{"a", "b,"},
 			expectedStr: `"a","b,"`,
 			expectedErr: nil,
 		},
 		{
 			name:        "two_strings_with_commas",
 			input:       `",a","b,"`,
-			expected:    sv(",a", "b,"),
+			expected:    []string{",a", "b,"},
 			expectedStr: `",a","b,"`,
 			expectedErr: nil,
 		},
 		{
 			name:        "two_strings_with_commas_and_escaped_quotes",
 			input:       "\",a\",\"b,\\\"\"",
-			expected:    sv(",a", "b,\""),
+			expected:    []string{",a", "b,\""},
 			expectedStr: `",a","b,\""`,
 			expectedErr: nil,
 		},
 		{
 			name:        "two_strings_with_commas_and_raw_quotes",
 			input:       "`a,`, `,b`",
-			expected:    sv("a,", ",b"),
-			expectedStr: `",b","a,"`,
+			expected:    []string{"a,", ",b"},
+			expectedStr: `"a,",",b"`,
 			expectedErr: nil,
 		},
 		{
@@ -101,18 +94,11 @@ func TestParseStringSet(t *testing.T) {
 			expectedErr: fmt.Errorf(
 				"parsing failed: map[<input>:1:10:literal not terminated]"),
 		},
-		{
-			name:        "duplicate_value",
-			input:       "a,a,a",
-			expected:    nil,
-			expectedStr: "",
-			expectedErr: fmt.Errorf(
-				"failed to add val %q: %[1]q already present in set", "a"),
-		},
 	} {
 		tbl := itbl
 		t.Run(tbl.name, func(t *testing.T) {
-			out, err := ParseStringSet(tbl.input)
+			out, err := ParseStringSlice(tbl.input)
+
 			if tbl.expectedErr != nil {
 				assert.EqualError(t, err, tbl.expectedErr.Error())
 				return

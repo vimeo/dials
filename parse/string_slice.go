@@ -1,4 +1,4 @@
-package parsestring
+package parse
 
 func ParseStringSlice(s string) ([]string, error) {
 	ss := []string{}

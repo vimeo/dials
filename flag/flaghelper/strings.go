@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vimeo/dials/parsestring"
+	"github.com/vimeo/dials/parse"
 )
 
 // StringSliceFlag is a wrapper around a string slice
@@ -22,7 +22,7 @@ func NewStringSliceFlag(s *[]string) *StringSliceFlag {
 
 // Set implement pflag.Value and flag.Value
 func (v *StringSliceFlag) Set(s string) error {
-	parsed, err := parsestring.ParseStringSlice(s)
+	parsed, err := parse.ParseStringSlice(s)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func NewStringSetFlag(m *map[string]struct{}) *StringSetFlag {
 
 // Set implement pflag.Value and flag.Value
 func (v *StringSetFlag) Set(s string) error {
-	parsed, err := parsestring.ParseStringSet(s)
+	parsed, err := parse.ParseStringSet(s)
 	if err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func NewMapStringStringSliceFlag(m *map[string][]string) *MapStringStringSliceFl
 
 // Set implement pflag.Value and flag.Value
 func (v *MapStringStringSliceFlag) Set(s string) error {
-	parsed, err := parsestring.ParseStringStringSliceMap(s)
+	parsed, err := parse.ParseStringStringSliceMap(s)
 	if err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func NewMapStringStringFlag(m *map[string]string) *MapStringStringFlag {
 
 // Set implement pflag.Value and flag.Value
 func (v *MapStringStringFlag) Set(s string) error {
-	parsed, err := parsestring.ParseMap(s, reflect.TypeOf(map[string]string{}))
+	parsed, err := parse.ParseMap(s, reflect.TypeOf(map[string]string{}))
 	if err != nil {
 		return err
 	}

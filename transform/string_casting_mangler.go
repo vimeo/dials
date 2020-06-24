@@ -3,7 +3,7 @@ package transform
 import (
 	"reflect"
 
-	"github.com/vimeo/dials/parsestring"
+	"github.com/vimeo/dials/parse"
 )
 
 var (
@@ -49,7 +49,7 @@ func (*StringCastingMangler) Unmangle(sf reflect.StructField, vs []FieldValueTup
 		castTo = sf.Type.Elem()
 	}
 
-	return parsestring.ParseString(str, castTo)
+	return parse.ParseString(str, castTo)
 }
 
 // ShouldRecurse always returns true in order to walk nested structs.

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vimeo/dials/parsestring"
+	"github.com/vimeo/dials/parse"
 	"github.com/vimeo/dials/ptrify"
 )
 
@@ -443,8 +443,8 @@ func TestParseOverflow(t *testing.T) {
 					t.Fatal()
 				}
 
-				_, isOverflowErr := unmangleErr.Unwrap().(*parsestring.OverflowError)
-				_, isParseNumberErr := unmangleErr.Unwrap().(*parsestring.ParseNumberError)
+				_, isOverflowErr := unmangleErr.Unwrap().(*parse.OverflowError)
+				_, isParseNumberErr := unmangleErr.Unwrap().(*parse.ParseNumberError)
 				if !assert.True(t, isOverflowErr || isParseNumberErr) {
 					t.Fatal()
 				}

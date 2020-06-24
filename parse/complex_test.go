@@ -1,4 +1,4 @@
-package parsestring
+package parse
 
 import (
 	"fmt"
@@ -59,7 +59,7 @@ func TestParseComplex128(t *testing.T) {
 
 }
 
-func TestParseComplex64(t *testing.T) {
+func TestComplex64(t *testing.T) {
 	for _, itbl := range []struct {
 		name        string
 		in          string
@@ -100,7 +100,7 @@ func TestParseComplex64(t *testing.T) {
 		tbl := itbl
 		t.Run(tbl.name, func(t *testing.T) {
 			t.Parallel()
-			num, err := ParseComplex64(tbl.in)
+			num, err := Complex64(tbl.in)
 			require.NoError(t, err)
 			assert.EqualValues(t, tbl.expected, num)
 			assert.EqualValues(t, tbl.expectedStr, fmt.Sprintf("%g", num))

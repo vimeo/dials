@@ -1,4 +1,4 @@
-package parsestring
+package parse
 
 // ParseStringStringSliceMap takes in a string representation of a map with
 // strings as keys and string slices as values, and converts it to a

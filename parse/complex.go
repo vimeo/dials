@@ -1,4 +1,4 @@
-package parsestring
+package parse
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// ParseComplex64 turns a string representation of a complex number into a complex64.
-func ParseComplex64(s string) (complex64, error) {
+// Complex64 turns a string representation of a complex number into a complex64.
+func Complex64(s string) (complex64, error) {
 	if plusCount := strings.Count(s, "+"); plusCount > 1 {
 		return 0, fmt.Errorf("too many '+'s: %d, at most 1 allowed",
 			plusCount)

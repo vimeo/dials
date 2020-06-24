@@ -1,4 +1,4 @@
-package parsestring
+package parse
 
 import (
 	"fmt"
@@ -107,7 +107,7 @@ func parseNumber(strVal string, numberType reflect.Type) (reflect.Value, error) 
 
 		castVal = reflect.ValueOf(&converted)
 	case reflect.Complex64:
-		converted, err := ParseComplex64(strVal)
+		converted, err := Complex64(strVal)
 		if err != nil {
 			return reflect.Value{}, &ParseNumberError{err: err}
 		}
