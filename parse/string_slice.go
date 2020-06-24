@@ -1,6 +1,7 @@
 package parse
 
-func ParseStringSlice(s string) ([]string, error) {
+// StringSlice splits a comma separated string and constructs a slice
+func StringSlice(s string) ([]string, error) {
 	ss := []string{}
 
 	splitErr := splitStringsSlice(s, func(val string) error {

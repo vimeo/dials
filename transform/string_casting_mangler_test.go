@@ -444,7 +444,7 @@ func TestParseOverflow(t *testing.T) {
 				}
 
 				_, isOverflowErr := unmangleErr.Unwrap().(*parse.OverflowError)
-				_, isParseNumberErr := unmangleErr.Unwrap().(*parse.ParseNumberError)
+				_, isParseNumberErr := unmangleErr.Unwrap().(*parse.NumberError)
 				if !assert.True(t, isOverflowErr || isParseNumberErr) {
 					t.Fatal()
 				}

@@ -59,8 +59,8 @@ func parsePart64(part string) (float32, bool, error) {
 	return float32(val), isImag, nil
 }
 
-// ParseComplex128 turns a string representation of a complex number into a complex128.
-func ParseComplex128(s string) (complex128, error) {
+// Complex128 turns a string representation of a complex number into a complex128.
+func Complex128(s string) (complex128, error) {
 	if plusCount := strings.Count(s, "+"); plusCount > 1 {
 		return 0, fmt.Errorf("too many '+'s: %d, at most 1 allowed",
 			plusCount)

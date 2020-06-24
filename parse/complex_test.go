@@ -50,7 +50,7 @@ func TestParseComplex128(t *testing.T) {
 		t.Run(tbl.name, func(t *testing.T) {
 			t.Parallel()
 
-			num, err := ParseComplex128(tbl.in)
+			num, err := Complex128(tbl.in)
 			require.NoError(t, err)
 			assert.EqualValues(t, tbl.expected, num)
 			assert.EqualValues(t, tbl.expectedStr, fmt.Sprintf("%g", num))

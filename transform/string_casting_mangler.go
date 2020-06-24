@@ -49,7 +49,7 @@ func (*StringCastingMangler) Unmangle(sf reflect.StructField, vs []FieldValueTup
 		castTo = sf.Type.Elem()
 	}
 
-	return parse.ParseString(str, castTo)
+	return parse.String(str, castTo)
 }
 
 // ShouldRecurse always returns true in order to walk nested structs.

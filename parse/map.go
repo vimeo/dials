@@ -5,16 +5,16 @@ import (
 	"reflect"
 )
 
-// ParseMap converts a string representation of a map with concrete values as
+// Map converts a string representation of a map with concrete values as
 // keys and vals into a reflect.Value representing that map.
-func ParseMap(s string, mapType reflect.Type) (reflect.Value, error) {
+func Map(s string, mapType reflect.Type) (reflect.Value, error) {
 	m := reflect.MakeMap(mapType)
 	keyType := mapType.Key()
 	valType := mapType.Elem()
 
 	splitErr := splitMap(s,
 		func(newKeyStr, newValStr string) error {
-			newKeyCast, err := ParseString(newKeyStr, keyType)
+			newKeyCast, err := String(newKeyStr, keyType)
 			if err != nil {
 				return fmt.Errorf("Error casting map key")
 			}
@@ -24,7 +24,7 @@ func ParseMap(s string, mapType reflect.Type) (reflect.Value, error) {
 				return fmt.Errorf("duplicate key %q, already has value %q", newKeyCast.Elem(), val)
 			}
 
-			newValCast, err := ParseString(newValStr, valType)
+			newValCast, err := String(newValStr, valType)
 			if err != nil {
 				return fmt.Errorf("Error casting map val")
 			}

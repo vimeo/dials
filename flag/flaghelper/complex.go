@@ -18,7 +18,7 @@ func NewComplex128Var(c *complex128) *Complex128Var {
 
 // Set implement pflag.Value and flag.Value
 func (v *Complex128Var) Set(s string) error {
-	cmplx, err := parse.ParseComplex128(s)
+	cmplx, err := parse.Complex128(s)
 	if err != nil {
 		return err
 

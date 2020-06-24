@@ -97,7 +97,7 @@ func TestParseStringSlice(t *testing.T) {
 	} {
 		tbl := itbl
 		t.Run(tbl.name, func(t *testing.T) {
-			out, err := ParseStringSlice(tbl.input)
+			out, err := StringSlice(tbl.input)
 
 			if tbl.expectedErr != nil {
 				assert.EqualError(t, err, tbl.expectedErr.Error())

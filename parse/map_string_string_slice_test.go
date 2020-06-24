@@ -69,7 +69,7 @@ func TestParseMapSlice(t *testing.T) {
 	} {
 		tbl := itbl
 		t.Run(tbl.name, func(t *testing.T) {
-			out, err := ParseStringStringSliceMap(tbl.input)
+			out, err := StringStringSliceMap(tbl.input)
 
 			if tbl.expectedErr != nil {
 				if err == nil {

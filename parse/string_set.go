@@ -4,7 +4,9 @@ import (
 	"fmt"
 )
 
-func ParseStringSet(s string) (map[string]struct{}, error) {
+// StringSet splits a comma separated strings and constructs a
+// map[string]struc{} to represent a set
+func StringSet(s string) (map[string]struct{}, error) {
 	ss := map[string]struct{}{}
 
 	splitErr := splitStringsSlice(s, func(val string) error {
