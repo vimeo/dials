@@ -346,7 +346,7 @@ func TestTable(t *testing.T) {
 	} {
 		tbl := itbl
 		t.Run(tbl.name, func(t *testing.T) {
-			// t.Parallel()
+			t.Parallel()
 			ctx := context.Background()
 			// use UpperSnakeCase instead of default (CamelCase) since
 			// single character field names like A and B make it hard to decode

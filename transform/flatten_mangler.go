@@ -12,9 +12,7 @@ import (
 )
 
 const (
-	/* 	// DialsTagName is the name of the dials tag.
-	   	DialsTagName = "dials"
-	*/ // dialsFieldPathTag contains the path to the nested struct field as a
+	// dialsFieldPathTag contains the path to the nested struct field as a
 	// comma separated string of the nested field index.
 	dialsFieldPathTag = "dialsfieldpath"
 )
