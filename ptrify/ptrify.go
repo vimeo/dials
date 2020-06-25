@@ -5,7 +5,7 @@ import (
 	"go/ast"
 	"reflect"
 
-	"github.com/vimeo/dials/transform"
+	"github.com/vimeo/dials/common"
 )
 
 // Note: this looks weird because it is, you need to call TypeOf on a nil
@@ -29,7 +29,7 @@ func Pointerify(original reflect.Type, tmpl reflect.Value) reflect.Type {
 			// them.
 			continue
 		}
-		if dtv, ok := originalField.Tag.Lookup(transform.DialsTagName); ok && dtv == "-" {
+		if dtv, ok := originalField.Tag.Lookup(common.DialsTagName); ok && dtv == "-" {
 			// ignore the fields with "-" tags (ex: `dials:"-"`)
 			continue
 		}
