@@ -4,10 +4,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/vimeo/dials/common"
 	"github.com/vimeo/dials/tagformat/caseconversion"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestReformatdialsTag(t *testing.T) {

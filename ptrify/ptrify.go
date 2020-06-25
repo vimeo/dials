@@ -24,15 +24,11 @@ func Pointerify(original reflect.Type, tmpl reflect.Value) reflect.Type {
 		if tmpl.IsValid() {
 			tmplFieldVal = tmpl.Field(i)
 		}
-		if !ast.IsExported(originalField.Name) {
-			// reflect.StructOf panics on unexported fields, skip
-			// them.
+
+		if OmitField(originalField) {
 			continue
 		}
-		if dtv, ok := originalField.Tag.Lookup(common.DialsTagName); ok && dtv == "-" {
-			// ignore the fields with "-" tags (ex: `dials:"-"`)
-			continue
-		}
+
 		sf := pointerifyField(originalField, tmplFieldVal)
 		if sf != nil {
 			newFields = append(newFields, *sf)
@@ -40,6 +36,26 @@ func Pointerify(original reflect.Type, tmpl reflect.Value) reflect.Type {
 	}
 
 	return reflect.StructOf(newFields)
+}
+
+// OmitField returns a boolean indicating whether the field should be skipped
+// because the dials tag value is "-" (`dials:"-"`) or because the field is
+// unexported
+func OmitField(sf reflect.StructField) bool {
+
+	if !ast.IsExported(sf.Name) {
+		// reflect.StructOf panics on unexported fields, skip
+		// them.
+		return true
+	}
+
+	if dtv, ok := sf.Tag.Lookup(common.DialsTagName); ok && dtv == "-" {
+		// ignore the fields with "-" tags (ex: `dials:"-"`)
+		return true
+	}
+
+	return false
+
 }
 
 func pointerifyField(originalField reflect.StructField, tmplFieldVal reflect.Value) *reflect.StructField {
