@@ -1,9 +1,9 @@
-package parsestring
+package parse
 
-// ParseStringStringSliceMap takes in a string representation of a map with
+// StringStringSliceMap takes in a string representation of a map with
 // strings as keys and string slices as values, and converts it to a
 // map[string][]string.
-func ParseStringStringSliceMap(s string) (map[string][]string, error) {
+func StringStringSliceMap(s string) (map[string][]string, error) {
 	ss := map[string][]string{}
 	splitErr := splitMap(s,
 		func(k, v string) error {

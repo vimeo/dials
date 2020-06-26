@@ -1,4 +1,4 @@
-package parsestring
+package parse
 
 import (
 	"fmt"
@@ -24,9 +24,9 @@ var (
 	complex128SliceType = reflect.TypeOf([]complex128{})
 )
 
-// ParseString casts the provided string into the provided type, returning the
+// String casts the provided string into the provided type, returning the
 // result in a reflect.Value.
-func ParseString(str string, t reflect.Type) (reflect.Value, error) {
+func String(str string, t reflect.Type) (reflect.Value, error) {
 	switch t.Kind() {
 	case reflect.String:
 		return reflect.ValueOf(&str), nil
@@ -42,7 +42,7 @@ func ParseString(str string, t reflect.Type) (reflect.Value, error) {
 		reflect.Complex64, reflect.Complex128:
 		return parseNumber(str, t)
 	case reflect.Slice:
-		converted, err := ParseStringSlice(str)
+		converted, err := StringSlice(str)
 		if err != nil {
 			return reflect.Value{}, err
 		}
@@ -52,7 +52,7 @@ func ParseString(str string, t reflect.Type) (reflect.Value, error) {
 		}
 		castSlice := reflect.MakeSlice(t, 0, len(converted))
 		for idx, strVal := range converted {
-			castVal, parseErr := ParseString(strVal, t.Elem())
+			castVal, parseErr := String(strVal, t.Elem())
 			if parseErr != nil {
 				return reflect.Value{}, fmt.Errorf("parse error of item %d %q: %s", idx, strVal, parseErr)
 			}
@@ -63,13 +63,13 @@ func ParseString(str string, t reflect.Type) (reflect.Value, error) {
 	case reflect.Map:
 		switch t {
 		case reflect.TypeOf(map[string][]string{}):
-			converted, err := ParseStringStringSliceMap(str)
+			converted, err := StringStringSliceMap(str)
 			if err != nil {
 				return reflect.Value{}, err
 			}
 			return reflect.ValueOf(converted), nil
 		case reflect.TypeOf(map[string]struct{}{}):
-			converted, err := ParseStringSet(str)
+			converted, err := StringSet(str)
 			if err != nil {
 				return reflect.Value{}, err
 			}
@@ -81,7 +81,7 @@ func ParseString(str string, t reflect.Type) (reflect.Value, error) {
 			if err != nil {
 				return reflect.Value{}, fmt.Errorf("Unsupported map type: %v", t)
 			}
-			converted, err := ParseMap(str, t)
+			converted, err := Map(str, t)
 			if err != nil {
 				return reflect.Value{}, err
 			}

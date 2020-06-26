@@ -1,4 +1,4 @@
-package parsestring
+package parse
 
 import (
 	"fmt"
@@ -112,7 +112,7 @@ func TestParseStringSet(t *testing.T) {
 	} {
 		tbl := itbl
 		t.Run(tbl.name, func(t *testing.T) {
-			out, err := ParseStringSet(tbl.input)
+			out, err := StringSet(tbl.input)
 			if tbl.expectedErr != nil {
 				assert.EqualError(t, err, tbl.expectedErr.Error())
 				return

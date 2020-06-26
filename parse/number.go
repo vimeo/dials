@@ -1,4 +1,4 @@
-package parsestring
+package parse
 
 import (
 	"fmt"
@@ -24,7 +24,7 @@ func parseNumber(strVal string, numberType reflect.Type) (reflect.Value, error) 
 
 		converted, err := strconv.ParseInt(strVal, 0, 64)
 		if err != nil {
-			return reflect.Value{}, &ParseNumberError{err: err}
+			return reflect.Value{}, &NumberError{err: err}
 		}
 
 		// Check for overflow
@@ -53,7 +53,7 @@ func parseNumber(strVal string, numberType reflect.Type) (reflect.Value, error) 
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		converted, err := strconv.ParseUint(strVal, 0, 64)
 		if err != nil {
-			return reflect.Value{}, &ParseNumberError{err: err}
+			return reflect.Value{}, &NumberError{err: err}
 		}
 
 		// Check for overflow
@@ -82,7 +82,7 @@ func parseNumber(strVal string, numberType reflect.Type) (reflect.Value, error) 
 	case reflect.Float32:
 		converted, err := strconv.ParseFloat(strVal, 32)
 		if err != nil {
-			return reflect.Value{}, &ParseNumberError{err: err}
+			return reflect.Value{}, &NumberError{err: err}
 		}
 
 		// Check for overflow
@@ -96,7 +96,7 @@ func parseNumber(strVal string, numberType reflect.Type) (reflect.Value, error) 
 	case reflect.Float64:
 		converted, err := strconv.ParseFloat(strVal, 64)
 		if err != nil {
-			return reflect.Value{}, &ParseNumberError{err: err}
+			return reflect.Value{}, &NumberError{err: err}
 		}
 
 		// Check for overflow
@@ -107,9 +107,9 @@ func parseNumber(strVal string, numberType reflect.Type) (reflect.Value, error) 
 
 		castVal = reflect.ValueOf(&converted)
 	case reflect.Complex64:
-		converted, err := ParseComplex64(strVal)
+		converted, err := Complex64(strVal)
 		if err != nil {
-			return reflect.Value{}, &ParseNumberError{err: err}
+			return reflect.Value{}, &NumberError{err: err}
 		}
 
 		// Check for overflow
@@ -120,9 +120,9 @@ func parseNumber(strVal string, numberType reflect.Type) (reflect.Value, error) 
 
 		castVal = reflect.ValueOf(&converted)
 	case reflect.Complex128:
-		converted, err := ParseComplex128(strVal)
+		converted, err := Complex128(strVal)
 		if err != nil {
-			return reflect.Value{}, &ParseNumberError{err: err}
+			return reflect.Value{}, &NumberError{err: err}
 		}
 
 		// Check for overflow
@@ -149,15 +149,15 @@ func (e *OverflowError) Error() string {
 	return e.err.Error()
 }
 
-// ParseNumberError represents an error when parsing a string to generate a numeric type.
-type ParseNumberError struct {
+// NumberError represents an error when parsing a string to generate a numeric type.
+type NumberError struct {
 	err error
 }
 
-func (e *ParseNumberError) Error() string {
+func (e *NumberError) Error() string {
 	return e.err.Error()
 }
 
-func (e *ParseNumberError) Unwrap() error {
+func (e *NumberError) Unwrap() error {
 	return e.err
 }
