@@ -1,4 +1,4 @@
-package parsestring
+package parse
 
 import (
 	"fmt"
@@ -84,7 +84,7 @@ func TestParseMapForStringStringMaps(t *testing.T) {
 	} {
 		tbl := itbl
 		t.Run(tbl.name, func(t *testing.T) {
-			ss, err := ParseMap(tbl.input, reflect.TypeOf(map[string]string{}))
+			ss, err := Map(tbl.input, reflect.TypeOf(map[string]string{}))
 			if tbl.expectedErr != nil {
 				assert.EqualError(t, err, tbl.expectedErr.Error())
 				return

@@ -3,7 +3,7 @@ package flaghelper
 import (
 	"fmt"
 
-	"github.com/vimeo/dials/parsestring"
+	"github.com/vimeo/dials/parse"
 )
 
 // Complex128Var is a complex128 wrapper
@@ -18,7 +18,7 @@ func NewComplex128Var(c *complex128) *Complex128Var {
 
 // Set implement pflag.Value and flag.Value
 func (v *Complex128Var) Set(s string) error {
-	cmplx, err := parsestring.ParseComplex128(s)
+	cmplx, err := parse.Complex128(s)
 	if err != nil {
 		return err
 
@@ -54,7 +54,7 @@ func NewComplex64Var(c *complex64) *Complex64Var {
 
 // Set implement pflag.Value and flag.Value
 func (v *Complex64Var) Set(s string) error {
-	cmplx, err := parsestring.ParseComplex64(s)
+	cmplx, err := parse.Complex64(s)
 	if err != nil {
 		return err
 
