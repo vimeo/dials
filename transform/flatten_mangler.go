@@ -7,12 +7,11 @@ import (
 	"strings"
 
 	"github.com/fatih/structtag"
+	"github.com/vimeo/dials/common"
 	"github.com/vimeo/dials/tagformat/caseconversion"
 )
 
 const (
-	// DialsTagName is the name of the dials tag.
-	DialsTagName = "dials"
 	// dialsFieldPathTag contains the path to the nested struct field as a
 	// comma separated string of the nested field index.
 	dialsFieldPathTag = "dialsfieldpath"
@@ -32,7 +31,7 @@ type FlattenMangler struct {
 // nameEncodeCasing, and tagEncodeCasing
 func DefaultFlattenMangler() *FlattenMangler {
 	return &FlattenMangler{
-		tag:              DialsTagName,
+		tag:              common.DialsTagName,
 		nameEncodeCasing: caseconversion.EncodeUpperCamelCase,
 		tagEncodeCasing:  caseconversion.EncodeCasePreservingSnakeCase,
 	}

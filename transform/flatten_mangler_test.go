@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vimeo/dials/common"
 	"github.com/vimeo/dials/ptrify"
 )
 
@@ -83,7 +84,7 @@ func TestFlattenMangler(t *testing.T) {
 			name:       "one member in struct of type int",
 			testStruct: 32,
 			modify: func(t testing.TB, val reflect.Value) {
-				assert.EqualValues(t, "config_field", val.Type().Field(0).Tag.Get(DialsTagName))
+				assert.EqualValues(t, "config_field", val.Type().Field(0).Tag.Get(common.DialsTagName))
 				assert.EqualValues(t, "ConfigField", val.Type().Field(0).Tag.Get(dialsFieldPathTag))
 				i := 32
 				val.Field(0).Set(reflect.ValueOf(&i))
@@ -96,7 +97,7 @@ func TestFlattenMangler(t *testing.T) {
 			name:       "one member in struct of type map",
 			testStruct: map[string]string{},
 			modify: func(t testing.TB, val reflect.Value) {
-				assert.EqualValues(t, "config_field", val.Type().Field(0).Tag.Get(DialsTagName))
+				assert.EqualValues(t, "config_field", val.Type().Field(0).Tag.Get(common.DialsTagName))
 				assert.EqualValues(t, "ConfigField", val.Type().Field(0).Tag.Get(dialsFieldPathTag))
 
 				m := map[string]string{
@@ -118,7 +119,7 @@ func TestFlattenMangler(t *testing.T) {
 			testStruct: time.Time{},
 			modify: func(t testing.TB, val reflect.Value) {
 				assert.Equal(t, "ConfigField", val.Type().Field(0).Name)
-				assert.Equal(t, "config_field", val.Type().Field(0).Tag.Get(DialsTagName))
+				assert.Equal(t, "config_field", val.Type().Field(0).Tag.Get(common.DialsTagName))
 				assert.Equal(t, "ConfigField", val.Type().Field(0).Tag.Get(dialsFieldPathTag))
 				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
 				require.NoError(t, timeErr)
@@ -173,7 +174,7 @@ func TestFlattenMangler(t *testing.T) {
 				}
 
 				for i := 0; i < val.Type().NumField(); i++ {
-					assert.EqualValues(t, expectedDialsTags[i], val.Type().Field(i).Tag.Get(DialsTagName))
+					assert.EqualValues(t, expectedDialsTags[i], val.Type().Field(i).Tag.Get(common.DialsTagName))
 					assert.EqualValues(t, expectedPathTags[i], val.Type().Field(i).Tag.Get(dialsFieldPathTag))
 				}
 
@@ -222,7 +223,7 @@ func TestFlattenMangler(t *testing.T) {
 				}
 
 				for i := 0; i < val.Type().NumField(); i++ {
-					assert.EqualValues(t, expectedDialsTags[i], val.Type().Field(i).Tag.Get(DialsTagName))
+					assert.EqualValues(t, expectedDialsTags[i], val.Type().Field(i).Tag.Get(common.DialsTagName))
 					assert.EqualValues(t, expectedFieldTags[i], val.Type().Field(i).Tag.Get(dialsFieldPathTag))
 
 				}
@@ -299,7 +300,7 @@ func TestFlattenMangler(t *testing.T) {
 				}
 
 				for i := 0; i < len(expectedTags); i++ {
-					assert.EqualValues(t, expectedTags[i], val.Type().Field(i).Tag.Get(DialsTagName))
+					assert.EqualValues(t, expectedTags[i], val.Type().Field(i).Tag.Get(common.DialsTagName))
 					assert.EqualValues(t, expectedFieldPathTag[i], val.Type().Field(i).Tag.Get(dialsFieldPathTag))
 
 				}
@@ -389,7 +390,7 @@ func TestFlattenMangler(t *testing.T) {
 
 				vtype := val.Type()
 				for i := 0; i < vtype.NumField(); i++ {
-					assert.EqualValues(t, expectedDialsTags[i], vtype.Field(i).Tag.Get(DialsTagName))
+					assert.EqualValues(t, expectedDialsTags[i], vtype.Field(i).Tag.Get(common.DialsTagName))
 					assert.EqualValues(t, expectedFieldTags[i], vtype.Field(i).Tag.Get(dialsFieldPathTag))
 					assert.EqualValues(t, expectedNames[i], vtype.Field(i).Name)
 				}
@@ -445,7 +446,7 @@ func TestFlattenMangler(t *testing.T) {
 
 				vtype := val.Type()
 				for i := 0; i < vtype.NumField(); i++ {
-					assert.EqualValues(t, expectedDialsTags[i], vtype.Field(i).Tag.Get(DialsTagName))
+					assert.EqualValues(t, expectedDialsTags[i], vtype.Field(i).Tag.Get(common.DialsTagName))
 					assert.EqualValues(t, expectedFieldTags[i], vtype.Field(i).Tag.Get(dialsFieldPathTag))
 					assert.EqualValues(t, expectedNames[i], vtype.Field(i).Name)
 				}
@@ -640,7 +641,7 @@ func TestTopLevelEmbed(t *testing.T) {
 
 	for i := 0; i < val.Type().NumField(); i++ {
 		assert.Equal(t, expectedNames[i], val.Type().Field(i).Name)
-		assert.EqualValues(t, expectedDialsTags[i], val.Type().Field(i).Tag.Get(DialsTagName))
+		assert.EqualValues(t, expectedDialsTags[i], val.Type().Field(i).Tag.Get(common.DialsTagName))
 		assert.EqualValues(t, expectedFieldTags[i], val.Type().Field(i).Tag.Get(dialsFieldPathTag))
 	}
 }

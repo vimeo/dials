@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/vimeo/dials"
+	"github.com/vimeo/dials/common"
 	"github.com/vimeo/dials/tagformat"
 	"github.com/vimeo/dials/transform"
 
@@ -30,7 +31,7 @@ func (d *Decoder) Decode(r io.Reader, t *dials.Type) (reflect.Value, error) {
 
 	tfmr := transform.NewTransformer(t.Type(),
 		&tagformat.TagCopyingMangler{
-			SrcTag: transform.DialsTagName, NewTag: YAMLTagName},
+			SrcTag: common.DialsTagName, NewTag: YAMLTagName},
 	)
 	val, tfmErr := tfmr.Translate()
 	if tfmErr != nil {

@@ -3,7 +3,6 @@ package dials
 import (
 	"errors"
 	"fmt"
-	"go/ast"
 	"reflect"
 
 	"github.com/vimeo/dials/ptrify"
@@ -115,9 +114,11 @@ func overlayStruct(base, overlay reflect.Value) error {
 	}
 	for i, j := 0, 0; i < base.NumField(); i++ {
 		currentField := base.Field(i)
-		if !ast.IsExported(base.Type().Field(i).Name) {
+
+		if ptrify.OmitField(base.Type().Field(i)) {
 			continue
 		}
+
 		switch currentField.Kind() {
 		// We skip channels and functions during
 		// pointerification, so we need to adjust indices

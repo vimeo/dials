@@ -153,6 +153,19 @@ func TestPointerify(t *testing.T) {
 				B *struct{ L *struct{ S *int32 } }
 			}{},
 		},
+		"three_deep_with_hypen": {
+			i: struct {
+				I struct {
+					J struct{ Q bool } `dials:"-"`
+					K int
+				}
+				B struct{ L *struct{ S int32 } }
+			}{},
+			expected: struct {
+				I *struct{ K *int }
+				B *struct{ L *struct{ S *int32 } }
+			}{},
+		},
 	} {
 		entry := inst
 		t.Run(name, func(t *testing.T) {

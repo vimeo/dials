@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/vimeo/dials"
+	"github.com/vimeo/dials/common"
 	"github.com/vimeo/dials/tagformat"
 	"github.com/vimeo/dials/tagformat/caseconversion"
 	"github.com/vimeo/dials/transform"
@@ -28,11 +29,11 @@ type Source struct {
 // unchanged.)
 func (e *Source) Value(t *dials.Type) (reflect.Value, error) {
 	// flatten the nested fields
-	flattenMangler := transform.NewFlattenMangler(transform.DialsTagName, caseconversion.EncodeUpperCamelCase, caseconversion.EncodeUpperCamelCase)
+	flattenMangler := transform.NewFlattenMangler(common.DialsTagName, caseconversion.EncodeUpperCamelCase, caseconversion.EncodeUpperCamelCase)
 	// reformat the tags so they are SCREAMING_SNAKE_CASE
-	reformatTagMangler := tagformat.NewTagReformattingMangler(transform.DialsTagName, caseconversion.DecodeGoCamelCase, caseconversion.EncodeUpperSnakeCase)
+	reformatTagMangler := tagformat.NewTagReformattingMangler(common.DialsTagName, caseconversion.DecodeGoCamelCase, caseconversion.EncodeUpperSnakeCase)
 	// copy tags from "dials" to "dials_env" tag
-	tagCopyingMangler := &tagformat.TagCopyingMangler{SrcTag: transform.DialsTagName, NewTag: envTagName}
+	tagCopyingMangler := &tagformat.TagCopyingMangler{SrcTag: common.DialsTagName, NewTag: envTagName}
 	// convert all the fields in the flattened struct to string type so the environment variables can be set
 	stringCastingMangler := &transform.StringCastingMangler{}
 	tfmr := transform.NewTransformer(t.Type(), flattenMangler, reformatTagMangler, tagCopyingMangler, stringCastingMangler)

@@ -6,12 +6,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vimeo/dials/common"
 	"github.com/vimeo/dials/ptrify"
 	"github.com/vimeo/dials/transform"
 )
 
 func TestExpanddialsTag(t *testing.T) {
-	mangler := TagCopyingMangler{SrcTag: transform.DialsTagName, NewTag: "json"}
+	mangler := TagCopyingMangler{SrcTag: common.DialsTagName, NewTag: "json"}
 	sf := reflect.StructField{
 		Tag: `dials:"test"`,
 	}
@@ -31,7 +32,7 @@ func TestExpanddialsTags(t *testing.T) {
 	vc := reflect.ValueOf(tc)
 	cfg := ptrify.Pointerify(vc.Type(), vc)
 
-	mangler := TagCopyingMangler{SrcTag: transform.DialsTagName, NewTag: "yaml"}
+	mangler := TagCopyingMangler{SrcTag: common.DialsTagName, NewTag: "yaml"}
 	tfm := transform.NewTransformer(cfg, &mangler)
 
 	mangledVal, mangleErr := tfm.Translate()

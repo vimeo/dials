@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/vimeo/dials"
+	"github.com/vimeo/dials/common"
 	"github.com/vimeo/dials/flag/flaghelper"
 	"github.com/vimeo/dials/ptrify"
 	"github.com/vimeo/dials/tagformat/caseconversion"
@@ -163,7 +164,7 @@ func (s *Set) parse() error {
 }
 
 func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
-	fm := transform.NewFlattenMangler(transform.DialsTagName, s.NameCfg.FieldNameEncodeCasing, s.NameCfg.TagEncodeCasing)
+	fm := transform.NewFlattenMangler(common.DialsTagName, s.NameCfg.FieldNameEncodeCasing, s.NameCfg.TagEncodeCasing)
 	tfmr := transform.NewTransformer(ptyp, fm)
 	val, TrnslErr := tfmr.Translate()
 	if TrnslErr != nil {
@@ -195,6 +196,13 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 		// if the flag already exists, don't register so the user can override
 		// our behavior
 		if s.Flags.Lookup(name) != nil {
+			continue
+		}
+
+		// If the field's dialspflag tag is a hyphen (ex: `dialspflag:"-"`),
+		// don't register the flag. Currently nested fields with "-" tag will
+		// still be registered
+		if dpt, ok := sf.Tag.Lookup(dialsPFlagTag); ok && (dpt == "-") {
 			continue
 		}
 
@@ -422,7 +430,7 @@ func (s *Set) mkname(sf reflect.StructField) string {
 	}
 	// check if the dials tag is populated (it should be once it goes through
 	// the flatten mangler).
-	if name, ok := sf.Tag.Lookup(transform.DialsTagName); ok {
+	if name, ok := sf.Tag.Lookup(common.DialsTagName); ok {
 		return name
 	}
 

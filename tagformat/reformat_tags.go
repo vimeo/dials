@@ -5,6 +5,7 @@ import (
 
 	"github.com/fatih/structtag"
 	"github.com/vimeo/dials"
+	"github.com/vimeo/dials/common"
 	"github.com/vimeo/dials/sourcewrap"
 	"github.com/vimeo/dials/tagformat/caseconversion"
 	"github.com/vimeo/dials/transform"
@@ -79,7 +80,7 @@ func (k *TagReformattingMangler) ShouldRecurse(_ reflect.StructField) bool {
 // struct type passed in.
 func ReformatDialsTagSource(inner dials.Source, encodeFunc caseconversion.DecodeCasingFunc, decodeFunc caseconversion.EncodeCasingFunc) dials.Source {
 	return sourcewrap.NewTransformingSource(inner, &TagReformattingMangler{
-		tag:              transform.DialsTagName,
+		tag:              common.DialsTagName,
 		decodeCasingFunc: encodeFunc,
 		encodeCasingFunc: decodeFunc,
 	})

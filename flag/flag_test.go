@@ -289,6 +289,23 @@ func TestTable(t *testing.T) {
 			}{F: struct{ A, B int }{A: 42, B: 34}, G: struct{ A int }{A: 5}},
 		},
 		{
+			name: "hierarchical_ints_multi_struct_with_hypen",
+			tmpl: &struct {
+				F struct{ A, B int }
+				G struct {
+					A int `dialsflag:"-"`
+				}
+			}{F: struct{ A, B int }{A: 4, B: 34}, G: struct {
+				A int `dialsflag:"-"`
+			}{A: 5234}},
+			args:   []string{"--f-a=42", "--g-a=5"},
+			expErr: "failed to parse: failed to parse flags: flag provided but not defined: -g-a",
+			expected: &struct {
+				F struct{ A, B int }
+				G struct{ A int }
+			}{F: struct{ A, B int }{A: 42, B: 34}, G: struct{ A int }{A: 5234}},
+		},
+		{
 			name: "hierarchical_ints_multi_struct_partially_defaulted _with_tags",
 			tmpl: &struct {
 				F struct {

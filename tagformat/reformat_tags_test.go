@@ -4,14 +4,15 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/vimeo/dials/common"
+	"github.com/vimeo/dials/tagformat/caseconversion"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vimeo/dials/tagformat/caseconversion"
-	"github.com/vimeo/dials/transform"
 )
 
 func TestReformatdialsTag(t *testing.T) {
-	trm := NewTagReformattingMangler(transform.DialsTagName, caseconversion.DecodeLowerCamelCase, caseconversion.EncodeLowerSnakeCase)
+	trm := NewTagReformattingMangler(common.DialsTagName, caseconversion.DecodeLowerCamelCase, caseconversion.EncodeLowerSnakeCase)
 	sf := reflect.StructField{
 		Tag: `dials:"testTag"`,
 	}
@@ -22,7 +23,7 @@ func TestReformatdialsTag(t *testing.T) {
 }
 
 func TestNoTag(t *testing.T) {
-	trm := NewTagReformattingMangler(transform.DialsTagName, caseconversion.DecodeLowerCamelCase, caseconversion.EncodeLowerSnakeCase)
+	trm := NewTagReformattingMangler(common.DialsTagName, caseconversion.DecodeLowerCamelCase, caseconversion.EncodeLowerSnakeCase)
 	sf := reflect.StructField{}
 	newSFSlice, err := trm.Mangle(sf)
 	require.Len(t, newSFSlice, 1)
