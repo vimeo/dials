@@ -106,11 +106,10 @@ func TOMLConfigEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, watch bool
 	return ConfigFileEnvFlag(ctx, cfg, func(string) dials.Decoder { return &toml.Decoder{} }, watch)
 }
 
-// FileExtensionDecoderConfigEnvFlag TOMLConfigFlagEnv takes advantage of the
-// ConfigWithConfigPath cfg and thinly wraps ConfigFileEnvFlag and and thinly
-// wraps ConfigFileEnvFlag choosing the dials.Decoder used when handling the
-// file contents based on the file extension (from the limited set of JSON,
-// YAML and TOML).
+// FileExtensionDecoderConfigEnvFlag takes advantage of the ConfigWithConfigPath
+// cfg and thinly wraps ConfigFileEnvFlag choosing the dials.Decoder used when
+// handling the file contents based on the file extension (from the limited set
+// of JSON, YAML, and TOML).
 func FileExtensionDecoderConfigEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, watch bool) (*dials.Dials, error) {
 	return ConfigFileEnvFlag(ctx, cfg, func(fp string) dials.Decoder {
 		ext := filepath.Ext(fp)

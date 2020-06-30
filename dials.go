@@ -10,7 +10,10 @@ import (
 	"github.com/vimeo/dials/ptrify"
 )
 
-// Config ...
+// Config populates the passed in config struct by reading the values from the
+// different Sources. The order of the sources denotes the precedence of the formats
+// so the last source passed to the function has the ability to override fields that
+// were set by previous sources
 func Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, error) {
 
 	watcherChan := make(chan *watchTab)
@@ -68,7 +71,9 @@ func Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, erro
 	return d, nil
 }
 
-// Source ...
+// Source interface is implemented by each format that is used to populate
+// the config struct such as environment variables, command line flags, config
+// files and more
 type Source interface {
 	Value(*Type) (reflect.Value, error)
 }
