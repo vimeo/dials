@@ -147,12 +147,12 @@ import (
 
 type Config struct {
 	Val1 string `dials:"Val1" yaml:"b"`
-    // The `dials_env` tag is used for environment values. The Val2 value will
-    // only be populated from environment variables. If you want several different
-    // sources to be able to set this value, use the `dials` tag instead
+	// The `dials_env` tag is used for environment values. The Val2 value will
+	// only be populated from environment variables. If you want several different
+	// sources to be able to set this value, use the `dials` tag instead
 	Val2 int `dials_env:"VAL_2"`
-    // the `dialsflag` tag is used for command line flag values. The Val3 value
-    //  will only be populated from command line flags
+	// the `dialsflag` tag is used for command line flag values. The Val3 value
+	//  will only be populated from command line flags
 	Val3 bool `dialsflag:"val-3"`
 }
 
