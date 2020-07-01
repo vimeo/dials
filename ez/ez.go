@@ -85,6 +85,8 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, decoderFac
 		return d, fmt.Errorf("failed to read config file: %s", blankErr)
 	}
 
+	// wait for the composition of the config struct with the config file values
+	<-d.Events()
 	return d, nil
 }
 
