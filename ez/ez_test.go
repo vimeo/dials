@@ -23,6 +23,8 @@ func (c *Config) ConfigPath() (string, bool) {
 	return c.Path, true
 }
 
+// TestYAMLConfigEnvFlag cannot run concurrently with other tests because of
+// environment manipulation.
 func TestYAMLConfigEnvFlag(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
