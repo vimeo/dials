@@ -170,8 +170,8 @@ func main() {
 		// error handling
 	}
 
-    // Define a `dials.Source` for command line flags. Consider using the dials pflag library
-    // if the application uses the spf13/pflag package
+	// Define a `dials.Source` for command line flags. Consider using the dials pflag library
+	// if the application uses the spf13/pflag package
 	flagSet, flagErr := flag.NewCmdLineSet(flag.DefaultFlagNameConfig(), config)
 	if flagErr != nil {
 		// error handling
@@ -215,7 +215,7 @@ only the value from command line flag populates the config due to the special `d
 If you wish to watch the config file and make updates to your configuration, use the watching source. This functionality is available in the `ez` package by passing the `true` boolean to the functions. The `WatchingSource` can be used when you want to further customize the configuration as well.
 
 ``` go
-    // NewWatchSource also has watch options that can be passed to have the
+	// NewWatchSource also has watch options that can be passed to have the
 	// ability to use a ticker for polling, set a logger, and more
 	watchingFileSource, fsErr := file.NewWatchingSource(
 		"path/to/config", &yaml.Decoder{})
