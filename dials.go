@@ -71,14 +71,16 @@ func Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, erro
 	return d, nil
 }
 
-// Source interface is implemented by each format that is used to populate
-// the config struct such as environment variables, command line flags, config
-// files and more
+// Source interface is implemented by each configuration source that is used to
+// populate the config struct such as environment variables, command line flags,
+// config files, and more
 type Source interface {
 	Value(*Type) (reflect.Value, error)
 }
 
-// Decoder ...
+// Decoder interface is implemented by different data formats to read the config
+// files, decode the data, and insert the values in the config struct. Dials
+// currently supports YAML, JSON, and TOML data formats.
 type Decoder interface {
 	Decode(io.Reader, *Type) (reflect.Value, error)
 }

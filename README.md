@@ -19,7 +19,7 @@ Dials requires Go 1.13 or later.
 
 ## What is Dials
 
-Dials is a configuration package for Go applications. It supports several different formats including:
+Dials is a configuration package for Go applications. It supports several different configuration sources including:
  * reading from JSON, YAML, and TOML config files
  * getting values from environment variables
  * parsing command line flags (for both Go's flag package and pflag package)
@@ -27,15 +27,15 @@ Dials is a configuration package for Go applications. It supports several differ
  * setting default values
 
 ## Why choose Dials
-Dials is a configuration solution that supports several formats so you only have to focus on the business logic. 
-Define the configuration struct and select the formats and Dials will do the rest. Moreover, setting defaults doesn't require additional function calls. 
+Dials is a configuration solution that supports several configuration sources so you only have to focus on the business logic.
+Define the configuration struct and select the configuration source and Dials will do the rest. Moreover, setting defaults doesn't require additional function calls.
 Just populate the config struct with the default values and pass the struct to Dials. 
-Dials also allows the flexibility to choose the precedence order to determine which formats can override the configuration values. 
+Dials also allows the flexibility to choose the precedence order to determine which source can override the configuration values. 
 
 ## Using Dials
 
 ### Reading from config files, environment variables, and command line flags
-Dials requires very minimal configuration to populate values from several formats through the `ez` package. Define the config struct and provide a method `ConfigPath() (string, bool)` to indicate the path to the config file. The package defines several functions that help populate the config struct by reading from config files,
+Dials requires very minimal configuration to populate values from several sources through the `ez` package. Define the config struct and provide a method `ConfigPath() (string, bool)` to indicate the path to the config file. The package defines several functions that help populate the config struct by reading from config files,
 environment variables, and command line flags
 
 ``` go
@@ -211,6 +211,8 @@ go run main.go --val-3
 the output will be `Config: &{Val1:valueb Val2:5 Val3:true}`. Note that even when val-3 is defined in the yaml file and the file source takes precedence, 
 only the value from command line flag populates the config due to the special `dialsflag` tag
 
+
+
 ### Watching file source
 If you wish to watch the config file and make updates to your configuration, use the watching source. This functionality is available in the `ez` package by passing the `true` boolean to the functions. The `WatchingSource` can be used when you want to further customize the configuration as well.
 
@@ -235,6 +237,12 @@ If you wish to watch the config file and make updates to your configuration, use
 
 	Config := view.View().(*Config)
 ```
+
+### Source
+Source interface is implemented by different configuration sources that populate the configuration struct. Dials currently supports  environment variables, command line flags, and config file sources. When `dials.Config` function is going through the different sources to extract the values, it calls the `Value` method on each of these sources. This allows for the logic of the source to be encapsulated while giving the application access to the values populated by each source. The `dials.Config` function composes the final config struct by overlaying the values from all the different sources and accounting for the precedence order. If you wish to implement your own source, implement the `Source` interface and pass the source to the `dials.Config` function. 
+
+### Decoder
+Decoder interface is implemented by different data formats to decode the data and insert the values into the appropriate fields in the config struct. Dials currently supports JSON, YAML, and TOML data formats. If you wish to decode another data format, implement the `Decoder` interface and pass the decoder to the sources that support decoding (string and file sources). When the `dials.Config` function calls the `Value` method for the source, the source will call the `Decode` method to unmarshal the data and insert the values into the config struct and returns the populated struct.
 
 ## Contributors
 Dials is a production of Vimeo's Core Services team
