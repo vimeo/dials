@@ -153,6 +153,49 @@ func DecodeGoCamelCase(s string) (DecodedIdentifier, error) {
 	return words, nil
 }
 
+// DecodeGoTags is similar to DecodeGoCamelCase but slightly more
+// flexible by allowing hyphen since go struct tags can have hyphens. Similar to
+// DecodeGoCamelCase, this will split the string according to the allowed characters and the initialisms
+func DecodeGoTags(s string) (DecodedIdentifier, error) {
+	words := []string{}
+	lastBoundary := 0
+	for i, char := range s {
+		if firstCharOfInitialism(s, i) || firstCharAfterInitialism(s, i) || char == '_' || char == '-' {
+			if lastBoundary < i {
+				word := s[lastBoundary:i]
+				if word == strings.ToUpper(word) {
+					words = append(words, extractInitialisms(word)...)
+				} else {
+					words = append(words, strings.ToLower(word))
+				}
+			}
+			switch char {
+			case '_', '-':
+				lastBoundary = i + 1
+			default:
+				lastBoundary = i
+			}
+
+		} else if lastCharOfInitialismAtEOS(s, i) {
+			if lastBoundary < i {
+				word := s[lastBoundary:]
+				if word == strings.ToUpper(word) {
+					words = append(words, extractInitialisms(word)...)
+					return words, nil
+				}
+			}
+			lastBoundary = i
+		}
+	}
+
+	if last := strings.ToLower(s[lastBoundary:]); len(last) > 0 {
+		words = append(words, strings.ToLower(s[lastBoundary:]))
+	}
+
+	return words, nil
+
+}
+
 // List from https://github.com/golang/lint/blob/master/lint.go
 var commonInitialisms = []string{"ACL", "API", "ASCII", "CPU", "CSS", "DNS", "EOF", "GUID", "HTML", "HTTP", "HTTPS", "ID", "IP", "JSON", "LHS", "QPS", "RAM", "RHS", "RPC", "SLA", "SMTP", "SQL", "SSH", "TCP", "TLS", "TTL", "UDP", "UI", "UID", "UUID", "URI", "URL", "UTF8", "VM", "XML", "XMPP", "XSRF", "XSS"}
 

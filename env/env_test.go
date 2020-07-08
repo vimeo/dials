@@ -47,7 +47,7 @@ func TestEnv(t *testing.T) {
 		},
 		"string_with_dials_and_env_tags": {
 			ConfigStruct: &struct {
-				EnvVar string `dials:"ENV_ONE" dials_env:"ENV_TWO"`
+				EnvVar string `dials:"env-var" dials_env:"ENV_TWO"`
 			}{},
 			EnvVarName:  "ENV_TWO",
 			EnvVarValue: "asdf",
