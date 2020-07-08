@@ -153,9 +153,10 @@ func DecodeGoCamelCase(s string) (DecodedIdentifier, error) {
 	return words, nil
 }
 
-// DecodeGoTags is similar to DecodeGoCamelCase but slightly more
-// flexible by allowing hyphen since go struct tags can have hyphens. Similar to
-// DecodeGoCamelCase, this will split the string according to the allowed characters and the initialisms
+// DecodeGoTags is similar to DecodeGoCamelCase but slightly more flexible by
+// allowing hyphens (-) in addition to underscores (_) since go struct tags can
+// have these characters. The function will decode CamelCase and kebab-case
+// strings into a slice of lower cased strings.
 func DecodeGoTags(s string) (DecodedIdentifier, error) {
 	words := []string{}
 	lastBoundary := 0
