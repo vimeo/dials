@@ -105,20 +105,14 @@ func lastCharOfInitialismAtEOS(s string, i int) bool {
 	return i+rl == len(s) && unicode.IsUpper(r)
 }
 
-// TODO: Add EncodeGoCamelCase function and set as default name encoder in
-// FlattenMangler
-
-// DecodeGoCamelCase decodes UpperCamelCase and lowerCamelCase strings with
-// fully capitalized acronyms (e.g., "jsonAPIDocs") into a slice of lower-cased
-// sub-strings.
-func DecodeGoCamelCase(s string) (DecodedIdentifier, error) {
-	if !token.IsIdentifier(s) {
-		return nil, fmt.Errorf("Only characters of the Letter category or '_' can appear in strings")
-	}
+// decodeGoCamelCase splits up a string in a slice of lower cased sub-string by
+// splitting after fully capitalized acronyms and after the characters that
+// signal word boundaries as specified in the passed isWordBoundary function
+func decodeGoCamelCase(s string, isWordBoundary func(rune) bool) (DecodedIdentifier, error) {
 	words := []string{}
 	lastBoundary := 0
 	for i, char := range s {
-		if firstCharOfInitialism(s, i) || firstCharAfterInitialism(s, i) || char == '_' {
+		if firstCharOfInitialism(s, i) || firstCharAfterInitialism(s, i) || isWordBoundary(char) {
 			if lastBoundary < i {
 				word := s[lastBoundary:i]
 				if word == strings.ToUpper(word) {
@@ -127,8 +121,8 @@ func DecodeGoCamelCase(s string) (DecodedIdentifier, error) {
 					words = append(words, strings.ToLower(word))
 				}
 			}
-			switch char {
-			case '_':
+			switch {
+			case isWordBoundary(char):
 				lastBoundary = i + 1
 			default:
 				lastBoundary = i
@@ -153,48 +147,27 @@ func DecodeGoCamelCase(s string) (DecodedIdentifier, error) {
 	return words, nil
 }
 
-// DecodeGoTags is similar to DecodeGoCamelCase but slightly more flexible by
-// allowing hyphens (-) in addition to underscores (_) since go struct tags can
-// have these characters. The function will decode CamelCase and kebab-case
-// strings into a slice of lower cased strings.
+// TODO: Add EncodeGoCamelCase function and set as default name encoder in
+// FlattenMangler
+
+// DecodeGoCamelCase decodes UpperCamelCase and lowerCamelCase strings with
+// fully capitalized acronyms (e.g., "jsonAPIDocs") into a slice of lower-cased
+// sub-strings.
+func DecodeGoCamelCase(s string) (DecodedIdentifier, error) {
+	if !token.IsIdentifier(s) {
+		return nil, fmt.Errorf("Only characters of the Letter category or '_' can appear in strings")
+	}
+	return decodeGoCamelCase(s, func(r rune) bool {
+		return r == '_'
+	})
+}
+
+// DecodeGoTags decodes CamelCase, snake_case, and kebab-case strings with fully
+// capitalized acronyms into a slice of lower cased strings.
 func DecodeGoTags(s string) (DecodedIdentifier, error) {
-	words := []string{}
-	lastBoundary := 0
-	for i, char := range s {
-		if firstCharOfInitialism(s, i) || firstCharAfterInitialism(s, i) || char == '_' || char == '-' {
-			if lastBoundary < i {
-				word := s[lastBoundary:i]
-				if word == strings.ToUpper(word) {
-					words = append(words, extractInitialisms(word)...)
-				} else {
-					words = append(words, strings.ToLower(word))
-				}
-			}
-			switch char {
-			case '_', '-':
-				lastBoundary = i + 1
-			default:
-				lastBoundary = i
-			}
-
-		} else if lastCharOfInitialismAtEOS(s, i) {
-			if lastBoundary < i {
-				word := s[lastBoundary:]
-				if word == strings.ToUpper(word) {
-					words = append(words, extractInitialisms(word)...)
-					return words, nil
-				}
-			}
-			lastBoundary = i
-		}
-	}
-
-	if last := strings.ToLower(s[lastBoundary:]); len(last) > 0 {
-		words = append(words, strings.ToLower(s[lastBoundary:]))
-	}
-
-	return words, nil
-
+	return decodeGoCamelCase(s, func(r rune) bool {
+		return r == '_' || r == '-'
+	})
 }
 
 // List from https://github.com/golang/lint/blob/master/lint.go
