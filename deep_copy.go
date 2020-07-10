@@ -24,28 +24,15 @@ type ptrKey struct {
 
 func newDeepCopier() *deepCopier {
 	return &deepCopier{
-		ptrMap:   map[ptrKey]reflect.Value{},
-		sliceMap: map[uintptr]sliceInfo{},
-		mapMap:   map[uintptr]reflect.Value{},
+		ptrMap: map[ptrKey]reflect.Value{},
+		mapMap: map[uintptr]reflect.Value{},
 	}
-}
-
-type sliceInfo struct {
-	outBaseptr uintptr
-	maxCap     int
-	refs       []reflect.Value
 }
 
 type deepCopier struct {
 	// map from input pointer to output pointer to handle reference-cycles
 	// and splitting pointers to the same object.
 	ptrMap map[ptrKey]reflect.Value
-
-	// map from input slice-pointer to output-slice-pointer to handle
-	// reference cycles, and prevent splitting large backing arrays.
-	// Keeps back-references so if later references have larger capacities
-	// we can go back and fix those refs.
-	sliceMap map[uintptr]sliceInfo
 
 	// map from input map-pointer to output-map to handle
 	// reference cycles.
@@ -181,16 +168,8 @@ func (d *deepCopier) deepCopySlice(in, out reflect.Value) {
 		return
 	}
 
-	if in.Cap() > 0 {
-	}
-
 	if (out.IsNil() || out.Pointer() == in.Pointer()) && out.CanSet() {
 		out.Set(reflect.MakeSlice(in.Type(), in.Len(), in.Cap()))
-	}
-	d.sliceMap[in.Pointer()] = sliceInfo{
-		outBaseptr: out.Pointer(),
-		maxCap:     in.Cap(),
-		refs:       []reflect.Value{out},
 	}
 	// Copy the entire backing array
 	d.deepCopyArray(in.Slice(0, in.Cap()), out.Slice(0, out.Cap()))
