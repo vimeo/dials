@@ -64,6 +64,11 @@ var decodeCases = []struct {
 	{"decode_golangCamelCase_try_", []string{"decode", "golang", "camel", "case", "try"}, DecodeGoCamelCase, false},
 	{"A", []string{"a"}, DecodeGoCamelCase, false},
 	{"EnvVarA", []string{"env", "var", "a"}, DecodeGoCamelCase, false},
+
+	{"jsonAPI", []string{"json", "api"}, DecodeGoTags, false},
+	{"value-3", []string{"value", "3"}, DecodeGoTags, false},
+	{"decode_golangCamelCase_try_", []string{"decode", "golang", "camel", "case", "try"}, DecodeGoTags, false},
+	{"AB_Test-something_fun", []string{"ab", "test", "something", "fun"}, DecodeGoTags, false},
 }
 
 func TestDecode(t *testing.T) {
