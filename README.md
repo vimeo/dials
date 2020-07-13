@@ -30,7 +30,7 @@ Dials is a configuration package for Go applications. It supports several differ
 Dials is a configuration solution that supports several configuration sources so you only have to focus on the business logic.
 Define the configuration struct and select the configuration sources and Dials will do the rest. Moreover, setting defaults doesn't require additional function calls.
 Just populate the config struct with the default values and pass the struct to Dials. 
-Dials also allows the flexibility to choose the precedence order to determine which sources can overwrite the configuration values.
+Dials also allows the flexibility to choose the precedence order to determine which sources can overwrite the configuration values. Additionally, Dials has special handling of structs that implement [`encoding.TextUnmarshaler`](https://golang.org/pkg/encoding/#TextUnmarshaler) so structs (like [`IP`](https://pkg.go.dev/net?tab=doc#IP) and [`time`](https://pkg.go.dev/time?tab=doc#Time)) can be properly parsed.
 
 ## Using Dials
 
@@ -58,9 +58,13 @@ type Config struct {
 	// the dials tag can be used as alias so when the name in the config file
 	// changes, the code doesn't have to change.
 	Val2 int `dials:"val_2"`
-	// the `dialsflag` tag is used for command line flag values. The Val3 value
-	// will only be populated from command line flags
-	Val3 bool `dialsflag:"val-3"`
+	// Dials follows the Go convention for flags and will look for the dials
+	// tag or field name in lower-kebab-case. In this case, it would look for
+	// val-3 flag. To specify a different flag name, use the `dialsflag` tag.
+	// Now, Dials will lookup "some-val" flag instead. Since only
+	// `dialsflag` tag is specified, Val3 will only be populated from command
+	// line flags
+	Val3 bool `dialsflag:"some-val"`
 	// Path holds the value of the path to the config file. Dials follows the
 	// Go convention and will look for the dials tag or field name in all caps. 
 	// In this case, it would lookup the PATH environment variable. To specify
@@ -118,7 +122,7 @@ and the following command (make sure to change the configpath value to point to 
 ```
 export configpath=path/to/config/file
 export VAL_2=5
-go run main.go --val-3
+go run main.go --some-val
 ```
 
 the output will be 
@@ -241,16 +245,19 @@ If you wish to watch the config file and make updates to your configuration, use
 ```
 
 ### Source
-Source interface is implemented by different configuration sources that populate the configuration struct. Dials currently supports environment variables, command line flags, and config file sources. When `dials.Config` function is going through the different sources to extract the values, it calls the `Value` method on each of these sources. This allows for the logic of the source to be encapsulated while giving the application access to the values populated by each source. The `dials.Config` function composes the final config struct by overlaying the values from all the different sources and accounting for the precedence order. If you wish to define your own source, implement the `Source` interface and pass the source to the `dials.Config` function.
+Source interface is implemented by different configuration sources that populate the configuration struct. Dials currently supports environment variables, command line flags, and config file sources. When `dials.Config` function is going through the different sources to extract the values, it calls the `Value` method on each of these sources. This allows for the logic of the Source to be encapsulated while giving the application access to the values populated by each Source.
 
-#### Write your own Source
 
 ### Decoder
-Decoder interface is implemented by different data formats to decode the data and insert the values into the appropriate fields in the config struct. Dials currently supports JSON, YAML, and TOML data formats. If you wish to decode another data format, implement the `Decoder` interface and pass the decoder to the sources that support decoding (string and file sources). When the `dials.Config` function calls the `Value` method for the source, the supported source will call the `Decode` method to unmarshal the data into the config struct and return the populated struct.
+Decoders are modular allowing users to mix and match Decoders and Sources. Dials currently supports Decoders that decode different data formats (JSON, YAML, and TOML) and insert the values into the appropriate fields in the config struct. Decoders can be expanded from that use case and users can write their own Decoders to perform the tasks they like (more info in the section below). Decoder is called when the supported Source calls the `Decode` method to unmarshal the data into the config struct and returns the populated struct. There are two sources that the Decoders can be used with: files (including watched files) and `static.StringSource`.
 
+### Write your own Source and Decoder
+If you wish to define your own source, implement the `Source` interface and pass the source to the `dials.Config` function. If you want the Source to interact with a Decoder, call `Decode` in the `Value` method of the Source. If you want to define your own Decoder to interact with your Source, implement the `Decoder` interface. Since Decoders are modular, keep the logic of Decoder encapsulated and separate from the Source. For example, you can have an `HTTP` Source and custom `Get` and `Post` Decoders that repeatedly make `GET` and `POST` requests. The user can use the HTTP Source with either one of the Get or Post decoders and potentially also use the `POST` Decoder with other Sources.
 
+### Putting it all together
 
-### Nitty Gritty
+The `dials.Config` function first makes a deep copy of the configuration struct and makes each field a pointer (even the fields in nested structs) with special handling for structs that implement [`encoding.TextUnmarshaler`](https://golang.org/pkg/encoding/#TextUnmarshaler). Then it calls the `Value` method on each Source and stores the returned value. The final step is to to compose the final config struct by overlaying the values from all the different Sources and accounting for the precedence order. Since the fields are pointers, we can directly assign pointers while overlaying. Overlay even has safety checks for deduplicating maps sharing a backing pointer and for structs with self-referential pointers. So when you write your own Source, you just have to pass the Source in to the `dials.Config` function and Dials will take care of deep copying and pointerifying the struct and composing the final struct with overlay.
+
 
 ## Contributors
 Dials is a production of Vimeo's Core Services team
