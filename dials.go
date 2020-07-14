@@ -163,7 +163,9 @@ func compose(t interface{}, sources []sourceValue) (interface{}, error) {
 		if s.Kind() == reflect.Ptr {
 			s = s.Elem()
 		}
-		if overlayErr := overlayStruct(value, s); overlayErr != nil {
+		o := newOverlayer()
+		sv := o.dc.deepCopyValue(s)
+		if overlayErr := o.overlayStruct(value, sv); overlayErr != nil {
 			return nil, overlayErr
 		}
 

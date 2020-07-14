@@ -10,7 +10,17 @@ import (
 
 var errCanSetField = errors.New("cannot set field")
 
-func overlayField(base, overlay reflect.Value) error {
+type overlayer struct {
+	dc *deepCopier
+}
+
+func newOverlayer() *overlayer {
+	return &overlayer{
+		dc: newDeepCopier(),
+	}
+}
+
+func (o *overlayer) overlayField(base, overlay reflect.Value) error {
 	switch overlay.Kind() {
 	case reflect.Slice, reflect.Ptr, reflect.Interface, reflect.Map:
 		if overlay.IsNil() {
@@ -24,7 +34,7 @@ func overlayField(base, overlay reflect.Value) error {
 	switch base.Kind() {
 	case reflect.Ptr:
 		// if we're dealing with a pointer in the original field, and
-		// it's unset from lower layers, just set the pointer.
+		// it's unset from lower layers, just set the pointer (after a deep-copy).
 		if base.IsNil() {
 			// make sure it's pointing to the same type
 			if base.Type().Elem() == overlay.Type().Elem() {
@@ -45,7 +55,7 @@ func overlayField(base, overlay reflect.Value) error {
 			// We just need to allocate a new pointer to copy into,
 			// then we'll be able to call overlayStruct.
 			base.Set(reflect.New(base.Type().Elem()))
-			return overlayStruct(base.Elem(), overlay.Elem())
+			return o.overlayStruct(base.Elem(), overlay.Elem())
 		}
 		if ptrify.IsTextUnmarshalerStruct(base.Type().Elem()) {
 			// base is not nil and we're not deep-copying, so we can overwrite the pointer.
@@ -58,9 +68,9 @@ func overlayField(base, overlay reflect.Value) error {
 			return nil
 		}
 		// both pointers are non-nil, and it's a pointerified struct.
-		return overlayStruct(base.Elem(), overlay.Elem())
+		return o.overlayStruct(base.Elem(), overlay.Elem())
 	case reflect.Interface:
-		return overlayInterface(base, overlay)
+		return o.overlayInterface(base, overlay)
 	case reflect.Struct:
 		if ptrify.IsTextUnmarshalerStruct(base.Type()) {
 			// base is not nil and we're not deep-copying, so we can shallow-copy
@@ -84,9 +94,9 @@ func overlayField(base, overlay reflect.Value) error {
 		}
 		if overlay.Kind() == reflect.Ptr {
 			// it's a pointerified struct.
-			return overlayStruct(base, overlay.Elem())
+			return o.overlayStruct(base, overlay.Elem())
 		}
-		return overlayStruct(base, overlay)
+		return o.overlayStruct(base, overlay)
 	default:
 		// this probably will be a pointer to the value we want because
 		// we explicitly pointerify fields, but there's a chance that
@@ -104,7 +114,7 @@ func overlayField(base, overlay reflect.Value) error {
 
 // overlayStruct assumes that overlay is a pointerified type of the type of
 // base.
-func overlayStruct(base, overlay reflect.Value) error {
+func (o *overlayer) overlayStruct(base, overlay reflect.Value) error {
 	// panic since these violate the contract (in the function name).
 	if base.Kind() != reflect.Struct {
 		panic(fmt.Errorf("non-struct call: %s as base (%s as overlay)", base.Type(), overlay.Type()))
@@ -127,7 +137,7 @@ func overlayStruct(base, overlay reflect.Value) error {
 			continue
 		default:
 		}
-		if overlayErr := overlayField(
+		if overlayErr := o.overlayField(
 			currentField,
 			overlay.Field(j)); overlayErr != nil {
 			return fmt.Errorf("failed to set field %q (number %d): %s",
@@ -140,7 +150,7 @@ func overlayStruct(base, overlay reflect.Value) error {
 	return nil
 }
 
-func overlayInterface(base, overlay reflect.Value) error {
+func (o *overlayer) overlayInterface(base, overlay reflect.Value) error {
 	if base.Kind() != reflect.Interface {
 		panic(fmt.Errorf("invalid base of kind %s as argument to overlayInterface; only Interface allowed",
 			base.Kind()))
@@ -164,7 +174,7 @@ func overlayInterface(base, overlay reflect.Value) error {
 			// they're the same underlying type, just
 			// overlay-away (leave the base as an interface
 			// so we fall into the next case)
-			if err := overlayField(base, overlay.Elem()); err != nil {
+			if err := o.overlayField(base, overlay.Elem()); err != nil {
 				return fmt.Errorf("failed to overlay interface %s on interface %s (iface type %s): %s",
 					overlay.Elem().Type(), base.Elem().Type(), base.Type(), err)
 			}
@@ -188,13 +198,13 @@ func overlayInterface(base, overlay reflect.Value) error {
 		// check whether the overlay pointer-type matches the base-value's contained type
 		// or the pointee type matches the base-value's contained type
 		if !base.IsNil() && (base.Elem().Type() == overlay.Type() || base.Elem().Type() == overlay.Type().Elem()) {
-			if err := overlayField(base, overlay.Elem()); err != nil {
+			if err := o.overlayField(base, overlay.Elem()); err != nil {
 				return fmt.Errorf("failed to overlay ptr type %s onto %s: %s", overlay.Type(), base.Type(), err)
 			}
 			return nil
 		}
 		out := reflect.New(overlay.Type().Elem())
-		if err := overlayField(out.Elem(), overlay.Elem()); err != nil {
+		if err := o.overlayField(out.Elem(), overlay.Elem()); err != nil {
 			return fmt.Errorf("unable to overlay pointer %s onto interface %s: %s",
 				overlay.Type(), base.Type(), err)
 		}
@@ -210,8 +220,8 @@ func overlayInterface(base, overlay reflect.Value) error {
 		if !base.IsNil() {
 			if base.Elem().Type() == overlay.Type() || base.Elem().Type() == reflect.PtrTo(overlay.Type()) {
 				out := reflect.New(base.Elem().Type())
-				deepCopy(base.Elem(), out.Elem())
-				if err := overlayField(out.Elem(), overlay); err != nil {
+				o.dc.deepCopy(base.Elem(), out.Elem())
+				if err := o.overlayField(out.Elem(), overlay); err != nil {
 					return fmt.Errorf("failed to overlay interface onto struct field: %s", err)
 				}
 				base.Set(out.Elem())
@@ -224,7 +234,7 @@ func overlayInterface(base, overlay reflect.Value) error {
 		}
 		if reflect.PtrTo(overlay.Type()).Implements(base.Type()) {
 			out := reflect.New(overlay.Type())
-			if err := overlayStruct(out.Elem(), overlay); err != nil {
+			if err := o.overlayStruct(out.Elem(), overlay); err != nil {
 				return fmt.Errorf("error overlaying struct(%s) onto interface(%s): %s",
 					out.Type().Elem(), base.Type(), err)
 			}
@@ -261,23 +271,23 @@ func overlayInterface(base, overlay reflect.Value) error {
 		out := reflect.New(overlay.Type())
 		if !base.IsNil() {
 			if base.Elem().Type() == overlay.Type() {
-				deepCopyArray(overlay, out.Elem())
+				o.dc.deepCopyArray(overlay, out.Elem())
 				base.Set(out.Elem())
 				return nil
 			}
 			if base.Elem().Type() == reflect.PtrTo(overlay.Type()) {
-				deepCopyArray(overlay, out.Elem())
+				o.dc.deepCopyArray(overlay, out.Elem())
 				base.Set(out)
 				return nil
 			}
 		}
 		if overlay.Type().Implements(base.Type()) {
-			deepCopyArray(overlay, out.Elem())
+			o.dc.deepCopyArray(overlay, out.Elem())
 			base.Set(out.Elem())
 			return nil
 		}
 		if reflect.PtrTo(overlay.Type()).Implements(base.Type()) {
-			deepCopyArray(overlay, out.Elem())
+			o.dc.deepCopyArray(overlay, out.Elem())
 			base.Set(out)
 			return nil
 		}
