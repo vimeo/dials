@@ -28,7 +28,7 @@ Dials is a configuration package for Go applications. It supports several differ
 
 ## Why choose Dials
 Dials is a configuration solution that supports several configuration sources so you only have to focus on the business logic.
-Define the configuration struct and select the configuration sources and Dials will do the rest. Moreover, setting defaults doesn't require additional function calls.
+Define the configuration struct and select the configuration sources and Dials will do the rest. Dials is designed to be extensible so if the built-in sources don't meet your needs, you can write your own and still get all the other benefits. Moreover, setting defaults doesn't require additional function calls.
 Just populate the config struct with the default values and pass the struct to Dials. 
 Dials also allows the flexibility to choose the precedence order to determine which sources can overwrite the configuration values. Additionally, Dials has special handling of structs that implement [`encoding.TextUnmarshaler`](https://golang.org/pkg/encoding/#TextUnmarshaler) so structs (like [`IP`](https://pkg.go.dev/net?tab=doc#IP) and [`time`](https://pkg.go.dev/time?tab=doc#Time)) can be properly parsed.
 
@@ -55,21 +55,22 @@ type Config struct {
 	// because there is a `yaml` struct tag present doesn't mean that other
 	// sources can't fill this field.
 	Val1 string `dials:"Val1" yaml:"b"`
-	// the dials tag can be used as alias so when the name in the config file
+	// the dials tag can be used as an alias so when the name in the config file
 	// changes, the code doesn't have to change.
 	Val2 int `dials:"val_2"`
 	// Dials follows the Go convention for flags and will look for the dials
-	// tag or field name in lower-kebab-case. In this case, it would look for
-	// val-3 flag. To specify a different flag name, use the `dialsflag` tag.
-	// Now, Dials will lookup "some-val" flag instead. Since only
-	// `dialsflag` tag is specified, Val3 will only be populated from command
-	// line flags
+	// tag or field name in lower-kebab-case. Without any struct tags, it
+	// would look for val-3 flag. To specify a different flag name, use the
+	// `dialsflag` tag. Now, Dials will lookup "some-val" flag instead.
+	// Since only `dialsflag` tag is specified, Val3 will only be populated
+	// from command line flags
 	Val3 bool `dialsflag:"some-val"`
 	// Path holds the value of the path to the config file. Dials follows the
-	// Go convention and will look for the dials tag or field name in all caps. 
-	// In this case, it would lookup the PATH environment variable. To specify
-	// a different env variable, use the `dials_env` tag. Now Dials will lookup
-	// "configpath" env value to populate the Path field
+	// Go convention and will look for the dials tag or field name in all caps
+	// when struct tags aren't specified. Without any struct tags, it would
+	// lookup the PATH environment variable. To specify a different env variable,
+	// use the `dials_env` tag. Now Dials will lookup "configpath" env value to
+	// populate the Path field
 	Path string `dials_env:"configpath"`
 }
 
@@ -93,17 +94,16 @@ func main() {
 	// attempt to set the same struct field. The boolean argument passed to the
 	// function indicates whether the file will be watched and updates to the
 	// file should update the config struct.
-	view, dialsErr := ez.YAMLConfigEnvFlag(context.Background(), c, false)
+	d, dialsErr := ez.YAMLConfigEnvFlag(context.Background(), c, false)
 	if dialsErr != nil {
 		// error handling
 	}
 
-	// Get an interface corresponding to the filled-out config struct, and
-	// assert it to the correct type. Here's the struct populated from config file,
-	// environment variables, and command line flags.
-	Config := view.View().(*Config)
-	fmt.Printf("Config: %+v\n", Config)
-}
+	// get the struct populated from config file, environment variables, and
+	// command line flags.
+	config := &Config{}
+	d.Fill(config)
+	fmt.Printf("Config: %+v\n", config)
 ```
 
 For reading from JSON or TOML config files along with environment variables and command line flags,
@@ -188,14 +188,14 @@ func main() {
 	// the Config struct will be populated in the order in which the sources are
 	// passed in the Config function with increasing precedence. So the fileSrc value
 	// will overwrite the flagSet value if they both were to set for the same field
-	view, err := dials.Config(context.Background(), config, envSrc, flagSet, fileSrc)
+	d, err := dials.Config(context.Background(), config, envSrc, flagSet, fileSrc)
 	if err != nil {
 		// error handling
 	}
 
-	// Config holds the populated config struct
-	Config := view.View().(*Config)
-	fmt.Printf("Config: %+v\n", Config)
+	// Fill populates the config struct
+	d.Fill().(config)
+	fmt.Printf("Config: %+v\n", config)
 }
 ```
 
@@ -236,16 +236,16 @@ If you wish to watch the config file and make updates to your configuration, use
 	// additional sources can be passed along with the watching file source and the
 	// precedence order will still be dictated by the order in which the sources are
 	// defined in the Config function.
-	view, err := dials.Config(context.Background(), config, watchingFileSource)
+	d, err := dials.Config(context.Background(), config, watchingFileSource)
 	if err != nil {
 		// error handling
 	}
 
-	Config := view.View().(*Config)
+	d.Fill(config)
 ```
 
 ### Source
-Source interface is implemented by different configuration sources that populate the configuration struct. Dials currently supports environment variables, command line flags, and config file sources. When `dials.Config` function is going through the different sources to extract the values, it calls the `Value` method on each of these sources. This allows for the logic of the Source to be encapsulated while giving the application access to the values populated by each Source.
+The Source interface is implemented by different configuration sources that populate the configuration struct. Dials currently supports environment variables, command line flags, and config file sources. When `dials.Config` function is going through the different sources to extract the values, it calls the `Value` method on each of these sources. This allows for the logic of the Source to be encapsulated while giving the application access to the values populated by each Source.
 
 
 ### Decoder
