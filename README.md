@@ -104,6 +104,7 @@ func main() {
 	config := &Config{}
 	d.Fill(config)
 	fmt.Printf("Config: %+v\n", config)
+}
 ```
 
 For reading from JSON or TOML config files along with environment variables and command line flags,
@@ -194,7 +195,7 @@ func main() {
 	}
 
 	// Fill populates the config struct
-	d.Fill().(config)
+	d.Fill(config)
 	fmt.Printf("Config: %+v\n", config)
 }
 ```
