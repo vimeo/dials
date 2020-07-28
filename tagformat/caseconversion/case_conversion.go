@@ -301,6 +301,9 @@ func aggregateStringLen(words DecodedIdentifier) int {
 
 // EncodeUpperCamelCase encodes a slice of words into UpperCamelCase
 func EncodeUpperCamelCase(words DecodedIdentifier) string {
+	if len(words) == 0 {
+		return ""
+	}
 	b := strings.Builder{}
 	b.Grow(aggregateStringLen(words))
 	for _, w := range words {
@@ -311,6 +314,9 @@ func EncodeUpperCamelCase(words DecodedIdentifier) string {
 
 // EncodeLowerCamelCase encodes a slice of words into lowerCamelCase
 func EncodeLowerCamelCase(words DecodedIdentifier) string {
+	if len(words) == 0 {
+		return ""
+	}
 	b := strings.Builder{}
 	b.Grow(aggregateStringLen(words))
 	b.WriteString(words[0])
@@ -327,6 +333,9 @@ func EncodeKebabCase(words DecodedIdentifier) string {
 
 // EncodeLowerSnakeCase encodes a slice of words into lower_snake_case
 func EncodeLowerSnakeCase(words DecodedIdentifier) string {
+	if len(words) == 0 {
+		return ""
+	}
 	b := strings.Builder{}
 	b.Grow(aggregateStringLen(words) + len(words) - 1)
 	for i, w := range words {
@@ -341,6 +350,9 @@ func EncodeLowerSnakeCase(words DecodedIdentifier) string {
 // EncodeUpperSnakeCase encodes a slice of words into UPPER_SNAKE_CASE (AKA
 // SCREAMING_SNAKE_CASE)
 func EncodeUpperSnakeCase(words DecodedIdentifier) string {
+	if len(words) == 0 {
+		return ""
+	}
 	b := strings.Builder{}
 	b.Grow(aggregateStringLen(words) + len(words) - 1)
 	for i, w := range words {

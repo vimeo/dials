@@ -94,11 +94,17 @@ var encodeCases = []struct {
 	encoderFunc func(DecodedIdentifier) string
 }{
 	{[]string{"upper", "camel", "case"}, "UpperCamelCase", EncodeUpperCamelCase},
+	{[]string{}, "", EncodeUpperCamelCase},
 	{[]string{"lower", "camel", "case"}, "lowerCamelCase", EncodeLowerCamelCase},
+	{[]string{}, "", EncodeLowerCamelCase},
 	{[]string{"kebab", "case", "string"}, "kebab-case-string", EncodeKebabCase},
+	{[]string{}, "", EncodeKebabCase},
 	{[]string{"loweR", "SNAKE", "Case"}, "lower_snake_case", EncodeLowerSnakeCase},
+	{[]string{}, "", EncodeLowerSnakeCase},
 	{[]string{"upper", "snake", "case"}, "UPPER_SNAKE_CASE", EncodeUpperSnakeCase},
+	{[]string{}, "", EncodeUpperSnakeCase},
 	{[]string{"case", "PRESERVING", "Snake"}, "case_PRESERVING_Snake", EncodeCasePreservingSnakeCase},
+	{[]string{}, "", EncodeCasePreservingSnakeCase},
 }
 
 func TestEncode(t *testing.T) {
