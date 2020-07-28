@@ -301,9 +301,6 @@ func aggregateStringLen(words DecodedIdentifier) int {
 
 // EncodeUpperCamelCase encodes a slice of words into UpperCamelCase
 func EncodeUpperCamelCase(words DecodedIdentifier) string {
-	if len(words) == 0 {
-		return ""
-	}
 	b := strings.Builder{}
 	b.Grow(aggregateStringLen(words))
 	for _, w := range words {
