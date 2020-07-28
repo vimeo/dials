@@ -602,18 +602,26 @@ type Embed struct {
 	Bar bool   // will have dials tag "Bar" after flatten mangler
 }
 
+type EmbedNoTag struct {
+	World string
+}
+
 func TestTopLevelEmbed(t *testing.T) {
 	t.Parallel()
 	type Config struct {
 		unexposedHello string
 		Hello          string
 		Embed          `dials:"creative_name"`
+		EmbedNoTag
 	}
 
 	c := &Config{
 		unexposedHello: "hello world",
 		Embed: Embed{
 			Foo: "DoesThisWork",
+		},
+		EmbedNoTag: EmbedNoTag{
+			World: "hello world",
 		},
 	}
 	typeOfC := reflect.TypeOf(c)
@@ -626,17 +634,18 @@ func TestTopLevelEmbed(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedNames := []string{
-		"Hello", "Foo", "Bar",
+		"Hello", "Foo", "Bar", "World",
 	}
 
 	expectedDialsTags := []string{
 		"hello",
 		"creative_name_foofoo",
 		"creative_name_bar",
+		"world",
 	}
 
 	expectedFieldTags := []string{
-		"Hello", "Embed,Foo", "Embed,Bar",
+		"Hello", "Embed,Foo", "Embed,Bar", "EmbedNoTag,World",
 	}
 
 	for i := 0; i < val.Type().NumField(); i++ {
