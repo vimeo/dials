@@ -42,8 +42,8 @@ func WithWatchingConfigFile() Option {
 	return func(d *dialsOptions) { d.watch = true }
 }
 
-// decoderFactory should return the appropriate decoder based on the config file name
-type decoderFactory func(string) dials.Decoder
+// DecoderFactory should return the appropriate decoder based on the config file name
+type DecoderFactory func(string) dials.Decoder
 
 // ConfigWithConfigPath is an interface config struct that supplies a
 // ConfigPath() method to indicate which file to read as the config file once
@@ -79,7 +79,7 @@ func fileSource(cfgPath string, decoder dials.Decoder, watch bool) (dials.Source
 //   - flags it registers with the standard library flags package
 // The contents of cfg for the defaults
 // cfg.ConfigPath() is evaluated on the stacked config with the file-contents omitted (using a "blank" source)
-func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df decoderFactory, options ...Option) (*dials.Dials, error) {
+func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df DecoderFactory, options ...Option) (*dials.Dials, error) {
 	blank := sourcewrap.Blank{}
 
 	option := getDefaultOption()
