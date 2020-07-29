@@ -41,19 +41,21 @@ func fileSource(cfgPath string, decoder dials.Decoder, watch bool) (dials.Source
 	return fsrc, nil
 }
 
-// ConfigFileEnvFlag takes advantage of the ConfigWithConfigPath cfg to indicate
-// what file to read and uses the passed decoder.
+// ConfigFileEnvFlagWithFlagCfg takes advantage of the ConfigWithConfigPath cfg
+// to indicate what file to read and uses the passed decoder.
 // Configuration values provided by the returned Dials are the result of
 // stacking the sources in the following order:
 //   - configuration file
 //   - environment variables
-//   - flags it registers with the standard library flags package
+//   - flags it registers with the standard library flags package and separates
+//     the components of the flags according to the passed flag.NameConfig
 // The contents of cfg for the defaults
-// cfg.ConfigPath() is evaluated on the stacked config with the file-contents omitted (using a "blank" source)
-func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, decoderFactory func(string) dials.Decoder, watch bool) (*dials.Dials, error) {
+// cfg.ConfigPath() is evaluated on the stacked config with the file-contents
+// omitted (using a "blank" source)
+func ConfigFileEnvFlagWithFlagCfg(ctx context.Context, cfg ConfigWithConfigPath, decoderFactory func(string) dials.Decoder, flagConfig *flag.NameConfig, watch bool) (*dials.Dials, error) {
 	blank := sourcewrap.Blank{}
 
-	fset, flagErr := flag.NewCmdLineSet(flag.DefaultFlagNameConfig(), cfg)
+	fset, flagErr := flag.NewCmdLineSet(flagConfig, cfg)
 	if flagErr != nil {
 		return nil, fmt.Errorf("failed to register commandline flags: %s", flagErr)
 	}
@@ -88,6 +90,20 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, decoderFac
 	// wait for the composition of the config struct with the config file values
 	<-d.Events()
 	return d, nil
+}
+
+// ConfigFileEnvFlag takes advantage of the ConfigWithConfigPath cfg to indicate
+// what file to read and uses the passed decoder.
+// Configuration values provided by the returned Dials are the result of
+// stacking the sources in the following order:
+//   - configuration file
+//   - environment variables
+//   - flags it registers with the standard library flags package and separates
+// 	   the components of the flags according to the DefaultFlagNameConfig (kebab-case)
+// The contents of cfg for the defaults
+// cfg.ConfigPath() is evaluated on the stacked config with the file-contents omitted (using a "blank" source)
+func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, decoderFactory func(string) dials.Decoder, watch bool) (*dials.Dials, error) {
+	return ConfigFileEnvFlagWithFlagCfg(ctx, cfg, decoderFactory, flag.DefaultFlagNameConfig(), watch)
 }
 
 // YAMLConfigEnvFlag takes advantage of the ConfigWithConfigPath cfg, thinly
