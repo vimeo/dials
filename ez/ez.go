@@ -42,7 +42,8 @@ func WithWatchingConfigFile() Option {
 	return func(d *dialsOptions) { d.watch = true }
 }
 
-// DecoderFactory should return the appropriate decoder based on the config file name
+// DecoderFactory should return the appropriate decoder based on the config file
+// path that is passed as the string argument to DecoderFactory
 type DecoderFactory func(string) dials.Decoder
 
 // ConfigWithConfigPath is an interface config struct that supplies a
