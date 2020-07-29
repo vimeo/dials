@@ -17,6 +17,7 @@ import (
 )
 
 var (
+	timeTime             = reflect.TypeOf(time.Time{})
 	timeDuration         = reflect.TypeOf(time.Nanosecond)
 	flagReflectType      = reflect.TypeOf((*flag.Value)(nil)).Elem()
 	stringSlice          = reflect.SliceOf(reflect.TypeOf(""))
@@ -209,6 +210,12 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 		fieldVal := transform.GetField(sf, tmpl)
 
 		switch {
+		case fieldVal.Type() == timeTime:
+			{
+				newVal := fieldVal.Interface().(time.Time)
+				s.Flags.Var(flaghelper.NewTimeWrapper(newVal), name, help)
+				continue
+			}
 		case isValue:
 			{
 
