@@ -16,7 +16,7 @@ import (
 	"github.com/vimeo/dials/yaml"
 )
 
-// Option sets an option of dialsOptions
+// Option sets an option on dialsOptions
 type Option func(*dialsOptions)
 
 type dialsOptions struct {
