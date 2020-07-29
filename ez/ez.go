@@ -26,6 +26,7 @@ type dialsOptions struct {
 
 func getDefaultOption() *dialsOptions {
 	return &dialsOptions{
+		watch:      false,
 		flagConfig: flag.DefaultFlagNameConfig(),
 	}
 }
@@ -41,6 +42,7 @@ func WithWatchingConfigFile() Option {
 	return func(d *dialsOptions) { d.watch = true }
 }
 
+// decoderFactory should return the appropriate decoder based on the config file name
 type decoderFactory func(string) dials.Decoder
 
 // ConfigWithConfigPath is an interface config struct that supplies a
