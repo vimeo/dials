@@ -91,10 +91,11 @@ func main() {
 	// config files, environment variables, and command line flags (order matches
 	// the function name) with increasing precedence. In other words, the flag
 	// source (last) would overwrite the YAML source (first) were they both to
-	// attempt to set the same struct field. The boolean argument passed to the
-	// function indicates whether the file will be watched and updates to the
-	// file should update the config struct.
-	d, dialsErr := ez.YAMLConfigEnvFlag(context.Background(), c, false)
+	// attempt to set the same struct field. There are several options that can be
+	// passed in as well to indicate whether the file will be watched and updates
+	// to the file should update the config struct and if the flags name component
+	// separation should use different encoding
+	d, dialsErr := ez.YAMLConfigEnvFlag(context.Background(), c, WithWatchingConfigFile())
 	if dialsErr != nil {
 		// error handling
 	}
@@ -195,8 +196,9 @@ func main() {
 	}
 
 	// Fill populates the config struct
-	d.Fill(config)
-	fmt.Printf("Config: %+v\n", config)
+	c := &Config{}
+	d.Fill(c)
+	fmt.Printf("Config: %+v\n", c)
 }
 ```
 
