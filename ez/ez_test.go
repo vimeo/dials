@@ -34,7 +34,7 @@ func TestYAMLConfigEnvFlag(t *testing.T) {
 	defer os.Unsetenv("CONFIGPATH")
 
 	c := &Config{}
-	view, dialsErr := YAMLConfigEnvFlag(ctx, c, false)
+	view, dialsErr := YAMLConfigEnvFlag(ctx, c)
 	require.NoError(t, dialsErr)
 
 	// Val1 and Val2 come from the config file and Path will be populated from env variable
