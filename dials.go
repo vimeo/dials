@@ -21,7 +21,7 @@ func Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, erro
 		return nil, fmt.Errorf("config type %T is not a pointer", t)
 	}
 
-	tVal := reflect.ValueOf(t)
+	tVal := realDeepCopy(t)
 
 	typeInstance := &Type{ptrify.Pointerify(typeOfT.Elem(), tVal.Elem())}
 	someoneWatching := false
@@ -51,7 +51,7 @@ func Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, erro
 		}
 	}
 
-	newValue, err := compose(t, computed)
+	newValue, err := compose(tVal.Interface(), computed)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, erro
 	d.value.Store(newValue)
 
 	if someoneWatching {
-		go d.monitor(ctx, t, computed, watcherChan)
+		go d.monitor(ctx, tVal.Interface(), computed, watcherChan)
 	}
 	return d, nil
 }
