@@ -223,7 +223,7 @@ use the `dials` tag instead of the `dialsflag` tag
 
 
 ### Watching file source
-If you wish to watch the config file and make updates to your configuration, use the watching source. This functionality is available in the `ez` package by passing the `true` boolean to the functions. The `WatchingSource` can be used when you want to further customize the configuration as well.
+If you wish to watch the config file and make updates to your configuration, use the watching source. This functionality is available in the `ez` package by passing the `true` boolean to the functions. The `WatchingSource` can be used when you want to further customize the configuration as well. Please note that the Watcher interface is likely to change in the near future.
 
 ``` go
 	// NewWatchSource also has watch options that can be passed to have the
@@ -248,11 +248,11 @@ If you wish to watch the config file and make updates to your configuration, use
 ```
 
 ### Source
-The Source interface is implemented by different configuration sources that populate the configuration struct. Dials currently supports environment variables, command line flags, and config file sources. When `dials.Config` function is going through the different sources to extract the values, it calls the `Value` method on each of these sources. This allows for the logic of the Source to be encapsulated while giving the application access to the values populated by each Source.
+The Source interface is implemented by different configuration sources that populate the configuration struct. Dials currently supports environment variables, command line flags, and config file sources. When `dials.Config` function is going through the different sources to extract the values, it calls the `Value` method on each of these sources. This allows for the logic of the Source to be encapsulated while giving the application access to the values populated by each Source. Please note that the Value method on the Source interface and the Watcher interface are likely to change in the near future.
 
 
 ### Decoder
-Decoders are modular allowing users to mix and match Decoders and Sources. Dials currently supports Decoders that decode different data formats (JSON, YAML, and TOML) and insert the values into the appropriate fields in the config struct. Decoders can be expanded from that use case and users can write their own Decoders to perform the tasks they like (more info in the section below). Decoder is called when the supported Source calls the `Decode` method to unmarshal the data into the config struct and returns the populated struct. There are two sources that the Decoders can be used with: files (including watched files) and `static.StringSource`.
+Decoders are modular allowing users to mix and match Decoders and Sources. Dials currently supports Decoders that decode different data formats (JSON, YAML, and TOML) and insert the values into the appropriate fields in the config struct. Decoders can be expanded from that use case and users can write their own Decoders to perform the tasks they like (more info in the section below). Decoder is called when the supported Source calls the `Decode` method to unmarshal the data into the config struct and returns the populated struct. There are two sources that the Decoders can be used with: files (including watched files) and `static.StringSource`. Please note that the Decoder interface is likely to change in the near future.
 
 ### Write your own Source and Decoder
 If you wish to define your own source, implement the `Source` interface and pass the source to the `dials.Config` function. If you want the Source to interact with a Decoder, call `Decode` in the `Value` method of the Source. If you want to define your own Decoder to interact with your Source, implement the `Decoder` interface. Since Decoders are modular, keep the logic of Decoder encapsulated and separate from the Source. For example, you can have an `HTTP` Source and custom `Get` and `Post` Decoders that repeatedly make `GET` and `POST` requests. The user can use the HTTP Source with either one of the Get or Post decoders and potentially also use the `POST` Decoder with other Sources.
