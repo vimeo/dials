@@ -12,9 +12,10 @@ import (
 type Config struct {
 	// Path will contain the path to the config file and will be set by
 	// environment variable
-	Path string `dials:"CONFIGPATH"`
-	Val1 int    `dials:"Val1"`
-	Val2 string `dials:"Val2"`
+	Path string              `dials:"CONFIGPATH"`
+	Val1 int                 `dials:"Val1"`
+	Val2 string              `dials:"Val2"`
+	Set  map[string]struct{} `dials:"Set"`
 }
 
 // ConfigPath reflects where the path to config file is stored. Path field
@@ -42,6 +43,11 @@ func TestYAMLConfigEnvFlag(t *testing.T) {
 		Path: "../testhelper/testconfig.yaml",
 		Val1: 456,
 		Val2: "hello-world",
+		Set: map[string]struct{}{
+			"Keith": {},
+			"Gary":  {},
+			"Jack":  {},
+		},
 	}
 	populatedConf := view.View().(*Config)
 	assert.EqualValues(t, expectedConfig, *populatedConf)
