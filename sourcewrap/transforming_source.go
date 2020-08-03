@@ -34,8 +34,13 @@ func (t *transformingDecoder) Decode(reader io.Reader, typ *dials.Type) (reflect
 	if srcErr != nil {
 		return reflect.Value{}, &wrappedErr{prefix: "inner source failed: ", err: srcErr}
 	}
-	return srcVal, nil
 
+	retVal, revErr := tfm.ReverseTranslate(srcVal)
+	if revErr != nil {
+		return reflect.Value{}, &wrappedErr{prefix: "inner reverse translate failed: ", err: revErr}
+	}
+
+	return retVal, nil
 }
 
 // NewTransformingSource constructs a dials.Source wrapping a slice of

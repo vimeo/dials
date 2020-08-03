@@ -13,6 +13,7 @@ import (
 	"github.com/vimeo/dials/json"
 	"github.com/vimeo/dials/sourcewrap"
 	"github.com/vimeo/dials/toml"
+	"github.com/vimeo/dials/transform"
 	"github.com/vimeo/dials/yaml"
 )
 
@@ -20,14 +21,16 @@ import (
 type Option func(*dialsOptions)
 
 type dialsOptions struct {
-	watch      bool
-	flagConfig *flag.NameConfig
+	watch          bool
+	flagConfig     *flag.NameConfig
+	autoSetToSlice bool
 }
 
 func getDefaultOption() *dialsOptions {
 	return &dialsOptions{
-		watch:      false,
-		flagConfig: flag.DefaultFlagNameConfig(),
+		watch:          false,
+		flagConfig:     flag.DefaultFlagNameConfig(),
+		autoSetToSlice: true,
 	}
 }
 
@@ -37,9 +40,16 @@ func WithFlagConfig(flagConfig *flag.NameConfig) Option {
 }
 
 // WithWatchingConfigFile allows to watch the config file by using the watching
-// file source
-func WithWatchingConfigFile() Option {
-	return func(d *dialsOptions) { d.watch = true }
+// file source.  This defaults to false.
+func WithWatchingConfigFile(enabled bool) Option {
+	return func(d *dialsOptions) { d.watch = enabled }
+}
+
+// WithAutoSetToSlice allows you to set whether sets (map[string]struct{})
+// should be automatically converted to slices ([]string) so they can be
+// naturally parsed by JSON, YAML, or TOML parsers.  This defaults to true.
+func WithAutoSetToSlice(enabled bool) Option {
+	return func(d *dialsOptions) { d.autoSetToSlice = enabled }
 }
 
 // DecoderFactory should return the appropriate decoder based on the config file
@@ -93,6 +103,19 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 		return nil, fmt.Errorf("failed to register commandline flags: %s", flagErr)
 	}
 
+	// If file-watching is not enabled, we should shutdown the monitor
+	// goroutine when exiting this function.
+	// Usually `dials.Config` is smart enough not to start a monitor when
+	// there are no `Watcher` implementations in the source-list, but the
+	// `Blank` source uses `Watcher` for its core functionality, so we need
+	// to cancel the context passed to `Config` to actually clean up
+	// resources.
+	if !option.watch {
+		configCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		ctx = configCtx
+	}
+
 	d, err := dials.Config(ctx, cfg, &blank, &env.Source{}, fset)
 	if err != nil {
 		return nil, err
@@ -105,9 +128,17 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 		// file after all.
 		return d, nil
 	}
+
 	decoder := df(cfgPath)
 	if decoder == nil {
 		return nil, fmt.Errorf("decoderFactory provided a nil decoder")
+	}
+
+	if option.autoSetToSlice {
+		decoder = sourcewrap.NewTransformingDecoder(
+			decoder,
+			&transform.SetSliceMangler{},
+		)
 	}
 
 	fileSrc, fileErr := fileSource(cfgPath, decoder, option.watch)
