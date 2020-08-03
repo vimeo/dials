@@ -18,6 +18,12 @@ func NewMarshalWrapper(v encoding.TextUnmarshaler) *MarshalWrapper {
 }
 
 func (w MarshalWrapper) String() string {
+	if m, ok := w.v.(encoding.TextMarshaler); ok {
+		b, err := m.MarshalText()
+		if err == nil {
+			return string(b)
+		}
+	}
 	if s, ok := w.v.(fmt.Stringer); ok {
 		return s.String()
 	}
