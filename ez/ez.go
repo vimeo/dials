@@ -143,7 +143,7 @@ func TOMLConfigEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, options ..
 	return ConfigFileEnvFlag(ctx, cfg, func(string) dials.Decoder { return &toml.Decoder{} }, options...)
 }
 
-// FileExtensionDecoderConfigEnvFlag TOMLConfigFlagEnv takes advantage of the
+// FileExtensionDecoderConfigEnvFlag takes advantage of the
 // ConfigWithConfigPath cfg and thinly wraps ConfigFileEnvFlag and and thinly
 // wraps ConfigFileEnvFlag choosing the dials.Decoder used when handling the
 // file contents based on the file extension (from the limited set of JSON,

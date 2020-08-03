@@ -17,7 +17,7 @@ go get github.com/vimeo/dials
 
 Dials requires Go 1.13 or later.
 
-## What is Dials
+## What is Dials?
 
 Dials is a configuration package for Go applications. It supports several different configuration sources including:
  * JSON, YAML, and TOML config files
@@ -26,7 +26,7 @@ Dials is a configuration package for Go applications. It supports several differ
  * watched config files and re-reading when there are changes to the watched files
  * default values
 
-## Why choose Dials
+## Why choose Dials?
 Dials is a configuration solution that supports several configuration sources so you only have to focus on the business logic.
 Define the configuration struct and select the configuration sources and Dials will do the rest. Dials is designed to be extensible so if the built-in sources don't meet your needs, you can write your own and still get all the other benefits. Moreover, setting defaults doesn't require additional function calls.
 Just populate the config struct with the default values and pass the struct to Dials. 
@@ -56,14 +56,16 @@ type Config struct {
 	// sources can't fill this field.
 	Val1 string `dials:"Val1" yaml:"b"`
 	// the dials tag can be used as an alias so when the name in the config file
-	// changes, the code doesn't have to change.
-	Val2 int `dials:"val_2"`
-	// Dials follows the Go convention for flags and will look for the dials
-	// tag or field name in lower-kebab-case. Without any struct tags, it
-	// would look for val-3 flag. To specify a different flag name, use the
-	// `dialsflag` tag. Now, Dials will lookup "some-val" flag instead.
-	// Since only `dialsflag` tag is specified, Val3 will only be populated
-	// from command line flags
+	// changes, the code doesn't have to change. The dialsdesc tag is used to 
+	// to provide flag description and help message for the field 
+	Val2 int `dials:"val_2" dialsdesc:"port for the application"`
+	// Dials will register a flag with the name matching the dials tag.
+	// Without any struct tags, dials will decode the go camel case field name
+	// and encode it using lower-kebab-case and use the encoded name as the flag
+	// name (ex: val-3). To specify a different flag name, use the `dialsflag`
+	// tag. Now, Dials will lookup "some-val"  flag instead. Since only 
+	// `dialsflag` tag is specified, Val3 will only be populated from command
+	// line flags
 	Val3 bool `dialsflag:"some-val"`
 	// Path holds the value of the path to the config file. Dials follows the
 	// Go convention and will look for the dials tag or field name in all caps
@@ -74,13 +76,14 @@ type Config struct {
 	Path string `dials_env:"configpath"`
 }
 
-// ConfigPath returns the path to the config file. This is particularly helpful
-// when the path is populated from environment variables or command line flags.
-// Dials will first read from environment variables and command line flags
-// and then read the config file specified by the populated field.
+// ConfigPath returns the path to the config file that Dials should read. This 
+// is particularly helpful when it's desirable to specify the file's path via
+// environment variables or command line flags. Dials will first populate the 
+// configuration struct from environment variables and command line flags
+// and then read the config file that the ConfigPath() method returns
 func (c *Config) ConfigPath() (string, bool) {
 	// can alternatively return empty string and false if the state of the
-	// struct doesn't specify a config file to read
+	// struct doesn't specify a config file to read. 
 	return c.Path, true
 }
 
@@ -100,11 +103,11 @@ func main() {
 		// error handling
 	}
 
-	// get the struct populated from config file, environment variables, and
-	// command line flags.
-	config := &Config{}
-	d.Fill(config)
-	fmt.Printf("Config: %+v\n", config)
+	// Fill will make a deep copy of the struct and populate it with values from
+	// config file, environment variables, and command line flags.  for the passed in config
+	// struct and populate it 
+	d.Fill(c)
+	fmt.Printf("Config: %+v\n", c)
 }
 ```
 
@@ -160,7 +163,7 @@ type Config struct {
 	Val2 int `dials_env:"VAL_2"`
 	// the `dialsflag` tag is used for command line flag values. The Val3 value
 	// will only be populated from command line flags
-	Val3 bool `dialsflag:"val-3"`
+	Val3 bool `dialsflag:"val-3" dialsdesc:"maximum idle connections to DB"`
 }
 
 func main() {
@@ -196,9 +199,8 @@ func main() {
 	}
 
 	// Fill populates the config struct
-	c := &Config{}
-	d.Fill(c)
-	fmt.Printf("Config: %+v\n", c)
+	d.Fill(config)
+	fmt.Printf("Config: %+v\n", config)
 }
 ```
 
@@ -244,7 +246,7 @@ If you wish to watch the config file and make updates to your configuration, use
 		// error handling
 	}
 
-	d.Fill(config)
+	conf := d.View().(*Config)
 ```
 
 ### Source
