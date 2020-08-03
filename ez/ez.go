@@ -103,6 +103,19 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 		return nil, fmt.Errorf("failed to register commandline flags: %s", flagErr)
 	}
 
+	// If file-watching is not enabled, we should shutdown the monitor
+	// goroutine when exiting this function.
+	// Usually `dials.Config` is smart enough not to start a monitor when
+	// there are no `Watcher` implementations in the source-list, but the
+	// `Blank` source uses `Watcher` for its core functionality, so we need
+	// to cancel the context passed to `Config` to actually clean up
+	// resources.
+	if !option.watch {
+		configCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		ctx = configCtx
+	}
+
 	d, err := dials.Config(ctx, cfg, &blank, &env.Source{}, fset)
 	if err != nil {
 		return nil, err
