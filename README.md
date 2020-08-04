@@ -36,7 +36,7 @@ Dials also allows the flexibility to choose the precedence order to determine wh
 
 ### Reading from config files, environment variables, and command line flags
 Dials requires very minimal configuration to populate values from several sources through the `ez` package. Define the config struct and provide a method `ConfigPath() (string, bool)` to indicate the path to the config file. The package defines several functions that help populate the config struct by reading from config files,
-environment variables, and command line flags
+environment variables, and command line flags.
 
 ``` go
 package main
@@ -56,23 +56,21 @@ type Config struct {
 	// sources can't fill this field.
 	Val1 string `dials:"Val1" yaml:"b"`
 	// the dials tag can be used as an alias so when the name in the config file
-	// changes, the code doesn't have to change. The dialsdesc tag is used to 
-	// to provide flag description and help message for the field 
-	Val2 int `dials:"val_2" dialsdesc:"port for the application"`
+	// changes, the code doesn't have to change.
+	Val2 int `dials:"val_2"`
 	// Dials will register a flag with the name matching the dials tag.
 	// Without any struct tags, dials will decode the go camel case field name
 	// and encode it using lower-kebab-case and use the encoded name as the flag
 	// name (ex: val-3). To specify a different flag name, use the `dialsflag`
-	// tag. Now, Dials will lookup "some-val"  flag instead. Since only 
-	// `dialsflag` tag is specified, Val3 will only be populated from command
-	// line flags
-	Val3 bool `dialsflag:"some-val"`
+	// tag. Now, Dials will register a flag with "some-val" name instead.
+	// The `dialsdesc` tag is used to provide help message for the flag.
+	Val3 bool `dialsflag:"some-val" dialsdesc:"enable auth"`
 	// Path holds the value of the path to the config file. Dials follows the
-	// Go convention and will look for the dials tag or field name in all caps
-	// when struct tags aren't specified. Without any struct tags, it would
-	// lookup the PATH environment variable. To specify a different env variable,
-	// use the `dials_env` tag. Now Dials will lookup "configpath" env value to
-	// populate the Path field
+	// Go convention for environment variables and will look for the dials tag
+	// or field name in all caps when struct tags aren't specified. Without any
+	// struct tags, it would lookup the PATH environment variable. To specify a
+	// different env variable, use the `dials_env` tag. Now Dials will lookup
+	// "configpath" env value to populate the Path field.
 	Path string `dials_env:"configpath"`
 }
 
@@ -83,12 +81,18 @@ type Config struct {
 // and then read the config file that the ConfigPath() method returns
 func (c *Config) ConfigPath() (string, bool) {
 	// can alternatively return empty string and false if the state of the
-	// struct doesn't specify a config file to read. 
+	// struct doesn't specify a config file to read. We would recommend to use
+	// dials.Config directly (shown in the next example) instead of the ez
+	// package if you just want to use environment variables and flags without a
+	// file source
 	return c.Path, true
 }
 
 func main() {
 	c := &Config{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// The following function will populate the config struct by reading the
 	// config files, environment variables, and command line flags (order matches
@@ -97,15 +101,16 @@ func main() {
 	// attempt to set the same struct field. There are several options that can be
 	// passed in as well to indicate whether the file will be watched and updates
 	// to the file should update the config struct and if the flags name component
-	// separation should use different encoding
-	d, dialsErr := ez.YAMLConfigEnvFlag(context.Background(), c, WithWatchingConfigFile())
+	// separation should use different encoding than lower-kebab-case
+	d, dialsErr := ez.YAMLConfigEnvFlag(ctx, c, ez.WithWatchingConfigFile(true))
 	if dialsErr != nil {
 		// error handling
 	}
 
 	// Fill will make a deep copy of the struct and populate it with values from
-	// config file, environment variables, and command line flags.  for the passed in config
-	// struct and populate it 
+	// config file, environment variables, and command line flags. Can
+	// alternatively use c = d.View().(*Config) for a cheaper operation because
+	// View doesn't deep copy the struct
 	d.Fill(c)
 	fmt.Printf("Config: %+v\n", c)
 }
@@ -157,13 +162,13 @@ import (
 
 type Config struct {
 	Val1 string `dials:"Val1" yaml:"b"`
-	// The `dials_env` tag is used for environment values. The Val2 value will
-	// only be populated from environment variables. If you want several different
-	// sources to be able to set this value, use the `dials` tag instead
+	// The `dials_env` tag is used to override the name used by the environment
+	// source. If you want to use a single, consistent name across several
+	// sources, set the `dials` tag instead
 	Val2 int `dials_env:"VAL_2"`
-	// the `dialsflag` tag is used for command line flag values. The Val3 value
-	// will only be populated from command line flags
-	Val3 bool `dialsflag:"val-3" dialsdesc:"maximum idle connections to DB"`
+	// the `dialsflag` tag is used for command line flag values and the dialsdesc
+	// tag provides the flag help text
+	Val3 bool `dialsflag:"val-3" dialsdesc:"maximum number of idle connections to DB"`
 }
 
 func main() {
@@ -173,15 +178,16 @@ func main() {
 		Val1: "hello",
 	}
 
-	// To read from other source files such as JSON, and TOML, use
-	// "&json.Decoder{}" or "&toml.Decoder{}"
+	// Define a file source if you want to read from a config file. To read
+	// from other source files such as JSON, and TOML, use "&json.Decoder{}"
+	// or "&toml.Decoder{}"
 	fileSrc, fileErr := file.NewSource("path/to/config", &yaml.Decoder{})
 	if fileErr != nil {
 		// error handling
 	}
 
-	// Define a `dials.Source` for command line flags. Consider using the dials pflag library
-	// if the application uses the spf13/pflag package
+	// Define a `dials.Source` for command line flags. Consider using the dials
+	// pflag library if the application uses the github.com/spf13/pflag package
 	flagSet, flagErr := flag.NewCmdLineSet(flag.DefaultFlagNameConfig(), config)
 	if flagErr != nil {
 		// error handling
@@ -191,14 +197,17 @@ func main() {
 	envSrc := &env.Source{}
 
 	// the Config struct will be populated in the order in which the sources are
-	// passed in the Config function with increasing precedence. So the fileSrc value
-	// will overwrite the flagSet value if they both were to set for the same field
+	// passed in the Config function with increasing precedence. So the fileSrc
+	// value will overwrite the flagSet value if they both were to set the
+	// same field
 	d, err := dials.Config(context.Background(), config, envSrc, flagSet, fileSrc)
 	if err != nil {
 		// error handling
 	}
 
-	// Fill populates the config struct
+	// Fill populates the config struct after making a deep copy of the struct.
+	// Can alternatively use d.View().(*Config) with type assert for a cheaper
+	// operation since View doesn't involve deep copying the struct
 	d.Fill(config)
 	fmt.Printf("Config: %+v\n", config)
 }
@@ -219,17 +228,15 @@ go run main.go --val-3
 ```
  
 the output will be `Config: &{Val1:valueb Val2:5 Val3:true}`. Note that even when val-3 is defined in the yaml file and the file source takes precedence, 
-only the value from command line flag populates the config due to the special `dialsflag` tag. If you prefer the value for `Val3` be overwritten by other sources, then
-use the `dials` tag instead of the `dialsflag` tag
-
+only the value from command line flag populates the config due to the special `dialsflag` tag. The `val-3` name is only used by the flag source. The file source will still use the field name. You can update the yaml file to `val3: false` to have the file source overwrite the field. Alternatively, we recommend using the `dials` tag to have consistent naming across all sources.
 
 
 ### Watching file source
-If you wish to watch the config file and make updates to your configuration, use the watching source. This functionality is available in the `ez` package by passing the `true` boolean to the functions. The `WatchingSource` can be used when you want to further customize the configuration as well. Please note that the Watcher interface is likely to change in the near future.
+If you wish to watch the config file and make updates to your configuration, use the watching source. This functionality is available in the `ez` package by using the `WithWatchingConfigFile(true)` option (the default is false). The `WatchingSource` can be used when you want to further customize the configuration as well. Please note that the Watcher interface is likely to change in the near future.
 
 ``` go
-	// NewWatchSource also has watch options that can be passed to have the
-	// ability to use a ticker for polling, set a logger, and more
+	// NewWatchSource also has watch options that can be passed to use a ticker
+	// for polling, set a logger, and more
 	watchingFileSource, fsErr := file.NewWatchingSource(
 		"path/to/config", &yaml.Decoder{})
 
@@ -238,30 +245,40 @@ If you wish to watch the config file and make updates to your configuration, use
 		return
 	}
 
+	// Use a non-background context with the WatchingSource to prevent goroutine leaks
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+
 	// additional sources can be passed along with the watching file source and the
 	// precedence order will still be dictated by the order in which the sources are
 	// defined in the Config function.
-	d, err := dials.Config(context.Background(), config, watchingFileSource)
+	d, err := dials.Config(ctx, config, watchingFileSource)
 	if err != nil {
 		// error handling
 	}
 
+	<-d.Events()
 	conf := d.View().(*Config)
 ```
 
 ### Source
-The Source interface is implemented by different configuration sources that populate the configuration struct. Dials currently supports environment variables, command line flags, and config file sources. When `dials.Config` function is going through the different sources to extract the values, it calls the `Value` method on each of these sources. This allows for the logic of the Source to be encapsulated while giving the application access to the values populated by each Source. Please note that the Value method on the Source interface and the Watcher interface are likely to change in the near future.
+The Source interface is implemented by different configuration sources that populate the configuration struct. Dials currently supports environment variables, command line flags, and config file sources. When the `dials.Config` method is going through the different `Source`s to extract the values, it calls the `Value` method on each of these sources. This allows for the logic of the Source to be encapsulated while giving the application access to the values populated by each Source. Please note that the Value method on the Source interface and the Watcher interface are likely to change in the near future.
 
 
 ### Decoder
 Decoders are modular allowing users to mix and match Decoders and Sources. Dials currently supports Decoders that decode different data formats (JSON, YAML, and TOML) and insert the values into the appropriate fields in the config struct. Decoders can be expanded from that use case and users can write their own Decoders to perform the tasks they like (more info in the section below). Decoder is called when the supported Source calls the `Decode` method to unmarshal the data into the config struct and returns the populated struct. There are two sources that the Decoders can be used with: files (including watched files) and `static.StringSource`. Please note that the Decoder interface is likely to change in the near future.
 
 ### Write your own Source and Decoder
-If you wish to define your own source, implement the `Source` interface and pass the source to the `dials.Config` function. If you want the Source to interact with a Decoder, call `Decode` in the `Value` method of the Source. If you want to define your own Decoder to interact with your Source, implement the `Decoder` interface. Since Decoders are modular, keep the logic of Decoder encapsulated and separate from the Source. For example, you can have an `HTTP` Source and custom `Get` and `Post` Decoders that repeatedly make `GET` and `POST` requests. The user can use the HTTP Source with either one of the Get or Post decoders and potentially also use the `POST` Decoder with other Sources.
+If you wish to define your own source, implement the `Source` interface and pass the source to the `dials.Config` function. If you want the Source to interact with a Decoder, call `Decode` in the `Value` method of the Source. Since Decoders are modular, keep the logic of Decoder encapsulated and separate from the Source. `Source` and `Decoder` implementations should be orthogonal and `Decoder`s should not be `Source` specific. For example, you can have an `HTTP` or `File` Source that can interact with the `JSON` decoder to unmarshal the data to a struct.
 
 ### Putting it all together
 
-The `dials.Config` function first makes a deep copy of the configuration struct and makes each field a pointer (even the fields in nested structs) with special handling for structs that implement [`encoding.TextUnmarshaler`](https://golang.org/pkg/encoding/#TextUnmarshaler). Then it calls the `Value` method on each Source and stores the returned value. The final step is to to compose the final config struct by overlaying the values from all the different Sources and accounting for the precedence order. Since the fields are pointers, we can directly assign pointers while overlaying. Overlay even has safety checks for deduplicating maps sharing a backing pointer and for structs with self-referential pointers. So when you write your own Source, you just have to pass the Source in to the `dials.Config` function and Dials will take care of deep copying and pointerifying the struct and composing the final struct with overlay.
+1. The `dials.Config` function makes a deep copy of the configuration struct and makes each field a pointer (even the fields in nested structs) with special handling for structs that implement [`encoding.TextUnmarshaler`](https://golang.org/pkg/encoding/#TextUnmarshaler).
+2. Call the `Value` method on each Source and stores the returned value.
+3. The final step is to to compose the final config struct by overlaying the values from all the different Sources and accounting for the precedence order. Since the fields are pointers, we can directly assign pointers while overlaying. Overlay even has safety checks for deduplicating maps sharing a backing pointer and for structs with self-referential pointers.
+
+So when you write your own Source, you just have to pass the Source in to the `dials.Config` function and Dials will take care of deep copying and pointerifying the struct and composing the final struct with overlay.
 
 
 ## Contributors
