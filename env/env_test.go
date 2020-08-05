@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,8 +13,9 @@ import (
 
 func TestEnv(t *testing.T) {
 	type Embed struct {
-		Foo int
-		Bar bool
+		Foo      int
+		Bar      bool
+		SomeTime time.Duration
 	}
 	cases := map[string]struct {
 		ConfigStruct interface{}
