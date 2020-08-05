@@ -26,6 +26,7 @@ func TestFlattenMangler(t *testing.T) {
 	type Foo struct {
 		Location    string `dials:"Location"`
 		Coordinates int    `dials:"Coordinates"`
+		SomeTime    time.Duration
 	}
 
 	type bar struct {
@@ -60,6 +61,7 @@ func TestFlattenMangler(t *testing.T) {
 		Foo: Foo{
 			Location:    "here",
 			Coordinates: 64,
+			SomeTime:    2 * time.Second,
 		},
 		AnotherField: 42,
 	}
@@ -69,6 +71,7 @@ func TestFlattenMangler(t *testing.T) {
 		Foo{
 			Location:    "here",
 			Coordinates: 64,
+			SomeTime:    2 * time.Second,
 		},
 		42,
 	}
@@ -212,6 +215,7 @@ func TestFlattenMangler(t *testing.T) {
 					"config_field_Name",
 					"config_field_Foobar_Location",
 					"config_field_Foobar_Coordinates",
+					"config_field_Foobar_some_time",
 					"config_field_AnotherField",
 				}
 
@@ -219,6 +223,7 @@ func TestFlattenMangler(t *testing.T) {
 					"ConfigField,Name",
 					"ConfigField,Foobar,Location",
 					"ConfigField,Foobar,Coordinates",
+					"ConfigField,Foobar,SomeTime",
 					"ConfigField,AnotherField",
 				}
 
@@ -232,11 +237,13 @@ func TestFlattenMangler(t *testing.T) {
 				s2 := "here"
 				i1 := 64
 				i2 := 42
+				t1 := 2 * time.Second
 
 				val.Field(0).Set(reflect.ValueOf(&s1))
 				val.Field(1).Set(reflect.ValueOf(&s2))
 				val.Field(2).Set(reflect.ValueOf(&i1))
-				val.Field(3).Set(reflect.ValueOf(&i2))
+				val.Field(3).Set(reflect.ValueOf(&t1))
+				val.Field(4).Set(reflect.ValueOf(&i2))
 			},
 			assertion: func(t testing.TB, i interface{}) {
 				// all the fields are pointerified because of call to Pointerify
@@ -244,11 +251,13 @@ func TestFlattenMangler(t *testing.T) {
 				s2 := "here"
 				i1 := 64
 				i2 := 42
+				t1 := 2 * time.Second
 				b := struct {
 					Name   *string `dials:"Name"`
 					Foobar *struct {
 						Location    *string `dials:"Location"`
 						Coordinates *int    `dials:"Coordinates"`
+						SomeTime    *time.Duration
 					} `dials:"Foobar"`
 					AnotherField *int `dials:"AnotherField"`
 				}{
@@ -256,9 +265,11 @@ func TestFlattenMangler(t *testing.T) {
 					Foobar: &struct {
 						Location    *string `dials:"Location"`
 						Coordinates *int    `dials:"Coordinates"`
+						SomeTime    *time.Duration
 					}{
 						Location:    &s2,
 						Coordinates: &i1,
+						SomeTime:    &t1,
 					},
 					AnotherField: &i2,
 				}
@@ -371,6 +382,7 @@ func TestFlattenMangler(t *testing.T) {
 					"config_field_Name",
 					"config_field_Location",
 					"config_field_Coordinates",
+					"config_field_some_time",
 					"config_field_AnotherField",
 				}
 
@@ -378,6 +390,7 @@ func TestFlattenMangler(t *testing.T) {
 					"ConfigField,Name",
 					"ConfigField,Foo,Location",
 					"ConfigField,Foo,Coordinates",
+					"ConfigField,Foo,SomeTime",
 					"ConfigField,AnotherField",
 				}
 
@@ -385,6 +398,7 @@ func TestFlattenMangler(t *testing.T) {
 					"ConfigFieldName",
 					"ConfigFieldLocation",
 					"ConfigFieldCoordinates",
+					"ConfigFieldSomeTime",
 					"ConfigFieldAnotherField",
 				}
 
@@ -399,11 +413,13 @@ func TestFlattenMangler(t *testing.T) {
 				s2 := "here"
 				i1 := 64
 				i2 := 42
+				t1 := 2 * time.Second
 
 				val.Field(0).Set(reflect.ValueOf(&s1))
 				val.Field(1).Set(reflect.ValueOf(&s2))
 				val.Field(2).Set(reflect.ValueOf(&i1))
-				val.Field(3).Set(reflect.ValueOf(&i2))
+				val.Field(3).Set(reflect.ValueOf(&t1))
+				val.Field(4).Set(reflect.ValueOf(&i2))
 			},
 			assertion: func(t testing.TB, i interface{}) {
 				// embedded fields are hard to compare with defined structs because
@@ -427,6 +443,7 @@ func TestFlattenMangler(t *testing.T) {
 					"config_field_Name",
 					"config_field_embeddedFoo_Location",
 					"config_field_embeddedFoo_Coordinates",
+					"config_field_embeddedFoo_some_time",
 					"config_field_AnotherField",
 				}
 
@@ -434,6 +451,7 @@ func TestFlattenMangler(t *testing.T) {
 					"ConfigField,Name",
 					"ConfigField,Foo,Location",
 					"ConfigField,Foo,Coordinates",
+					"ConfigField,Foo,SomeTime",
 					"ConfigField,AnotherField",
 				}
 
@@ -441,6 +459,7 @@ func TestFlattenMangler(t *testing.T) {
 					"ConfigFieldName",
 					"ConfigFieldLocation",
 					"ConfigFieldCoordinates",
+					"ConfigFieldSomeTime",
 					"ConfigFieldAnotherField",
 				}
 
@@ -455,11 +474,13 @@ func TestFlattenMangler(t *testing.T) {
 				s2 := "here"
 				i1 := 64
 				i2 := 42
+				t1 := 2 * time.Second
 
 				val.Field(0).Set(reflect.ValueOf(&s1))
 				val.Field(1).Set(reflect.ValueOf(&s2))
 				val.Field(2).Set(reflect.ValueOf(&i1))
-				val.Field(3).Set(reflect.ValueOf(&i2))
+				val.Field(3).Set(reflect.ValueOf(&t1))
+				val.Field(4).Set(reflect.ValueOf(&i2))
 			},
 			assertion: func(t testing.TB, i interface{}) {
 				// assert.EqualValues doesn't work here with the embedded structs
