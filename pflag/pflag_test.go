@@ -384,3 +384,32 @@ func TestPFlags(t *testing.T) {
 		})
 	}
 }
+
+func TestMust(t *testing.T) {
+	type Config struct {
+		Hello string
+		World bool `dials:"world"`
+	}
+
+	fs := Must(NewSetWithArgs(DefaultFlagNameConfig(), &Config{}, []string{"--world", "--hello=foobar"}))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d, err := dials.Config(ctx, &Config{}, fs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, ok := d.View().(*Config)
+	if !ok {
+		t.Fatalf("want: *Config, got: %T", got)
+	}
+
+	if got.Hello != "foobar" {
+		t.Errorf("expected \"foobar\" for Hello, got %q", got.Hello)
+	}
+	if !got.World {
+		t.Errorf("expected World to be true, got %t", got.World)
+	}
+}
