@@ -89,7 +89,7 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 		Name:      name,
 		Type:      sf.Type,
 		Tag:       tag,
-		Anonymous: sf.Anonymous,
+		Anonymous: false, // un-embed the embedded fields
 	}
 	out = []reflect.StructField{newsf}
 
@@ -150,7 +150,7 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix, fieldPath []strin
 			Name:      name,
 			Type:      nestedsf.Type,
 			Tag:       tag,
-			Anonymous: sf.Anonymous,
+			Anonymous: false, // un-embed the embedded fields
 		}
 		out = append(out, newSF)
 	}

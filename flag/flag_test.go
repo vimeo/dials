@@ -17,8 +17,9 @@ func TestDirectBasic(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	type Embed struct {
-		Foo string `dialsflag:"foofoo"`
-		Bar bool   // will have dials tag "bar" after flatten mangler
+		Foo      string `dialsflag:"foofoo"`
+		Bar      bool   // will have dials tag "bar" after flatten mangler
+		SomeTime time.Duration
 	}
 	type Config struct {
 		Hello string
@@ -29,7 +30,7 @@ func TestDirectBasic(t *testing.T) {
 	src := &Set{
 		Flags: fs,
 		ParseFunc: func() error {
-			return fs.Parse([]string{"-world", "-hello=foobar", "-foofoo=something", "-bar"})
+			return fs.Parse([]string{"-world", "-hello=foobar", "-foofoo=something", "-bar", "-some-time=2s"})
 		},
 	}
 	buf := &bytes.Buffer{}
@@ -60,6 +61,10 @@ func TestDirectBasic(t *testing.T) {
 
 	if !got.Bar {
 		t.Errorf("expected Bar to be true, got %t", got.Bar)
+	}
+
+	if got.SomeTime != 2*time.Second {
+		t.Errorf("expected SomeTime to be 2s, got %s", got.SomeTime)
 	}
 }
 
