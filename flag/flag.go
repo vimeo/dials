@@ -118,17 +118,6 @@ func NewSetWithArgs(cfg *NameConfig, template interface{}, args []string) (*Set,
 	return &s, nil
 }
 
-// Must is a helper that wraps a call to a function returning (*Set, error)
-// and panics if the error is non-nil. It is intended for use in variable
-// initializations such as
-// 	var flagset = flag.Must(flag.NewCmdLineSet(flag.DefaultFlagNameConfig(), config))
-func Must(s *Set, err error) *Set {
-	if err != nil {
-		panic(fmt.Errorf("Error registering flags: %w", err))
-	}
-	return s
-}
-
 const (
 	// HelpTextTag is the name of the struct tags for flag descriptions
 	HelpTextTag = "dialsdesc"
