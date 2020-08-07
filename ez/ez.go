@@ -11,6 +11,7 @@ import (
 	"github.com/vimeo/dials/file"
 	"github.com/vimeo/dials/flag"
 	"github.com/vimeo/dials/json"
+	"github.com/vimeo/dials/pflag"
 	"github.com/vimeo/dials/sourcewrap"
 	"github.com/vimeo/dials/toml"
 	"github.com/vimeo/dials/transform"
@@ -24,6 +25,7 @@ type dialsOptions struct {
 	watch          bool
 	flagConfig     *flag.NameConfig
 	autoSetToSlice bool
+	flagSubstitute dials.Source
 }
 
 func getDefaultOption() *dialsOptions {
@@ -31,7 +33,13 @@ func getDefaultOption() *dialsOptions {
 		watch:          false,
 		flagConfig:     flag.DefaultFlagNameConfig(),
 		autoSetToSlice: true,
+		flagSubstitute: nil,
 	}
+}
+
+// WithPflagSet allows you to use pflag source instead of the default flag source
+func WithPflagSet(set *pflag.Set) Option {
+	return func(d *dialsOptions) { d.flagSubstitute = set }
 }
 
 // WithFlagConfig sets the flag NameConfig to the specified one
@@ -98,9 +106,16 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 		o(option)
 	}
 
-	fset, flagErr := flag.NewCmdLineSet(option.flagConfig, cfg)
-	if flagErr != nil {
-		return nil, fmt.Errorf("failed to register commandline flags: %s", flagErr)
+	var flagSrc dials.Source
+	if option.flagSubstitute != nil {
+		flagSrc = option.flagSubstitute
+	} else {
+		// flag source isn't substituted so use the flag source
+		fset, flagErr := flag.NewCmdLineSet(option.flagConfig, cfg)
+		if flagErr != nil {
+			return nil, fmt.Errorf("failed to register commandline flags: %s", flagErr)
+		}
+		flagSrc = fset
 	}
 
 	// If file-watching is not enabled, we should shutdown the monitor
@@ -116,7 +131,7 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 		ctx = configCtx
 	}
 
-	d, err := dials.Config(ctx, cfg, &blank, &env.Source{}, fset)
+	d, err := dials.Config(ctx, cfg, &blank, &env.Source{}, flagSrc)
 	if err != nil {
 		return nil, err
 	}
