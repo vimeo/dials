@@ -258,8 +258,21 @@ If you wish to watch the config file and make updates to your configuration, use
 		// error handling
 	}
 
-	<-d.Events()
 	conf := d.View().(*Config)
+
+	// you can get notified whenever the config changes through the channel in
+	// the Events method. Wait on that channel if you need to take any steps
+	// when the config changes
+	go func(ctx context.Context){
+		for{
+			select{
+			case <-ctx.Done():
+				return
+			case c := <-d.Events():
+				// increment metrics and log
+			}
+		}
+	}(ctx)
 ```
 
 ### Source
