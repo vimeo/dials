@@ -106,10 +106,8 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 		o(option)
 	}
 
-	var flagSrc dials.Source
-	if option.flagSubstitute != nil {
-		flagSrc = option.flagSubstitute
-	} else {
+	flagSrc := option.flagSubstitute
+	if flagSrc == nil {
 		// flag source isn't substituted so use the flag source
 		fset, flagErr := flag.NewCmdLineSet(option.flagConfig, cfg)
 		if flagErr != nil {
