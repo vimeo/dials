@@ -73,6 +73,27 @@ func TestParseStringSlice(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
+			name:        "unquoted_urls",
+			input:       "http://vimeo.com/fim.jpg,https://vimeo.com/foo.jpg",
+			expected:    []string{"http://vimeo.com/fim.jpg", "https://vimeo.com/foo.jpg"},
+			expectedStr: `"http://vimeo.com/fim.jpg","https://vimeo.com/foo.jpg"`,
+			expectedErr: nil,
+		},
+		{
+			name:        "unquoted_currencies",
+			input:       "$32.00,22¢,28£,8888¥",
+			expected:    []string{"$32.00", "22¢", "28£", "8888¥"},
+			expectedStr: `$32.00,22¢,28£,8888¥`,
+			expectedErr: nil,
+		},
+		{
+			name:        "unquoted_parenthesised_currencies",
+			input:       "($32.00),(22¢),(28£),(8888¥)",
+			expected:    []string{"($32.00)", "(22¢)", "(28£)", "(8888¥)"},
+			expectedStr: `($32.00),(22¢),(28£),(8888¥)`,
+			expectedErr: nil,
+		},
+		{
 			name:        "two_strings_with_commas_and_escaped_quotes",
 			input:       "\",a\",\"b,\\\"\"",
 			expected:    []string{",a", "b,\""},
