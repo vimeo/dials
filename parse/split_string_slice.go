@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"text/scanner"
+	"unicode"
 )
 
 // splitStringsSlice splits up a string composed of comma-separated values.
@@ -22,10 +23,28 @@ func splitStringsSlice(s string, addVal func(val string) error) error {
 	sc.Init(strings.NewReader(s))
 	// We need a different default for Mode and Error, though
 	sc.Mode = scanner.ScanStrings | scanner.ScanRawStrings |
-		scanner.ScanIdents | scanner.ScanInts |
-		scanner.ScanFloats | scanner.ScanChars
+		scanner.ScanIdents | scanner.ScanChars
 	sc.Error = func(s *scanner.Scanner, msg string) {
 		errs[s.Pos()] = msg
+	}
+	sc.IsIdentRune = func(ch rune, i int) bool {
+		switch ch {
+		case '\\', ',', '"', '\'', '`', '\000':
+			return false
+		case '.', ':', '/', '+', '-', '$', '%':
+			// A few special characters we want to guarantee are
+			// caught as allowed
+			return true
+		default:
+		}
+		// Disallow whitespace first, then check whether it's printable.
+		if (ch < ' ' && ch >= 0) && (sc.Whitespace&(1<<ch) > 0) {
+			return false
+		}
+		if unicode.IsLetter(ch) || unicode.IsDigit(ch) || unicode.IsPrint(ch) {
+			return true
+		}
+		return false
 	}
 	for tok := sc.Scan(); tok != scanner.EOF && sc.ErrorCount == 0; tok = sc.Scan() {
 		switch tok {
