@@ -41,7 +41,9 @@ func splitStringsSlice(s string, addVal func(val string) error) error {
 		if (ch < ' ' && ch >= 0) && (sc.Whitespace&(1<<ch) > 0) {
 			return false
 		}
-		if unicode.IsLetter(ch) || unicode.IsDigit(ch) || unicode.IsPrint(ch) {
+		// IsPrint includes letter, number, symbol and a couple other
+		// character-classes
+		if unicode.IsPrint(ch) {
 			return true
 		}
 		return false

@@ -69,6 +69,35 @@ func TestParseMapForStringStringMaps(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
+			name:  "origin_referer_unquoted",
+			input: `Origin: foobar, Referer: fimbat`,
+			expected: map[string]string{
+				"Origin":  "foobar",
+				"Referer": "fimbat",
+			},
+			expectedStr: `"Origin":"foobar","Referer":"fimbat"`,
+			expectedErr: nil,
+		},
+		{
+			name:  "paths_unquoted",
+			input: `src: /etc/foo/limits.conf, src2: /etc/foo/limits3.conf`,
+			expected: map[string]string{
+				"src":  "/etc/foo/limits.conf",
+				"src2": "/etc/foo/limits3.conf",
+			},
+			expectedStr: `"src":"/etc/foo/limits.conf","src2":"/etc/foo/limits3.conf"`,
+			expectedErr: nil,
+		},
+		{
+			name:  "prices_unquoted",
+			input: `us:$22.33,uk:33.44£,ja:777¥`,
+			expected: map[string]string{
+				"us": "$22.33", "uk": "33.44£", "ja": "777¥",
+			},
+			expectedStr: `us:$22.33,uk:33.44£,ja:777¥`,
+			expectedErr: nil,
+		},
+		{
 			name:        "naked_colon",
 			input:       `:`,
 			expected:    nil,
