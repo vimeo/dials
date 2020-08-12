@@ -153,7 +153,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"duration_error": {
 			StructFieldType: reflect.TypeOf(time.Duration(0)),
 			StringValue:     "1",
-			ExpectedErr:     "missing unit in duration 1",
+			ExpectedErr:     "missing unit in duration ",
 		},
 		"string_slice": {
 			StructFieldType: reflect.TypeOf([]string{}),
