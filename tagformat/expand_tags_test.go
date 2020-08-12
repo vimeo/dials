@@ -12,6 +12,7 @@ import (
 )
 
 func TestExpanddialsTag(t *testing.T) {
+	t.Parallel()
 	mangler := TagCopyingMangler{SrcTag: common.DialsTagName, NewTag: "json"}
 	sf := reflect.StructField{
 		Tag: `dials:"test"`,
@@ -22,44 +23,72 @@ func TestExpanddialsTag(t *testing.T) {
 	assert.Equal(t, `dials:"test" json:"test"`, string(newSFs[0].Tag))
 }
 
-func TestExpanddialsTags(t *testing.T) {
-	type testConfig struct {
-		DatabaseName    string `dials:"database_name"`
-		DatabaseAddress string `dials:"database_address"`
+func TestTagCopyingMangler(t *testing.T) {
+	type nested struct {
+		YAMLConfig string `dials:"config"`
 	}
 
-	tc := testConfig{}
-	vc := reflect.ValueOf(tc)
-	cfg := ptrify.Pointerify(vc.Type(), vc)
+	testcases := []struct {
+		name       string
+		testStruct interface{}
+		tag        string
+		assertion  func(t testing.TB, val reflect.Value, tagName string)
+	}{
+		{
+			name: "one layered struct",
+			tag:  "yaml",
+			testStruct: struct {
+				User     string `dials:"user"`
+				Password string `dials:"password"`
+			}{},
+			assertion: func(t testing.TB, val reflect.Value, tagName string) {
 
-	mangler := TagCopyingMangler{SrcTag: common.DialsTagName, NewTag: "yaml"}
-	tfm := transform.NewTransformer(cfg, &mangler)
+				sf, ok := val.Type().FieldByName("User")
+				require.True(t, ok)
+				assert.Equal(t, "user", sf.Tag.Get(tagName))
 
-	mangledVal, mangleErr := tfm.Translate()
-	require.NoError(t, mangleErr)
+				sf, ok = val.Type().FieldByName("Password")
+				require.True(t, ok)
+				assert.Equal(t, "password", sf.Tag.Get(tagName))
+			},
+		},
+		{
+			name: "nested struct",
+			tag:  "yaml",
+			testStruct: struct {
+				DatabaseName    string `dials:"database_name"`
+				DatabaseAddress string `dials:"database_address"`
+				Nested          nested
+			}{},
+			assertion: func(t testing.TB, val reflect.Value, tagName string) {
 
-	typeWithExpandedTags := mangledVal.Type()
+				sf, ok := val.Type().FieldByName("DatabaseName")
+				require.True(t, ok)
+				assert.Equal(t, "database_name", sf.Tag.Get(tagName))
 
-	assert.Equal(t, reflect.Struct, typeWithExpandedTags.Kind())
-	for z := 0; z < typeWithExpandedTags.NumField(); z++ {
-		t.Logf("field: %v", typeWithExpandedTags.Field(z))
+				sf, ok = val.Type().FieldByName("DatabaseAddress")
+				require.True(t, ok)
+				assert.Equal(t, "database_address", sf.Tag.Get(tagName))
+			},
+		},
 	}
 
-	{
-		sf, found := typeWithExpandedTags.FieldByName("DatabaseName")
-		if !found {
-			t.Fatalf("missing DatabaseName field; type: %s", typeWithExpandedTags)
-		}
-		t.Logf("DatabaseName tag val: %q", sf.Tag)
-		assert.Equal(t, sf.Tag.Get("yaml"), "database_name")
-	}
+	for _, testCase := range testcases {
+		tc := testCase
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			vc := reflect.ValueOf(tc.testStruct)
+			cfg := ptrify.Pointerify(vc.Type(), vc)
+			mangler := TagCopyingMangler{SrcTag: common.DialsTagName, NewTag: tc.tag}
+			tfm := transform.NewTransformer(cfg, &mangler)
 
-	{
-		sf, found := typeWithExpandedTags.FieldByName("DatabaseAddress")
-		if !found {
-			t.Fatalf("missing DatabaseAddress field; type: %s", typeWithExpandedTags)
-		}
-		t.Logf("DatabaseAddress tag val: %q", sf.Tag)
-		assert.Equal(t, sf.Tag.Get("yaml"), "database_address")
+			mangledVal, mangleErr := tfm.Translate()
+			require.NoError(t, mangleErr)
+			tc.assertion(t, mangledVal, tc.tag)
+
+			_, revErr := tfm.ReverseTranslate(mangledVal)
+			assert.NoError(t, revErr)
+
+		})
 	}
 }
