@@ -357,13 +357,14 @@ func (t *Transformer) ReverseTranslate(v reflect.Value) (reflect.Value, error) {
 		// the other ones were cleared, so this should be safe if we
 		// managed our fields properly.
 		outField := outVal.FieldByIndex(field.Field.Index)
-		if !field.Value.Type().AssignableTo(outField.Type()) {
+		if !field.Value.Type().ConvertibleTo(outField.Type()) {
 			errString := fmt.Sprintf("incompatible types for field %q; original field type %s; final unmangled type %s",
 				field.Field.Name, outField.Type(), field.Value.Type())
 
 			return reflect.Value{}, &ReverseTranslateError{ErrString: errString}
 		}
-		outField.Set(field.Value)
+		convertedVal := field.Value.Convert(outField.Type())
+		outField.Set(convertedVal)
 	}
 	return outVal, nil
 }

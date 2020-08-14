@@ -12,7 +12,7 @@ import (
 	"github.com/vimeo/dials/transform"
 )
 
-const envTagName = "dials_env"
+const envTagName = "dialsenv"
 
 // Source implements the dials.Source interface to set configuration from
 // environment variables.
@@ -22,17 +22,17 @@ type Source struct {
 
 // Value fills in the user-provided config struct using environment variables.
 // It looks up the environment variable to read into a given struct field by
-// using that field's `dials_env` struct tag if present, then its `dials` tag if
+// using that field's `dialsenv` struct tag if present, then its `dials` tag if
 // present, and finally its name. If the struct field's name is used, Value
 // assumes the name is in Go-style camelCase (e.g., "JSONFilePath") and converts
-// it to UPPER_SNAKE_CASE. (The casing of `dials_env` and `dials` tags is left
+// it to UPPER_SNAKE_CASE. (The casing of `dialsenv` and `dials` tags is left
 // unchanged.)
 func (e *Source) Value(t *dials.Type) (reflect.Value, error) {
 	// flatten the nested fields
 	flattenMangler := transform.NewFlattenMangler(common.DialsTagName, caseconversion.EncodeUpperCamelCase, caseconversion.EncodeUpperCamelCase)
 	// reformat the tags so they are SCREAMING_SNAKE_CASE
 	reformatTagMangler := tagformat.NewTagReformattingMangler(common.DialsTagName, caseconversion.DecodeGoTags, caseconversion.EncodeUpperSnakeCase)
-	// copy tags from "dials" to "dials_env" tag
+	// copy tags from "dials" to "dialsenv" tag
 	tagCopyingMangler := &tagformat.TagCopyingMangler{SrcTag: common.DialsTagName, NewTag: envTagName}
 	// convert all the fields in the flattened struct to string type so the environment variables can be set
 	stringCastingMangler := &transform.StringCastingMangler{}
@@ -48,9 +48,9 @@ func (e *Source) Value(t *dials.Type) (reflect.Value, error) {
 		sf := valType.Field(i)
 		envTagVal := sf.Tag.Get(envTagName)
 		if envTagVal == "" {
-			// dials_env tag should be populated because dials tag is populated
-			// after flatten mangler and we copy from dials to dials_env tag
-			panic(fmt.Errorf("Empty dials_env tag for field name %s", sf.Name))
+			// dialsenv tag should be populated because dials tag is populated
+			// after flatten mangler and we copy from dials to dialsenv tag
+			panic(fmt.Errorf("Empty %s tag for field name %s", envTagName, sf.Name))
 		}
 
 		if e.Prefix != "" {

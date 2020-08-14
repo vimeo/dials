@@ -17,8 +17,9 @@ func TestDirectBasic(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	type Embed struct {
-		Foo string `dialsflag:"foofoo"`
-		Bar bool   // will have dials tag "bar" after flatten mangler
+		Foo      string `dialsflag:"foofoo"`
+		Bar      bool   // will have dials tag "bar" after flatten mangler
+		SomeTime time.Duration
 	}
 	type Config struct {
 		Hello string
@@ -29,7 +30,7 @@ func TestDirectBasic(t *testing.T) {
 	src := &Set{
 		Flags: fs,
 		ParseFunc: func() error {
-			return fs.Parse([]string{"-world", "-hello=foobar", "-foofoo=something", "-bar"})
+			return fs.Parse([]string{"-world", "-hello=foobar", "-foofoo=something", "-bar", "-some-time=2s"})
 		},
 	}
 	buf := &bytes.Buffer{}
@@ -60,6 +61,10 @@ func TestDirectBasic(t *testing.T) {
 
 	if !got.Bar {
 		t.Errorf("expected Bar to be true, got %t", got.Bar)
+	}
+
+	if got.SomeTime != 2*time.Second {
+		t.Errorf("expected SomeTime to be 2s, got %s", got.SomeTime)
 	}
 }
 
@@ -366,5 +371,34 @@ func TestTable(t *testing.T) {
 			require.NoError(t, cfgErr, "failed to stack/Value()")
 			assert.EqualValues(t, tbl.expected, d.View())
 		})
+	}
+}
+
+func TestMust(t *testing.T) {
+	type Config struct {
+		Hello string
+		World bool `dials:"world"`
+	}
+
+	fs := Must(NewSetWithArgs(DefaultFlagNameConfig(), &Config{}, []string{"-world", "-hello=foobar"}))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d, err := dials.Config(ctx, &Config{}, fs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, ok := d.View().(*Config)
+	if !ok {
+		t.Fatalf("want: *Config, got: %T", got)
+	}
+
+	if got.Hello != "foobar" {
+		t.Errorf("expected \"foobar\" for Hello, got %q", got.Hello)
+	}
+	if !got.World {
+		t.Errorf("expected World to be true, got %t", got.World)
 	}
 }

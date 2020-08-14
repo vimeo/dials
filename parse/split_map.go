@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"text/scanner"
+	"unicode"
 )
 
 // splitMap splits the values that are csv key:value-pairs of strings in a
@@ -21,6 +22,32 @@ func splitMap(s string, addKV func(k, v string) error) error {
 		scanner.ScanFloats | scanner.ScanChars
 	sc.Error = func(s *scanner.Scanner, msg string) {
 		errs[s.Pos()] = msg
+	}
+	// Override the IsIdentRune callback. Note that this differs from
+	// similar callback in splitStringsSlice() by the presence of colon
+	// (`:`) in the disallow-list rather than the allow-list, as maps use
+	// colons to separate keys and values, while they have no meaning for
+	// string-sets and string-slices.
+	sc.IsIdentRune = func(ch rune, i int) bool {
+		switch ch {
+		case '\\', ',', '"', '\'', '`', '\000', ':':
+			return false
+		case '.', '/', '+', '-', '$', '%':
+			// A few special characters we want to guarantee are
+			// caught as allowed
+			return true
+		default:
+		}
+		// Disallow whitespace first, then check whether it's printable.
+		if (ch < ' ' && ch >= 0) && (sc.Whitespace&(1<<ch) > 0) {
+			return false
+		}
+		// IsPrint includes letter, number, symbol and a couple other
+		// character-classes
+		if unicode.IsPrint(ch) {
+			return true
+		}
+		return false
 	}
 
 	inKey := true
