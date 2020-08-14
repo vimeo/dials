@@ -66,12 +66,12 @@ type Config struct {
 	// The `dialsdesc` tag is used to provide help message for the flag.
 	Val3 bool `dialsflag:"some-val" dialsdesc:"enable auth"`
 	// Path holds the value of the path to the config file. Dials follows the
-	// Go convention for environment variables and will look for the dials tag
+	// *nix convention for environment variables and will look for the dials tag
 	// or field name in all caps when struct tags aren't specified. Without any
 	// struct tags, it would lookup the PATH environment variable. To specify a
-	// different env variable, use the `dials_env` tag. Now Dials will lookup
+	// different env variable, use the `dialsenv` tag. Now Dials will lookup
 	// "configpath" env value to populate the Path field.
-	Path string `dials_env:"configpath"`
+	Path string `dialsenv:"configpath"`
 }
 
 // ConfigPath returns the path to the config file that Dials should read. This 
@@ -107,10 +107,10 @@ func main() {
 		// error handling
 	}
 
-	// Fill will make a deep copy of the struct and populate it with values from
-	// config file, environment variables, and command line flags. Can
-	// alternatively use c = d.View().(*Config) for a cheaper operation because
-	// View doesn't deep copy the struct
+	// Fill will deep copy the fully-stacked configuration into its argument.
+	// The stacked configuration is populated from the config file, environment
+	// variables and commandline flags. Can alternatively use
+	// c = d.View().(*Config) for a cheaper operation
 	d.Fill(c)
 	fmt.Printf("Config: %+v\n", c)
 }
@@ -162,10 +162,10 @@ import (
 
 type Config struct {
 	Val1 string `dials:"Val1" yaml:"b"`
-	// The `dials_env` tag is used to override the name used by the environment
+	// The `dialsenv` tag is used to override the name used by the environment
 	// source. If you want to use a single, consistent name across several
 	// sources, set the `dials` tag instead
-	Val2 int `dials_env:"VAL_2"`
+	Val2 int `dialsenv:"VAL_2"`
 	// the `dialsflag` tag is used for command line flag values and the dialsdesc
 	// tag provides the flag help text
 	Val3 bool `dialsflag:"val-3" dialsdesc:"maximum number of idle connections to DB"`
@@ -205,9 +205,10 @@ func main() {
 		// error handling
 	}
 
-	// Fill populates the config struct after making a deep copy of the struct.
-	// Can alternatively use d.View().(*Config) with type assert for a cheaper
-	// operation since View doesn't involve deep copying the struct
+	// Fill will deep copy the fully-stacked configuration into its argument.
+	// The stacked configuration is populated from the config file, environment
+	// variables and commandline flags. Can alternatively use
+	// c = d.View().(*Config) for a cheaper operation
 	d.Fill(config)
 	fmt.Printf("Config: %+v\n", config)
 }
@@ -227,7 +228,9 @@ export VAL_2=5
 go run main.go --val-3
 ```
  
-the output will be `Config: &{Val1:valueb Val2:5 Val3:true}`. Note that even when val-3 is defined in the yaml file and the file source takes precedence, 
+the output will be `Config: &{Val1:valueb Val2:5 Val3:true}`.
+
+Note that even when val-3 is defined in the yaml file and the file source takes precedence,
 only the value from command line flag populates the config due to the special `dialsflag` tag. The `val-3` name is only used by the flag source. The file source will still use the field name. You can update the yaml file to `val3: false` to have the file source overwrite the field. Alternatively, we recommend using the `dials` tag to have consistent naming across all sources.
 
 
@@ -260,9 +263,9 @@ If you wish to watch the config file and make updates to your configuration, use
 
 	conf := d.View().(*Config)
 
-	// you can get notified whenever the config changes through the channel in
-	// the Events method. Wait on that channel if you need to take any steps
-	// when the config changes
+	// you can get notified whenever the config changes through the channel
+	// returned by the Events method. Wait on that channel if you need to take
+	// any steps when the config changes
 	go func(ctx context.Context){
 		for{
 			select{
@@ -280,10 +283,14 @@ The Source interface is implemented by different configuration sources that popu
 
 
 ### Decoder
-Decoders are modular allowing users to mix and match Decoders and Sources. Dials currently supports Decoders that decode different data formats (JSON, YAML, and TOML) and insert the values into the appropriate fields in the config struct. Decoders can be expanded from that use case and users can write their own Decoders to perform the tasks they like (more info in the section below). Decoder is called when the supported Source calls the `Decode` method to unmarshal the data into the config struct and returns the populated struct. There are two sources that the Decoders can be used with: files (including watched files) and `static.StringSource`. Please note that the Decoder interface is likely to change in the near future.
+Decoders are modular, allowing users to mix and match Decoders and Sources. Dials currently supports Decoders that decode different data formats (JSON, YAML, and TOML) and insert the values into the appropriate fields in the config struct. Decoders can be expanded from that use case and users can write their own Decoders to perform the tasks they like (more info in the section below).
+
+Decoder is called when the supported Source calls the `Decode` method to unmarshal the data into the config struct and returns the populated struct. There are two sources that the Decoders can be used with: files (including watched files) and `static.StringSource`. Please note that the Decoder interface is likely to change in the near future.
 
 ### Write your own Source and Decoder
-If you wish to define your own source, implement the `Source` interface and pass the source to the `dials.Config` function. If you want the Source to interact with a Decoder, call `Decode` in the `Value` method of the Source. Since Decoders are modular, keep the logic of Decoder encapsulated and separate from the Source. `Source` and `Decoder` implementations should be orthogonal and `Decoder`s should not be `Source` specific. For example, you can have an `HTTP` or `File` Source that can interact with the `JSON` decoder to unmarshal the data to a struct.
+If you wish to define your own source, implement the `Source` interface and pass the source to the `dials.Config` function. If you want the Source to interact with a Decoder, call `Decode` in the `Value` method of the Source.
+
+Since Decoders are modular, keep the logic of Decoder encapsulated and separate from the Source. `Source` and `Decoder` implementations should be orthogonal and `Decoder`s should not be `Source` specific. For example, you can have an `HTTP` or `File` Source that can interact with the `JSON` decoder to unmarshal the data to a struct.
 
 ### Putting it all together
 
