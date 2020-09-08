@@ -139,7 +139,7 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 	}
 	// OnWatchedError is never called from this goroutine, so it can be
 	// unbuffered without deadlocking.
-	blankErrCh := make(chan error)
+	blankErrCh := make(chan error, 1)
 	p := dials.Params{
 		OnWatchedError: func(ctx context.Context, err error, oldConfig, newConfig interface{}) {
 			select {
@@ -192,6 +192,12 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 	case <-d.Events():
 	case err := <-blankErrCh:
 		return d, fmt.Errorf("failed to stack/verify config with file layered: %w", err)
+	}
+	// If there was no error, make sure the blankErrCh buffer is full so
+	// subsequent calls always call the registered callback.
+	select {
+	case blankErrCh <- nil:
+	default:
 	}
 	return d, nil
 }
