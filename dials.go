@@ -141,6 +141,9 @@ type watchTab struct {
 // Watcher should be implemented by Sources that allow their configuration to be
 // watched for changes.
 type Watcher interface {
+	// Watch will be called in the primary goroutine calling Config(). If
+	// Watcher implementations need a persistent goroutine, they should
+	// spawn it themselves.
 	Watch(context.Context, *Type, func(context.Context, reflect.Value)) error
 }
 
