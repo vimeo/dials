@@ -92,6 +92,7 @@ func (p Params) Config(ctx context.Context, t interface{}, sources ...Source) (*
 	d := &Dials{
 		value:       atomic.Value{},
 		updatesChan: make(chan interface{}, 1),
+		params:      p,
 	}
 	d.value.Store(newValue)
 
@@ -158,6 +159,7 @@ type VerifiedConfig interface {
 type Dials struct {
 	value       atomic.Value
 	updatesChan chan interface{}
+	params      Params
 }
 
 // View returns the configuration struct populated.
@@ -206,10 +208,26 @@ func (d *Dials) monitor(
 					break
 				}
 			}
-			newInterface, err := compose(t, sourceValues)
-			if err != nil {
+			newInterface, stackErr := compose(t, sourceValues)
+			if stackErr != nil {
+				if d.params.OnWatchedError != nil {
+					d.params.OnWatchedError(
+						ctx, stackErr, d.value.Load(), newInterface)
+				}
 				continue
 			}
+
+			// Verify that the configuration is valid if a Verify() method is present.
+			if vf, ok := newInterface.(VerifiedConfig); ok {
+				if vfErr := vf.Verify(); vfErr != nil {
+					if d.params.OnWatchedError != nil {
+						d.params.OnWatchedError(
+							ctx, vfErr, d.value.Load(), newInterface)
+					}
+					continue
+				}
+			}
+
 			d.value.Store(newInterface)
 			select {
 			case d.updatesChan <- newInterface:
