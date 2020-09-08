@@ -26,6 +26,7 @@ type dialsOptions struct {
 	flagConfig     *flag.NameConfig
 	autoSetToSlice bool
 	flagSubstitute dials.Source
+	onWatchedError dials.WatchedErrorHandler
 }
 
 func getDefaultOption() *dialsOptions {
@@ -34,6 +35,7 @@ func getDefaultOption() *dialsOptions {
 		flagConfig:     flag.DefaultFlagNameConfig(),
 		autoSetToSlice: true,
 		flagSubstitute: nil,
+		onWatchedError: nil,
 	}
 }
 
@@ -58,6 +60,13 @@ func WithWatchingConfigFile(enabled bool) Option {
 // naturally parsed by JSON, YAML, or TOML parsers.  This defaults to true.
 func WithAutoSetToSlice(enabled bool) Option {
 	return func(d *dialsOptions) { d.autoSetToSlice = enabled }
+}
+
+// WithOnWatchedError registers a callback to record any errors encountered
+// while stacking or verifying a new version of a configuration (if
+// file-watching is enabled)
+func WithOnWatchedError(cb dials.WatchedErrorHandler) Option {
+	return func(d *dialsOptions) { d.onWatchedError = cb }
 }
 
 // DecoderFactory should return the appropriate decoder based on the config file
@@ -128,8 +137,22 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 		defer cancel()
 		ctx = configCtx
 	}
+	// OnWatchedError is never called from this goroutine, so it can be
+	// unbuffered without deadlocking.
+	blankErrCh := make(chan error)
+	p := dials.Params{
+		OnWatchedError: func(ctx context.Context, err error, oldConfig, newConfig interface{}) {
+			select {
+			case blankErrCh <- err:
+			default:
+				if option.onWatchedError != nil {
+					option.onWatchedError(ctx, err, oldConfig, newConfig)
+				}
+			}
+		},
+	}
 
-	d, err := dials.Config(ctx, cfg, &blank, &env.Source{}, flagSrc)
+	d, err := p.Config(ctx, cfg, &blank, &env.Source{}, flagSrc)
 	if err != nil {
 		return nil, err
 	}
@@ -161,11 +184,15 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 
 	blankErr := blank.SetSource(ctx, fileSrc)
 	if blankErr != nil {
-		return d, fmt.Errorf("failed to read config file: %s", blankErr)
+		return d, fmt.Errorf("failed to read config file: %w", blankErr)
 	}
 
 	// wait for the composition of the config struct with the config file values
-	<-d.Events()
+	select {
+	case <-d.Events():
+	case err := <-blankErrCh:
+		return d, fmt.Errorf("failed to stack/verify config with file layered: %w", err)
+	}
 	return d, nil
 }
 
