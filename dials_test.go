@@ -149,7 +149,7 @@ func TestConfigWithFailVerifier(t *testing.T) {
 	}
 }
 
-// successVerifier is a struct with a Verify() method that always fails with an error
+// successVerifier is a struct with a Verify() method that never fails with an error
 type successVerifier struct{}
 
 func (successVerifier) Verify() error {

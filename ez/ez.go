@@ -139,6 +139,13 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 	}
 	// OnWatchedError is never called from this goroutine, so it can be
 	// unbuffered without deadlocking.
+	//
+	// However, it is buffered to avoid a race where the non-blocking send
+	// in the callback happens before the select statement at the bottom of
+	// this function starts. If this weren't buffered, the send would fall
+	// through to the delegated error-handler, and the select statement
+	// would block until a new config version (or error) was created
+	// (assuming this is a watching-mode) or possibly forever.
 	blankErrCh := make(chan error, 1)
 	p := dials.Params{
 		OnWatchedError: func(ctx context.Context, err error, oldConfig, newConfig interface{}) {
