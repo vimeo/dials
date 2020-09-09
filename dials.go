@@ -10,11 +10,41 @@ import (
 	"github.com/vimeo/dials/ptrify"
 )
 
+// WatchedErrorHandler is a callback that's called when something fails when
+// dials is operating in a watching mode.  Both oldConfig and NewConfig are
+// guaranteed to be populated with the same pointer-type that was passed to
+// `Config()`.
+type WatchedErrorHandler func(ctx context.Context, err error, oldConfig, newConfig interface{})
+
+// Params provides options for setting Dials's behavior in some cases.
+type Params struct {
+	// OnWatchedError is called when either of several conditions are met:
+	//  - There is an error re-stacking the configuration
+	//  -
+	//  - a Verify() method fails after re-stacking when a new version is
+	//    provided by a watching source
+	OnWatchedError WatchedErrorHandler
+}
+
 // Config populates the passed in config struct by reading the values from the
 // different Sources. The order of the sources denotes the precedence of the formats
 // so the last source passed to the function has the ability to override fields that
 // were set by previous sources
-func Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, error) {
+//
+// If present, a Verify() method will be called after each stacking attempt.
+// Blocking/expensive work should not be done in this method. (see the comment
+// on Verify()) in VerifiedConfig for details)
+//
+// If complicated/blocking initialization/verification is necessary, one can either:
+//  - If not using any watching sources, do any verification with the returned
+//    config from Config.
+//  - If using at least one watching source, configure a goroutine to watch the
+//    channel returned by the `Dials.Events()` method that does its own
+//    installation after verifying the config.
+//
+// More complicated verification/initialization should be done by
+// consuming from the channel returned by `Events()`.
+func (p Params) Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, error) {
 
 	watcherChan := make(chan *watchTab)
 	computed := make([]sourceValue, 0, len(sources))
@@ -62,13 +92,31 @@ func Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, erro
 	d := &Dials{
 		value:       atomic.Value{},
 		updatesChan: make(chan interface{}, 1),
+		params:      p,
 	}
 	d.value.Store(newValue)
+
+	// Verify that the configuration is valid if a Verify() method is present.
+	if vf, ok := newValue.(VerifiedConfig); ok {
+		if vfErr := vf.Verify(); vfErr != nil {
+			return nil, fmt.Errorf("Initial configuration verification failed: %w", vfErr)
+		}
+	}
 
 	if someoneWatching {
 		go d.monitor(ctx, tVal.Interface(), computed, watcherChan)
 	}
 	return d, nil
+}
+
+// Config populates the passed in config struct by reading the values from the
+// different Sources. The order of the sources denotes the precedence of the formats
+// so the last source passed to the function has the ability to override fields that
+// were set by previous sources
+// This top-level function is present for convenience and backwards
+// compatibility when there is no need to specify an error-handler.
+func Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, error) {
+	return Params{}.Config(ctx, t, sources...)
 }
 
 // Source interface is implemented by each configuration source that is used to
@@ -93,13 +141,28 @@ type watchTab struct {
 // Watcher should be implemented by Sources that allow their configuration to be
 // watched for changes.
 type Watcher interface {
+	// Watch will be called in the primary goroutine calling Config(). If
+	// Watcher implementations need a persistent goroutine, they should
+	// spawn it themselves.
 	Watch(context.Context, *Type, func(context.Context, reflect.Value)) error
+}
+
+// VerifiedConfig implements the Verify method, allowing Dials to execute the
+// Verify method before returning/installing a new version of the
+// configuration.
+type VerifiedConfig interface {
+	// Verify() should return a non-nil error if the configuration is
+	// invalid.
+	// As this method is called any time the configuration sources are
+	// restacked, it should not do any complex or blocking work.
+	Verify() error
 }
 
 // Dials is the main access point for your configuration.
 type Dials struct {
 	value       atomic.Value
 	updatesChan chan interface{}
+	params      Params
 }
 
 // View returns the configuration struct populated.
@@ -148,10 +211,26 @@ func (d *Dials) monitor(
 					break
 				}
 			}
-			newInterface, err := compose(t, sourceValues)
-			if err != nil {
+			newInterface, stackErr := compose(t, sourceValues)
+			if stackErr != nil {
+				if d.params.OnWatchedError != nil {
+					d.params.OnWatchedError(
+						ctx, stackErr, d.value.Load(), newInterface)
+				}
 				continue
 			}
+
+			// Verify that the configuration is valid if a Verify() method is present.
+			if vf, ok := newInterface.(VerifiedConfig); ok {
+				if vfErr := vf.Verify(); vfErr != nil {
+					if d.params.OnWatchedError != nil {
+						d.params.OnWatchedError(
+							ctx, vfErr, d.value.Load(), newInterface)
+					}
+					continue
+				}
+			}
+
 			d.value.Store(newInterface)
 			select {
 			case d.updatesChan <- newInterface:

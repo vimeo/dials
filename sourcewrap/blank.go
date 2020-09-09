@@ -52,6 +52,7 @@ func (b *Blank) Watch(ctx context.Context,
 	}
 	b.t = t
 	b.cb = cb
+	b.watchCtx = ctx
 	return nil
 }
 
