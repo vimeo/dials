@@ -76,6 +76,10 @@ func (w *wrappedErr) Unwrap() error {
 // The new Source's Value() method will be called, and the return value will be
 // pushed to the view via the asynchronous watch interface.
 // If the new Source implements dials.Watcher, its Watch method will be called.
+//
+// It is safe to call SetSource multiple times with different Sources, however,
+// once a Watcher is set as the inner source, it takes over ownership of the
+// state for the slot and cannot be replaced.
 func (b *Blank) SetSource(ctx context.Context, s dials.Source) error {
 	if s == nil {
 		return fmt.Errorf("cannot pass a nil source to *Blank.SetSource with type %s",
@@ -83,6 +87,14 @@ func (b *Blank) SetSource(ctx context.Context, s dials.Source) error {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	if b.inner != nil {
+		if _, isWatcher := b.inner.(dials.Watcher); isWatcher {
+			return fmt.Errorf("disallowed attempt to replace Watcher Source: %T",
+				b.inner)
+		}
+	}
+
 	v, err := s.Value(ctx, b.t)
 	if err != nil {
 		return &wrappedErr{prefix: "initial call to Value failed: ", err: err}
