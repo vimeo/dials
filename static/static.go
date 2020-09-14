@@ -1,6 +1,7 @@
 package static
 
 import (
+	"context"
 	"reflect"
 	"strings"
 
@@ -13,8 +14,10 @@ type StringSource struct {
 	Decoder dials.Decoder
 }
 
+var _ dials.Source = (*StringSource)(nil)
+
 // Value ...
-func (s *StringSource) Value(t *dials.Type) (reflect.Value, error) {
+func (s *StringSource) Value(_ context.Context, t *dials.Type) (reflect.Value, error) {
 	reader := strings.NewReader(s.Data)
 	return s.Decoder.Decode(reader, t)
 }

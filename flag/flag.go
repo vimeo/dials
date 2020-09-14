@@ -1,6 +1,7 @@
 package flag
 
 import (
+	"context"
 	"encoding"
 	"flag"
 	"fmt"
@@ -325,7 +326,7 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 // struct tag if present, then its `dials` tag if present, and finally its name.
 // If the struct has nested fields, Value will flatten the fields so flags can
 // be defined for nested fields.
-func (s *Set) Value(t *dials.Type) (reflect.Value, error) {
+func (s *Set) Value(_ context.Context, t *dials.Type) (reflect.Value, error) {
 	// Check whether we've gone through the exercise of parsing flags yet
 	// (and types are compatible).
 	if s.ptrType != nil {

@@ -1,6 +1,7 @@
 package env
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"reflect"
@@ -20,6 +21,8 @@ type Source struct {
 	Prefix string
 }
 
+var _ dials.Source = (*Source)(nil)
+
 // Value fills in the user-provided config struct using environment variables.
 // It looks up the environment variable to read into a given struct field by
 // using that field's `dialsenv` struct tag if present, then its `dials` tag if
@@ -27,7 +30,7 @@ type Source struct {
 // assumes the name is in Go-style camelCase (e.g., "JSONFilePath") and converts
 // it to UPPER_SNAKE_CASE. (The casing of `dialsenv` and `dials` tags is left
 // unchanged.)
-func (e *Source) Value(t *dials.Type) (reflect.Value, error) {
+func (e *Source) Value(_ context.Context, t *dials.Type) (reflect.Value, error) {
 	// flatten the nested fields
 	flattenMangler := transform.NewFlattenMangler(common.DialsTagName, caseconversion.EncodeUpperCamelCase, caseconversion.EncodeUpperCamelCase)
 	// reformat the tags so they are SCREAMING_SNAKE_CASE

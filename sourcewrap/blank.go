@@ -33,10 +33,10 @@ func (b *Blank) getInner() dials.Source {
 
 // Value implements the dials.Source interface, returning either a zero-value
 // for the type it's passed, or delegating to the wrapped source (if present).
-func (b *Blank) Value(t *dials.Type) (reflect.Value, error) {
+func (b *Blank) Value(ctx context.Context, t *dials.Type) (reflect.Value, error) {
 	inner := b.getInner()
 	if inner != nil {
-		return inner.Value(t)
+		return inner.Value(ctx, t)
 	}
 	return reflect.New(t.Type()), nil
 }
@@ -80,8 +80,7 @@ func (b *Blank) SetSource(ctx context.Context, s dials.Source) error {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	// TODO: this seems wrong, Value should take a context as well.
-	v, err := s.Value(b.t)
+	v, err := s.Value(ctx, b.t)
 	if err != nil {
 		return &wrappedErr{prefix: "initial call to Value failed: ", err: err}
 	}

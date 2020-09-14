@@ -32,7 +32,7 @@ type fakeSource struct {
 	outVal interface{}
 }
 
-func (f *fakeSource) Value(t *Type) (reflect.Value, error) {
+func (f *fakeSource) Value(_ context.Context, t *Type) (reflect.Value, error) {
 	return reflect.ValueOf(f.outVal).Convert(t.t), nil
 }
 

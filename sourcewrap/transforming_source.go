@@ -68,7 +68,7 @@ type transformingSourceNoWatch struct {
 	src      dials.Source
 }
 
-func (t *transformingSourceNoWatch) Value(typ *dials.Type) (reflect.Value, error) {
+func (t *transformingSourceNoWatch) Value(ctx context.Context, typ *dials.Type) (reflect.Value, error) {
 	tfm := transform.NewTransformer(typ.Type(), t.manglers...)
 	transformedVal, transformErr := tfm.TranslateType()
 	if transformErr != nil {
@@ -76,7 +76,7 @@ func (t *transformingSourceNoWatch) Value(typ *dials.Type) (reflect.Value, error
 	}
 	innerTyp := dials.NewType(transformedVal)
 
-	srcVal, srcErr := t.src.Value(innerTyp)
+	srcVal, srcErr := t.src.Value(ctx, innerTyp)
 	if srcErr != nil {
 		return reflect.Value{}, &wrappedErr{prefix: "inner source failed: ", err: srcErr}
 	}

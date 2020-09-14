@@ -43,6 +43,8 @@ type Source struct {
 	hmacMu         sync.Mutex
 }
 
+var _ dials.Source = (*Source)(nil)
+
 func (s *Source) initKey() error {
 	s.hmacMu.Lock()
 	defer s.hmacMu.Unlock()
@@ -87,7 +89,7 @@ func (d *unchangedCSumErr) Error() string {
 }
 
 // Value opens the file and passes it to the Decoder.
-func (s *Source) Value(t *dials.Type) (reflect.Value, error) {
+func (s *Source) Value(_ context.Context, t *dials.Type) (reflect.Value, error) {
 	f, err := os.Open(s.path)
 	if err != nil {
 		return reflect.Value{}, err
@@ -179,6 +181,9 @@ type WatchingSource struct {
 	watcher      *fsnotify.Watcher
 	logger       logWrapper
 }
+
+var _ dials.Source = (*WatchingSource)(nil)
+var _ dials.Watcher = (*WatchingSource)(nil)
 
 // Watch Sets up an fsnotify Watcher and starts a background goroutine for watching changes.
 func (ws *WatchingSource) Watch(
@@ -292,7 +297,7 @@ MAINLOOP:
 			return
 		}
 
-		newVal, parseErr := ws.Value(t)
+		newVal, parseErr := ws.Value(ctx, t)
 
 		configExists := !os.IsNotExist(parseErr)
 		if !configExists {
