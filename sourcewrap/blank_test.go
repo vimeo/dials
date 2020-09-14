@@ -38,13 +38,15 @@ func (t *trivalErroringSource) Value(_ context.Context, typ *dials.Type) (reflec
 type trivalCountingWatchingSource struct {
 	callCount   uint32
 	watchcalled bool
-	cb          func(context.Context, reflect.Value)
+	args        dials.WatchArgs
 	typ         *dials.Type
 }
 
-func (t *trivalCountingWatchingSource) Watch(ctx context.Context, typ *dials.Type, cb func(context.Context, reflect.Value)) error {
+var _ dials.Watcher = (*trivalCountingWatchingSource)(nil)
+
+func (t *trivalCountingWatchingSource) Watch(ctx context.Context, typ *dials.Type, args dials.WatchArgs) error {
 	t.watchcalled = true
-	t.cb = cb
+	t.args = args
 	t.typ = typ
 	return nil
 }
@@ -55,7 +57,7 @@ func (t *trivalCountingWatchingSource) Value(_ context.Context, typ *dials.Type)
 }
 
 func (t *trivalCountingWatchingSource) poke(ctx context.Context) {
-	t.cb(ctx, reflect.New(t.typ.Type()))
+	t.args.NewValue(ctx, reflect.New(t.typ.Type()))
 }
 
 type trivalErroringWatchingSource struct {
@@ -64,7 +66,9 @@ type trivalErroringWatchingSource struct {
 	err         error
 }
 
-func (t *trivalErroringWatchingSource) Watch(ctx context.Context, typ *dials.Type, cb func(context.Context, reflect.Value)) error {
+var _ dials.Watcher = (*trivalErroringWatchingSource)(nil)
+
+func (t *trivalErroringWatchingSource) Watch(ctx context.Context, typ *dials.Type, args dials.WatchArgs) error {
 	t.watchcalled = true
 	return t.err
 }
