@@ -56,12 +56,15 @@ func (p Params) Config(ctx context.Context, t interface{}, sources ...Source) (*
 
 	tVal := realDeepCopy(t)
 
+	valueCtx, cancelValues := context.WithCancel(ctx)
+	defer cancelValues()
+
 	typeInstance := &Type{ptrify.Pointerify(typeOfT.Elem(), tVal.Elem())}
 	someoneWatching := false
 	for _, source := range sources {
 		s := source
 
-		v, err := source.Value(typeInstance)
+		v, err := source.Value(valueCtx, typeInstance)
 		if err != nil {
 			return nil, err
 		}
@@ -123,12 +126,20 @@ func Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, erro
 // populate the config struct such as environment variables, command line flags,
 // config files, and more
 type Source interface {
-	Value(*Type) (reflect.Value, error)
+	// Value provides the current value for the configuration.
+	// Value methods should not create any long-lived resources or spin off
+	// long-lived goroutines.
+	// Config() will cancel the context passed to this method upon Config's
+	// return.
+	// Implementations that need to handle state changes with long-lived
+	// background goroutines should implement the Watcher interface, which
+	// explicitly provides a way to supply state updates.
+	Value(context.Context, *Type) (reflect.Value, error)
 }
 
 // Decoder interface is implemented by different data formats to read the config
 // files, decode the data, and insert the values in the config struct. Dials
-// currently supports YAML, JSON, and TOML data formats.
+// currently includes implementations for YAML, JSON, and TOML data formats.
 type Decoder interface {
 	Decode(io.Reader, *Type) (reflect.Value, error)
 }

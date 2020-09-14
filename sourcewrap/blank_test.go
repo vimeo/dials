@@ -16,7 +16,7 @@ type trivalCountingSource struct {
 	callCount uint32
 }
 
-func (t *trivalCountingSource) Value(typ *dials.Type) (reflect.Value, error) {
+func (t *trivalCountingSource) Value(_ context.Context, typ *dials.Type) (reflect.Value, error) {
 	t.callCount++
 	return reflect.New(typ.Type()), nil
 }
@@ -28,7 +28,7 @@ type trivalErroringSource struct {
 	err       error
 }
 
-func (t *trivalErroringSource) Value(typ *dials.Type) (reflect.Value, error) {
+func (t *trivalErroringSource) Value(_ context.Context, typ *dials.Type) (reflect.Value, error) {
 	t.callCount++
 	return reflect.Value{}, t.err
 }
@@ -49,7 +49,7 @@ func (t *trivalCountingWatchingSource) Watch(ctx context.Context, typ *dials.Typ
 	return nil
 }
 
-func (t *trivalCountingWatchingSource) Value(typ *dials.Type) (reflect.Value, error) {
+func (t *trivalCountingWatchingSource) Value(_ context.Context, typ *dials.Type) (reflect.Value, error) {
 	t.callCount++
 	return reflect.New(typ.Type()), nil
 }
@@ -69,7 +69,7 @@ func (t *trivalErroringWatchingSource) Watch(ctx context.Context, typ *dials.Typ
 	return t.err
 }
 
-func (t *trivalErroringWatchingSource) Value(typ *dials.Type) (reflect.Value, error) {
+func (t *trivalErroringWatchingSource) Value(_ context.Context, typ *dials.Type) (reflect.Value, error) {
 	t.callCount++
 	return reflect.New(typ.Type()), nil
 }
