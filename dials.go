@@ -159,6 +159,19 @@ type valueUpdate struct {
 
 func (valueUpdate) isStatusReport() {}
 
+type watcherDone struct {
+	source Source
+}
+
+func (watcherDone) isStatusReport() {}
+
+type watchErrorReport struct {
+	source Source
+	err    error
+}
+
+func (w *watchErrorReport) isStatusReport() {}
+
 type watchStatusUpdate interface {
 	isStatusReport()
 }
@@ -179,6 +192,29 @@ func (w *watchArgs) ReportNewValue(ctx context.Context, val reflect.Value) error
 	}
 }
 
+// Done indicates that this watcher has stopped and will not send any
+// more updates.
+func (w *watchArgs) Done(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+	case w.c <- &watcherDone{source: w.s}:
+	}
+}
+
+// ReportError reports a problem in the watcher. Returns an error if
+// the internal reporting channel is full and the context
+// expires/is-canceled.
+func (w *watchArgs) ReportError(ctx context.Context, err error) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case w.c <- &watchErrorReport{source: w.s, err: err}:
+		return nil
+	}
+}
+
+var _ WatchArgs = (*watchArgs)(nil)
+
 // WatchArgs provides methods for a Watcher implementation to update the state
 // of a Dials instance.
 type WatchArgs interface {
@@ -187,6 +223,13 @@ type WatchArgs interface {
 	// expires/is-canceled, however, wrapping implementations are free to
 	// return any other error as appropriate.
 	ReportNewValue(ctx context.Context, val reflect.Value) error
+	// Done indicates that this watcher has stopped and will not send any
+	// more updates.
+	Done(ctx context.Context)
+	// ReportError reports a problem in the watcher. Returns an error if
+	// the internal reporting channel is full and the context
+	// expires/is-canceled.
+	ReportError(ctx context.Context, err error) error
 }
 
 // Watcher should be implemented by Sources that allow their configuration to be
@@ -284,6 +327,28 @@ func (d *Dials) updateSourceValue(
 	}
 }
 
+func (d *Dials) markSourceDone(
+	ctx context.Context,
+	sourceValues []sourceValue,
+	watchTab *watcherDone,
+) bool {
+	// Set the calling source's watching bit to false
+	for i, sv := range sourceValues {
+		if watchTab.source == sv.source {
+			sourceValues[i].watching = false
+			break
+		}
+	}
+
+	// check whether any sources have watching set to true
+	for _, sv := range sourceValues {
+		if sv.watching {
+			return true
+		}
+	}
+	return false
+}
+
 func (d *Dials) monitor(
 	ctx context.Context,
 	t interface{},
@@ -298,6 +363,11 @@ func (d *Dials) monitor(
 			switch v := watchTab.(type) {
 			case *valueUpdate:
 				d.updateSourceValue(ctx, t, sourceValues, v)
+			case *watcherDone:
+				if !d.markSourceDone(ctx, sourceValues, v) {
+					// if there are no watching sources, just exit.
+					return
+				}
 			default:
 				panic(fmt.Errorf("unexpected type %[1]T: %+[1]v", watchTab))
 			}
