@@ -349,12 +349,12 @@ func (ws *WatchingSource) updateDirWatches(oldResolvedCfgDir, resolvedCfgDir str
 	// If the config's resolved directory has changed, make sure we
 	// remove the old watch after the new one is added so we don't lose change notifications
 	if addErr := ws.watcher.Add(resolvedCfgDir); addErr != nil {
-		ws.logger.log.Printf("failed to add new watch for symlink-resolved directory: %q: %s",
+		ws.logger.Printf("failed to add new watch for symlink-resolved directory: %q: %s",
 			resolvedCfgDir, addErr)
 		return
 	}
 	if removeErr := ws.watcher.Remove(oldResolvedCfgDir); removeErr != nil {
-		ws.logger.log.Printf("failed to remove old watch for old symlink-resolved directory: %q: %s",
+		ws.logger.Printf("failed to remove old watch for old symlink-resolved directory: %q: %s",
 			oldResolvedCfgDir, removeErr)
 	}
 }
