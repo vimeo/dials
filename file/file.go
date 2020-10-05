@@ -337,7 +337,7 @@ MAINLOOP:
 			continue
 		}
 
-		args.NewValue(ctx, newVal)
+		args.ReportNewValue(ctx, newVal)
 	}
 
 }

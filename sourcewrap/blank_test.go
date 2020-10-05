@@ -57,7 +57,7 @@ func (t *trivalCountingWatchingSource) Value(_ context.Context, typ *dials.Type)
 }
 
 func (t *trivalCountingWatchingSource) poke(ctx context.Context) {
-	t.args.NewValue(ctx, reflect.New(t.typ.Type()))
+	t.args.ReportNewValue(ctx, reflect.New(t.typ.Type()))
 }
 
 type trivalErroringWatchingSource struct {

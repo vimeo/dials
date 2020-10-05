@@ -100,7 +100,7 @@ func (b *Blank) SetSource(ctx context.Context, s dials.Source) error {
 		return &wrappedErr{prefix: "initial call to Value failed: ", err: err}
 	}
 	b.inner = s
-	if newValErr := b.wa.NewValue(ctx, v); newValErr != nil {
+	if newValErr := b.wa.ReportNewValue(ctx, v); newValErr != nil {
 		return fmt.Errorf("failed to propagate change: %w", newValErr)
 	}
 

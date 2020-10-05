@@ -159,9 +159,9 @@ type watchArgs struct {
 	c chan watchStatusUpdate
 }
 
-// NewValue reports a new value. Returns an error if the internal
+// ReportNewValue reports a new value. Returns an error if the internal
 // reporting channel is full and the context expires/is-canceled.
-func (w *watchArgs) NewValue(ctx context.Context, val reflect.Value) error {
+func (w *watchArgs) ReportNewValue(ctx context.Context, val reflect.Value) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -173,11 +173,11 @@ func (w *watchArgs) NewValue(ctx context.Context, val reflect.Value) error {
 // WatchArgs provides methods for a Watcher implementation to update the state
 // of a Dials instance.
 type WatchArgs interface {
-	// NewValue reports a new value. The base implementation returns an
+	// ReportNewValue reports a new value. The base implementation returns an
 	// error if the internal reporting channel is full and the context
 	// expires/is-canceled, however, wrapping implementations are free to
 	// return any other error as appropriate.
-	NewValue(ctx context.Context, val reflect.Value) error
+	ReportNewValue(ctx context.Context, val reflect.Value) error
 }
 
 // Watcher should be implemented by Sources that allow their configuration to be

@@ -49,7 +49,7 @@ func (f *fakeWatchingSource) Watch(_ context.Context, t *Type, args WatchArgs) e
 }
 
 func (f *fakeWatchingSource) send(ctx context.Context, val reflect.Value) {
-	f.args.NewValue(ctx, val.Convert(f.t.t))
+	f.args.ReportNewValue(ctx, val.Convert(f.t.t))
 }
 
 func TestConfigWithoutVerifier(t *testing.T) {
