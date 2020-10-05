@@ -20,7 +20,7 @@ type WatchedErrorHandler func(ctx context.Context, err error, oldConfig, newConf
 type Params struct {
 	// OnWatchedError is called when either of several conditions are met:
 	//  - There is an error re-stacking the configuration
-	//  -
+	//  - One of the Sources implementing the Watcher interface reports an error
 	//  - a Verify() method fails after re-stacking when a new version is
 	//    provided by a watching source
 	OnWatchedError WatchedErrorHandler
