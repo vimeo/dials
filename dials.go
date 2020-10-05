@@ -46,8 +46,8 @@ type Params struct {
 // consuming from the channel returned by `Events()`.
 func (p Params) Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, error) {
 
-	watcherChan := make(chan *watchTab)
-	computed := make([]sourceValue, 0, len(sources))
+	watcherChan := make(chan watchStatusUpdate)
+	computed := make([]sourceValue, len(sources))
 
 	typeOfT := reflect.TypeOf(t)
 	if typeOfT.Kind() != reflect.Ptr {
@@ -61,26 +61,24 @@ func (p Params) Config(ctx context.Context, t interface{}, sources ...Source) (*
 
 	typeInstance := &Type{ptrify.Pointerify(typeOfT.Elem(), tVal.Elem())}
 	someoneWatching := false
-	for _, source := range sources {
+	for i, source := range sources {
 		s := source
 
 		v, err := source.Value(valueCtx, typeInstance)
 		if err != nil {
 			return nil, err
 		}
-		computed = append(computed, sourceValue{
-			source: s,
-			value:  v,
-		})
+		computed[i] = sourceValue{
+			source:   s,
+			value:    v,
+			watching: false,
+		}
 
 		if w, ok := source.(Watcher); ok {
 			someoneWatching = true
-			err = w.Watch(ctx, typeInstance, func(ctx context.Context, v reflect.Value) {
-				select {
-				case <-ctx.Done():
-				case watcherChan <- &watchTab{source: s, value: v}:
-				}
-			})
+			computed[i].watching = true
+			wa := watchArgs{c: watcherChan, s: source}
+			err = w.Watch(ctx, typeInstance, &wa)
 			if err != nil {
 				return nil, err
 			}
@@ -106,6 +104,7 @@ func (p Params) Config(ctx context.Context, t interface{}, sources ...Source) (*
 		}
 	}
 
+	// After this point, computed is owned by the monitor goroutine
 	if someoneWatching {
 		go d.monitor(ctx, tVal.Interface(), computed, watcherChan)
 	}
@@ -144,9 +143,41 @@ type Decoder interface {
 	Decode(io.Reader, *Type) (reflect.Value, error)
 }
 
-type watchTab struct {
+type valueUpdate struct {
 	source Source
 	value  reflect.Value
+}
+
+func (valueUpdate) isStatusReport() {}
+
+type watchStatusUpdate interface {
+	isStatusReport()
+}
+
+type watchArgs struct {
+	s Source
+	c chan watchStatusUpdate
+}
+
+// ReportNewValue reports a new value. Returns an error if the internal
+// reporting channel is full and the context expires/is-canceled.
+func (w *watchArgs) ReportNewValue(ctx context.Context, val reflect.Value) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case w.c <- &valueUpdate{source: w.s, value: val}:
+		return nil
+	}
+}
+
+// WatchArgs provides methods for a Watcher implementation to update the state
+// of a Dials instance.
+type WatchArgs interface {
+	// ReportNewValue reports a new value. The base implementation returns an
+	// error if the internal reporting channel is full and the context
+	// expires/is-canceled, however, wrapping implementations are free to
+	// return any other error as appropriate.
+	ReportNewValue(ctx context.Context, val reflect.Value) error
 }
 
 // Watcher should be implemented by Sources that allow their configuration to be
@@ -155,7 +186,7 @@ type Watcher interface {
 	// Watch will be called in the primary goroutine calling Config(). If
 	// Watcher implementations need a persistent goroutine, they should
 	// spawn it themselves.
-	Watch(context.Context, *Type, func(context.Context, reflect.Value)) error
+	Watch(context.Context, *Type, WatchArgs) error
 }
 
 // VerifiedConfig implements the Verify method, allowing Dials to execute the
@@ -205,47 +236,61 @@ func (d *Dials) Fill(blankConfig interface{}) {
 	bVal.Elem().Set(currentVal.Elem())
 }
 
+func (d *Dials) updateSourceValue(
+	ctx context.Context,
+	t interface{},
+	sourceValues []sourceValue,
+	watchTab *valueUpdate,
+) {
+	for i, sv := range sourceValues {
+		if watchTab.source == sv.source {
+			sourceValues[i].value = watchTab.value
+			break
+		}
+	}
+	newInterface, stackErr := compose(t, sourceValues)
+	if stackErr != nil {
+		if d.params.OnWatchedError != nil {
+			d.params.OnWatchedError(
+				ctx, stackErr, d.value.Load(), newInterface)
+		}
+		return
+	}
+
+	// Verify that the configuration is valid if a Verify() method is present.
+	if vf, ok := newInterface.(VerifiedConfig); ok {
+		if vfErr := vf.Verify(); vfErr != nil {
+			if d.params.OnWatchedError != nil {
+				d.params.OnWatchedError(
+					ctx, vfErr, d.value.Load(), newInterface)
+			}
+			return
+		}
+	}
+
+	d.value.Store(newInterface)
+	select {
+	case d.updatesChan <- newInterface:
+	default:
+	}
+}
+
 func (d *Dials) monitor(
 	ctx context.Context,
 	t interface{},
 	sourceValues []sourceValue,
-	watcherChan chan *watchTab,
+	watcherChan chan watchStatusUpdate,
 ) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case watchTab := <-watcherChan:
-			for i, sv := range sourceValues {
-				if watchTab.source == sv.source {
-					sourceValues[i].value = watchTab.value
-					break
-				}
-			}
-			newInterface, stackErr := compose(t, sourceValues)
-			if stackErr != nil {
-				if d.params.OnWatchedError != nil {
-					d.params.OnWatchedError(
-						ctx, stackErr, d.value.Load(), newInterface)
-				}
-				continue
-			}
-
-			// Verify that the configuration is valid if a Verify() method is present.
-			if vf, ok := newInterface.(VerifiedConfig); ok {
-				if vfErr := vf.Verify(); vfErr != nil {
-					if d.params.OnWatchedError != nil {
-						d.params.OnWatchedError(
-							ctx, vfErr, d.value.Load(), newInterface)
-					}
-					continue
-				}
-			}
-
-			d.value.Store(newInterface)
-			select {
-			case d.updatesChan <- newInterface:
+			switch v := watchTab.(type) {
+			case *valueUpdate:
+				d.updateSourceValue(ctx, t, sourceValues, v)
 			default:
+				panic(fmt.Errorf("unexpected type %[1]T: %+[1]v", watchTab))
 			}
 		}
 	}
@@ -272,8 +317,9 @@ func compose(t interface{}, sources []sourceValue) (interface{}, error) {
 }
 
 type sourceValue struct {
-	source Source
-	value  reflect.Value
+	source   Source
+	value    reflect.Value
+	watching bool
 }
 
 // Type is a wrapper for a reflect.Type.

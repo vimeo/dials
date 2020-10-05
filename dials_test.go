@@ -38,18 +38,18 @@ func (f *fakeSource) Value(_ context.Context, t *Type) (reflect.Value, error) {
 
 type fakeWatchingSource struct {
 	fakeSource
-	t  *Type
-	cb func(context.Context, reflect.Value)
+	t    *Type
+	args WatchArgs
 }
 
-func (f *fakeWatchingSource) Watch(_ context.Context, t *Type, cb func(context.Context, reflect.Value)) error {
-	f.cb = cb
+func (f *fakeWatchingSource) Watch(_ context.Context, t *Type, args WatchArgs) error {
+	f.args = args
 	f.t = t
 	return nil
 }
 
 func (f *fakeWatchingSource) send(ctx context.Context, val reflect.Value) {
-	f.cb(ctx, val.Convert(f.t.t))
+	f.args.ReportNewValue(ctx, val.Convert(f.t.t))
 }
 
 func TestConfigWithoutVerifier(t *testing.T) {

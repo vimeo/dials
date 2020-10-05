@@ -2,6 +2,7 @@ package sourcewrap
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"reflect"
 
@@ -88,31 +89,34 @@ func (t *transformingSourceNoWatch) Value(ctx context.Context, typ *dials.Type) 
 
 }
 
+type wrappedWatchArgs struct {
+	dials.WatchArgs
+	tfm *transform.Transformer
+}
+
+func (w *wrappedWatchArgs) NewValue(ctx context.Context, val reflect.Value) error {
+	unmangledVal, unmangleErr := w.tfm.ReverseTranslate(val)
+	if unmangleErr != nil {
+		return fmt.Errorf("failed to unmangle value: %w", unmangleErr)
+	}
+	return w.NewValue(ctx, unmangledVal)
+}
+
 type transformingSourceWithWatch struct {
 	// embed the watch-less version
 	transformingSourceNoWatch
 	src dials.Watcher
 }
 
-func (t *transformingSourceWithWatch) Watch(ctx context.Context, typ *dials.Type, cb func(context.Context, reflect.Value)) error {
+func (t *transformingSourceWithWatch) Watch(ctx context.Context, typ *dials.Type, args dials.WatchArgs) error {
 	tfm := transform.NewTransformer(typ.Type(), t.manglers...)
 	transformedVal, transformErr := tfm.TranslateType()
 	if transformErr != nil {
 		return &wrappedErr{prefix: "transform failed: ", err: transformErr}
 	}
-	wrappedCB := func(ctx context.Context, val reflect.Value) {
-		unmangledVal, unmangleErr := tfm.ReverseTranslate(val)
-		if unmangleErr != nil {
-			// TODO: update Watcher interface so cb returns an
-			// error (which could also function to indicate to the
-			// watching-source that the context was View's context
-			// was cancelled or the local-context was cancelled)
-			return
-		}
-		cb(ctx, unmangledVal)
-	}
+	wrappedCB := wrappedWatchArgs{WatchArgs: args, tfm: tfm}
 	innerTyp := dials.NewType(transformedVal)
-	srcWatchErr := t.src.Watch(ctx, innerTyp, wrappedCB)
+	srcWatchErr := t.src.Watch(ctx, innerTyp, &wrappedCB)
 	if srcWatchErr != nil {
 		return &wrappedErr{prefix: "failed to setup watcher: ", err: srcWatchErr}
 	}

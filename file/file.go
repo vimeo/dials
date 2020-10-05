@@ -189,7 +189,7 @@ var _ dials.Watcher = (*WatchingSource)(nil)
 func (ws *WatchingSource) Watch(
 	ctx context.Context,
 	t *dials.Type,
-	callback func(context.Context, reflect.Value)) error {
+	args dials.WatchArgs) error {
 	cleanedPath := filepath.Clean(ws.path)
 
 	// remove one-level of symlinks
@@ -220,7 +220,7 @@ func (ws *WatchingSource) Watch(
 	}
 
 	ws.WG.Add(1)
-	go ws.watchLoop(ctx, t, cleanedPath, resolvedCfgPath, callback)
+	go ws.watchLoop(ctx, t, cleanedPath, resolvedCfgPath, args)
 	return nil
 }
 
@@ -251,7 +251,7 @@ func (ws *WatchingSource) watchLoop(
 	ctx context.Context,
 	t *dials.Type,
 	cleanedPath, resolvedCfgPath string,
-	callback func(context.Context, reflect.Value),
+	args dials.WatchArgs,
 ) {
 	defer ws.WG.Done()
 	defer signal.Stop(ws.Reload)
@@ -337,7 +337,7 @@ MAINLOOP:
 			continue
 		}
 
-		callback(ctx, newVal)
+		args.ReportNewValue(ctx, newVal)
 	}
 
 }

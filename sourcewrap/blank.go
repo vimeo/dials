@@ -21,9 +21,12 @@ type Blank struct {
 	// arguments to Watch() so we can use them later, and pass them on if the
 	// new Source is a Watcher.
 	watchCtx context.Context
-	cb       func(context.Context, reflect.Value)
+	wa       dials.WatchArgs
 	t        *dials.Type
 }
+
+var _ dials.Source = (*Blank)(nil)
+var _ dials.Watcher = (*Blank)(nil)
 
 func (b *Blank) getInner() dials.Source {
 	b.mu.Lock()
@@ -44,14 +47,14 @@ func (b *Blank) Value(ctx context.Context, t *dials.Type) (reflect.Value, error)
 // Watch implements the dials.Watcher interface.
 // It is necessary so calls to SetSource can notify the containing View of a new value.
 func (b *Blank) Watch(ctx context.Context,
-	t *dials.Type, cb func(context.Context, reflect.Value)) error {
+	t *dials.Type, wa dials.WatchArgs) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.t != nil {
 		return fmt.Errorf("blank has already been used, with type %s", b.t.Type())
 	}
 	b.t = t
-	b.cb = cb
+	b.wa = wa
 	b.watchCtx = ctx
 	return nil
 }
@@ -73,6 +76,10 @@ func (w *wrappedErr) Unwrap() error {
 // The new Source's Value() method will be called, and the return value will be
 // pushed to the view via the asynchronous watch interface.
 // If the new Source implements dials.Watcher, its Watch method will be called.
+//
+// It is safe to call SetSource multiple times with different Sources, however,
+// once a Watcher is set as the inner source, it takes over ownership of the
+// state for the slot and cannot be replaced.
 func (b *Blank) SetSource(ctx context.Context, s dials.Source) error {
 	if s == nil {
 		return fmt.Errorf("cannot pass a nil source to *Blank.SetSource with type %s",
@@ -80,15 +87,25 @@ func (b *Blank) SetSource(ctx context.Context, s dials.Source) error {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	if b.inner != nil {
+		if _, isWatcher := b.inner.(dials.Watcher); isWatcher {
+			return fmt.Errorf("disallowed attempt to replace Watcher Source: %T",
+				b.inner)
+		}
+	}
+
 	v, err := s.Value(ctx, b.t)
 	if err != nil {
 		return &wrappedErr{prefix: "initial call to Value failed: ", err: err}
 	}
 	b.inner = s
-	b.cb(ctx, v)
+	if newValErr := b.wa.ReportNewValue(ctx, v); newValErr != nil {
+		return fmt.Errorf("failed to propagate change: %w", newValErr)
+	}
 
 	if w, ok := s.(dials.Watcher); ok {
-		wErr := w.Watch(b.watchCtx, b.t, b.cb)
+		wErr := w.Watch(b.watchCtx, b.t, b.wa)
 		if wErr != nil {
 			return &wrappedErr{prefix: "call to Watch failed: ", err: wErr}
 		}
