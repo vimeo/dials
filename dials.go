@@ -17,6 +17,12 @@ import (
 // newConfig will be nil for errors that prevent stacking.
 type WatchedErrorHandler func(ctx context.Context, err error, oldConfig, newConfig interface{})
 
+// NewConfigHandler is a callback that's called after a new config is installed.
+// Callbacks are run on a dedicated Goroutine, so one can do expensive/blocking
+// work in this callback, however, execution should not last longer than the
+// interval between new configs.
+type NewConfigHandler func(ctx context.Context, oldConfig, newConfig interface{})
+
 // Params provides options for setting Dials's behavior in some cases.
 type Params struct {
 	// OnWatchedError is called when either of several conditions are met:
@@ -33,6 +39,14 @@ type Params struct {
 	// provide a configuration that will be allowed by Verify(), one should set
 	// this to true.  See `sourcewrap.Blank` for more details.
 	SkipInitialVerification bool
+
+	// OnNewConfig is called when a new (valid) configuration is installed.
+	//
+	// OnNewConfig runs on the same "callback" goroutine as the
+	// OnWatchedError callback, with callbacks being executed in-order.
+	// In the event that a call to OnNewConfig blocks too long, some calls
+	// may be dropped.
+	OnNewConfig NewConfigHandler
 }
 
 // Config populates the passed in config struct by reading the values from the
@@ -299,12 +313,13 @@ func (d *Dials) Fill(blankConfig interface{}) {
 	bVal.Elem().Set(currentVal.Elem())
 }
 
+// returns the new value (if any)
 func (d *Dials) updateSourceValue(
 	ctx context.Context,
 	t interface{},
 	sourceValues []sourceValue,
 	watchTab *valueUpdate,
-) {
+) interface{} {
 	for i, sv := range sourceValues {
 		if watchTab.source == sv.source {
 			sourceValues[i].value = watchTab.value
@@ -316,7 +331,7 @@ func (d *Dials) updateSourceValue(
 		d.submitEvent(ctx, &watchErrorEvent{
 			err: stackErr, oldConfig: d.value.Load(), newConfig: newInterface,
 		})
-		return
+		return nil
 	}
 
 	// Verify that the configuration is valid if a Verify() method is present.
@@ -325,7 +340,7 @@ func (d *Dials) updateSourceValue(
 			d.submitEvent(ctx, &watchErrorEvent{
 				err: vfErr, oldConfig: d.value.Load(), newConfig: newInterface,
 			})
-			return
+			return nil
 		}
 	}
 
@@ -334,6 +349,8 @@ func (d *Dials) updateSourceValue(
 	case d.updatesChan <- newInterface:
 	default:
 	}
+
+	return newInterface
 }
 
 func (d *Dials) markSourceDone(
@@ -387,7 +404,14 @@ func (d *Dials) monitor(
 		case watchTab := <-watcherChan:
 			switch v := watchTab.(type) {
 			case *valueUpdate:
-				d.updateSourceValue(ctx, t, sourceValues, v)
+				oldConfig := d.value.Load()
+				newConfig := d.updateSourceValue(ctx, t, sourceValues, v)
+				if newConfig != nil {
+					d.submitEvent(ctx, &newConfigEvent{
+						oldConfig: oldConfig,
+						newConfig: newConfig,
+					})
+				}
 			case *watchErrorReport:
 				d.submitEvent(ctx, &watchErrorEvent{
 					err: fmt.Errorf("error reported by source of type %T: %w",

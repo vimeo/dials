@@ -431,3 +431,69 @@ func TestWatcherWithDoneAndErrorCallback(t *testing.T) {
 	default:
 	}
 }
+
+func TestConfigWithNewConfigCallback(t *testing.T) {
+	t.Parallel()
+	type testConfig struct {
+		Foo string
+	}
+
+	type ptrifiedConfig struct {
+		Foo *string
+	}
+
+	base := testConfig{
+		Foo: "foo",
+	}
+	emptyConf := ptrifiedConfig{
+		Foo: nil,
+	}
+	// Push a new value, that should overlay on top of the base
+	foozleStr := "foozle"
+	foozleConfig := ptrifiedConfig{
+		Foo: &foozleStr,
+	}
+
+	// setup a cancelable context so the monitor goroutine gets shutdown.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	oldConf := make(chan *testConfig, 1)
+	newConf := make(chan *testConfig)
+	w := fakeWatchingSource{fakeSource: fakeSource{outVal: foozleConfig}}
+	p := Params{
+		OnWatchedError:          nil,
+		SkipInitialVerification: false,
+		OnNewConfig: func(ctx context.Context, oldConfig interface{}, newConfig interface{}) {
+			oldConf <- oldConfig.(*testConfig)
+			newConf <- newConfig.(*testConfig)
+		},
+	}
+	d, err := p.Config(ctx, &base, &fakeSource{outVal: emptyConf}, &w)
+	require.NoError(t, err)
+
+	// pull in the existing value and verify that it works as intended.
+	// overwrite our original "base" to verify deep-copying is doing its job.
+	d.Fill(&base)
+	assert.Equal(t, "foozle", base.Foo)
+
+	// Push a new value, that should overlay on top of the base
+	fimStr := "fim"
+	fimConfig := ptrifiedConfig{
+		Foo: &fimStr,
+	}
+	w.send(ctx, reflect.ValueOf(fimConfig))
+	c := <-newConf
+	assert.Equal(t, "fim", c.Foo)
+	oc := <-oldConf
+	assert.Equal(t, "foozle", oc.Foo)
+	assert.Equal(t, "fim", d.View().(*testConfig).Foo)
+
+	// push another empty config
+	w.send(ctx, reflect.ValueOf(emptyConf))
+	finalConf := <-newConf
+	assert.Equal(t, "foo", finalConf.Foo)
+	ocFinal := <-oldConf
+	assert.Equal(t, "fim", ocFinal.Foo)
+	assert.Equal(t, "foo", d.View().(*testConfig).Foo)
+}
