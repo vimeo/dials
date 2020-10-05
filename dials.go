@@ -341,6 +341,8 @@ func (d *Dials) markSourceDone(
 	}
 
 	// check whether any sources have watching set to true
+	// (using a loop here because it's not worth maintaining an extra
+	// datastructure for an infrequent operation)
 	for _, sv := range sourceValues {
 		if sv.watching {
 			return true
@@ -355,6 +357,7 @@ func (d *Dials) monitor(
 	sourceValues []sourceValue,
 	watcherChan chan watchStatusUpdate,
 ) {
+	defer close(d.cbch)
 	for {
 		select {
 		case <-ctx.Done():
