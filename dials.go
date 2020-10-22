@@ -24,6 +24,13 @@ type Params struct {
 	//  - a Verify() method fails after re-stacking when a new version is
 	//    provided by a watching source
 	OnWatchedError WatchedErrorHandler
+
+	// SkipInitialVerification doesn't run the initial verification that would
+	// generally happen while calling `Config`.  This is useful when there are
+	// `Blank` sources that have dependent values in other sources and we don't
+	// expect to have a fully valid config until the Blank is appropriately
+	// replaced.  See the `ez` package.
+	SkipInitialVerification bool
 }
 
 // Config populates the passed in config struct by reading the values from the
@@ -98,7 +105,7 @@ func (p Params) Config(ctx context.Context, t interface{}, sources ...Source) (*
 	d.value.Store(newValue)
 
 	// Verify that the configuration is valid if a Verify() method is present.
-	if vf, ok := newValue.(VerifiedConfig); ok {
+	if vf, ok := newValue.(VerifiedConfig); ok && !p.SkipInitialVerification {
 		if vfErr := vf.Verify(); vfErr != nil {
 			return nil, fmt.Errorf("Initial configuration verification failed: %w", vfErr)
 		}

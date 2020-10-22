@@ -157,6 +157,7 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 				}
 			}
 		},
+		SkipInitialVerification: true,
 	}
 
 	d, err := p.Config(ctx, cfg, &blank, &env.Source{}, flagSrc)
@@ -167,6 +168,15 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 	basecfg := d.View().(ConfigWithConfigPath)
 	cfgPath, filepathSet := basecfg.ConfigPath()
 	if !filepathSet {
+		// Since we disabled initial verification earlier, let's verify
+		// specifically given that, without a config file, there's no
+		// opportunity for other values to be introduced into the configuration.
+		if vf, ok := basecfg.(dials.VerifiedConfig); ok {
+			if vfErr := vf.Verify(); vfErr != nil {
+				return nil, fmt.Errorf("Initial configuration verification failed: %w", vfErr)
+			}
+		}
+
 		// The callback indicated that we shouldn't read any config
 		// file after all.
 		return d, nil
