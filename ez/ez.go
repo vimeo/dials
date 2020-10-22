@@ -168,9 +168,9 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 	basecfg := d.View().(ConfigWithConfigPath)
 	cfgPath, filepathSet := basecfg.ConfigPath()
 	if !filepathSet {
-		// Since we disabled initial verification earlier, let's verify
-		// specifically given that, without a config file, there's no
-		// opportunity for other values to be introduced into the configuration.
+		// Since we disabled initial verification earlier verify the config explicitly.
+		// Without a config file, the sources never get re-stacked, so the `Verify()`
+		// method is never run by `dials.Config`.
 		if vf, ok := basecfg.(dials.VerifiedConfig); ok {
 			if vfErr := vf.Verify(); vfErr != nil {
 				return nil, fmt.Errorf("Initial configuration verification failed: %w", vfErr)
