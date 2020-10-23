@@ -157,6 +157,9 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 				}
 			}
 		},
+		// Skip the initial verification to allow files to provide values that
+		// will be considered during verification.  If a file source isn't
+		// provided we'll appropriately call Verify before returning.
 		SkipInitialVerification: true,
 	}
 

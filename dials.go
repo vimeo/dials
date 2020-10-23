@@ -26,12 +26,11 @@ type Params struct {
 	OnWatchedError WatchedErrorHandler
 
 	// SkipInitialVerification skips the initial call to `Verify()` on any
-	// configurations that implement the `VerifiedConfig` interface.  In cases
-	// where Watching sources are depended upon to provide values that will
-	// successfully verify on the very first access, one should set this to
-	// `true`.  `sourcewrap.Blank` is one such example where values are not
-	// initially available and would not be able to be considered for initial
-	// verification.
+	// configurations that implement the `VerifiedConfig` interface.
+	//
+	// In cases where later updates from Watching sources are depended upon to
+	// provide a configuration that will be allowed by Verify(), one should set
+	// this to true.  See `sourcewrap.Blank` for more details.
 	SkipInitialVerification bool
 }
 
