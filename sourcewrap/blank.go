@@ -9,12 +9,24 @@ import (
 	"github.com/vimeo/dials"
 )
 
-// Blank operates as a blank source in its default state, but has a SetSource
-// method for setting the source later, it then uses the dials.Watcher
-// interface to update the View it's inserted into.
+// Blank operates as a blank Source in its default state. It provides a
+// SetSource method for updating the inner Source later and uses the
+// dials.Watcher interface to update the View it's inserted into.
 //
 // Blanks cannot be reused as they have to be aware of parameters of a
 // particular View.
+//
+// Note that when using this, consider setting `SkipInitialVerification` on
+// `dials.Params` to `true` if any data from Blank-wrapped sources is considered
+// critical by the `Verify()` method provided by a configuration implementing
+// `dials.VerifiedConfig`.
+//
+// For instance, consider when one's configuration implements
+// `dials.VerifiedConfig` and should receive data from two Sources, one being
+// wrapped by `sourcewrap.Blank`. When `SkipInitialVerification` is `false`,
+// `params.Config` will call `Verify()` before the Blank-wrapped source has a
+// chance to have its inner Source updated. Therefore, this initial call to
+// `Verify()` will only have data provided by the non-Blank-wrapped source.
 type Blank struct {
 	inner dials.Source
 	mu    sync.Mutex

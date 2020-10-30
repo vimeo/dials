@@ -72,6 +72,12 @@ func (c *validatingConfig) ConfigPath() (string, bool) {
 }
 
 func (c *validatingConfig) Verify() error {
+	// check for the zero value, so we can distinguish between unset and set to
+	// something bad.
+	if c.Val1 == 0 {
+		return fmt.Errorf("val1 unset")
+	}
+
 	if c.Val1 > 200 {
 		return fmt.Errorf("val1 %d > 200", c.Val1)
 	}
@@ -91,8 +97,8 @@ func TestYAMLConfigEnvFlagWithValidatingConfig(t *testing.T) {
 	defer os.Remove(path)
 
 	c := &validatingConfig{Path: path}
-	view, dialsErr := YAMLConfigEnvFlag(ctx, c)
-	assert.NotNil(t, view)
+	d, dialsErr := YAMLConfigEnvFlag(ctx, c)
+	assert.NotNil(t, d)
 	require.EqualError(t, dialsErr, "failed to stack/verify config with file layered: val1 789 > 200")
 }
 

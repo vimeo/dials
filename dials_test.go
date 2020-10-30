@@ -149,6 +149,40 @@ func TestConfigWithFailVerifier(t *testing.T) {
 	}
 }
 
+func TestConfigWithSkippedInitialVerify(t *testing.T) {
+	t.Parallel()
+	type testConfig struct {
+		failVerifier
+		Foo string
+	}
+
+	type ptrifiedConfig struct {
+		Foo *string
+	}
+
+	base := testConfig{
+		Foo: "foo",
+	}
+	emptyConf := ptrifiedConfig{
+		Foo: nil,
+	}
+	// Push a new value, that should overlay on top of the base
+	foozleStr := "foozle"
+	foozleConfig := ptrifiedConfig{
+		Foo: &foozleStr,
+	}
+
+	// setup a cancelable context so the monitor goroutine gets shutdown.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	w := fakeWatchingSource{fakeSource: fakeSource{outVal: foozleConfig}}
+	_, err := Params{
+		SkipInitialVerification: true,
+	}.Config(ctx, &base, &fakeSource{outVal: emptyConf}, &w)
+	assert.NoError(t, err)
+}
+
 // successVerifier is a struct with a Verify() method that never fails with an error
 type successVerifier struct{}
 
