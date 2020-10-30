@@ -23,10 +23,12 @@ func TestReformatdialsTag(t *testing.T) {
 }
 
 func TestNoTag(t *testing.T) {
-	trm := NewTagReformattingMangler(common.DialsTagName, caseconversion.DecodeLowerCamelCase, caseconversion.EncodeLowerSnakeCase)
-	sf := reflect.StructField{}
+	trm := NewTagReformattingMangler(common.DialsTagName, caseconversion.DecodeGoCamelCase, caseconversion.EncodeLowerSnakeCase)
+	sf := reflect.StructField{
+		Name: "FieldName",
+	}
 	newSFSlice, err := trm.Mangle(sf)
 	require.Len(t, newSFSlice, 1)
 	require.NoError(t, err)
-	assert.Equal(t, "", string(newSFSlice[0].Tag))
+	assert.Equal(t, `dials:"field_name"`, string(newSFSlice[0].Tag))
 }

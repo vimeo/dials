@@ -33,11 +33,16 @@ func NewTagReformattingMangler(tagName string,
 // Mangle is called for every field in a struct, and returns the value
 // unchanged other than replacing the specified tag.
 func (k *TagReformattingMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, error) {
-	dialsVal := sf.Tag.Get(k.tag)
-	if dialsVal == "" {
-		return []reflect.StructField{sf}, nil
+	nameVal := sf.Tag.Get(k.tag)
+	dcf := k.decodeCasingFunc
+	if nameVal == "" {
+		// There was no name defined, so just fall back to the field name and
+		// force the decoder to use Go conventions.
+		nameVal = sf.Name
+		dcf = caseconversion.DecodeGoCamelCase
 	}
-	splitTagVal, err := k.decodeCasingFunc(dialsVal)
+
+	splitTagVal, err := dcf(nameVal)
 	if err != nil {
 		return nil, err
 	}

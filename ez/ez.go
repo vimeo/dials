@@ -7,12 +7,15 @@ import (
 	"strings"
 
 	"github.com/vimeo/dials"
+	"github.com/vimeo/dials/common"
 	"github.com/vimeo/dials/env"
 	"github.com/vimeo/dials/file"
 	"github.com/vimeo/dials/flag"
 	"github.com/vimeo/dials/json"
 	"github.com/vimeo/dials/pflag"
 	"github.com/vimeo/dials/sourcewrap"
+	"github.com/vimeo/dials/tagformat"
+	"github.com/vimeo/dials/tagformat/caseconversion"
 	"github.com/vimeo/dials/toml"
 	"github.com/vimeo/dials/transform"
 	"github.com/vimeo/dials/yaml"
@@ -27,6 +30,8 @@ type dialsOptions struct {
 	autoSetToSlice bool
 	flagSubstitute dials.Source
 	onWatchedError dials.WatchedErrorHandler
+	fileKeyDecoder caseconversion.DecodeCasingFunc
+	fileKeyEncoder caseconversion.EncodeCasingFunc
 }
 
 func getDefaultOption() *dialsOptions {
@@ -36,6 +41,8 @@ func getDefaultOption() *dialsOptions {
 		autoSetToSlice: true,
 		flagSubstitute: nil,
 		onWatchedError: nil,
+		fileKeyEncoder: nil,
+		fileKeyDecoder: nil,
 	}
 }
 
@@ -67,6 +74,23 @@ func WithAutoSetToSlice(enabled bool) Option {
 // file-watching is enabled)
 func WithOnWatchedError(cb dials.WatchedErrorHandler) Option {
 	return func(d *dialsOptions) { d.onWatchedError = cb }
+}
+
+// WithFileKeyNaming provides a method for manipulating the casing of the keys
+// in the configuration file.  The decoder argument indicates how to interpret
+// the `dials` tag's formatting.  If the `dials` tag is unspecified, the struct
+// field's name will be used.  The encoder argument should indicate the format
+// that dials should expect to find in the file.  For instance if you leave the
+// `dials` tag unspecified and want a field named `SecretValues` in your
+// configuration to map to a value in your config named "secret-values" you
+// should call: WithFileKeyNaming(caseconversion.DecodeGoCamelCase,
+// caseconversion.EncodeKebabCase). Note that this does not affect the flags or
+// environment naming.  To manipulate flag naming, see `WithFlagConfig`.
+func WithFileKeyNaming(decoder caseconversion.DecodeCasingFunc, encoder caseconversion.EncodeCasingFunc) Option {
+	return func(d *dialsOptions) {
+		d.fileKeyDecoder = decoder
+		d.fileKeyEncoder = encoder
+	}
 }
 
 // DecoderFactory should return the appropriate decoder based on the config file
@@ -190,10 +214,26 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 		return nil, fmt.Errorf("decoderFactory provided a nil decoder")
 	}
 
+	manglers := make([]transform.Mangler, 0, 2)
+
+	if option.fileKeyEncoder != nil && option.fileKeyDecoder != nil {
+		manglers = append(
+			manglers,
+			tagformat.NewTagReformattingMangler(
+				common.DialsTagName, option.fileKeyDecoder, option.fileKeyEncoder,
+			),
+		)
+	}
+
 	if option.autoSetToSlice {
+		manglers = append(manglers, &transform.SetSliceMangler{})
+	}
+
+	// add the manglers if any options called for them
+	if len(manglers) > 0 {
 		decoder = sourcewrap.NewTransformingDecoder(
 			decoder,
-			&transform.SetSliceMangler{},
+			manglers...,
 		)
 	}
 
