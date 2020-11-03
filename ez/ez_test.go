@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/vimeo/dials/tagformat/caseconversion"
 )
 
 type config struct {
@@ -53,6 +55,38 @@ func TestYAMLConfigEnvFlagWithValidConfig(t *testing.T) {
 		},
 	}
 	populatedConf := view.View().(*config)
+	assert.EqualValues(t, expectedConfig, *populatedConf)
+}
+
+type beatlesConfig struct {
+	YAMLPath       string
+	BeatlesMembers map[string]string
+}
+
+// ConfigPath reflects where the path to config file is stored. Path field
+// will be populated from environment variable
+func (bc *beatlesConfig) ConfigPath() (string, bool) {
+	return bc.YAMLPath, true
+}
+
+func TestYAMLConfigEnvFlagWithFileKeyNaming(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	c := &beatlesConfig{YAMLPath: "../testhelper/testconfig.yaml"}
+	view, dialsErr := YAMLConfigEnvFlag(ctx, c, WithFileKeyNaming(caseconversion.DecodeGoCamelCase, caseconversion.EncodeKebabCase))
+	require.NoError(t, dialsErr)
+
+	expectedConfig := beatlesConfig{
+		YAMLPath: "../testhelper/testconfig.yaml",
+		BeatlesMembers: map[string]string{
+			"John":   "guitar",
+			"Paul":   "bass",
+			"George": "guitar",
+			"Ringo":  "drums",
+		},
+	}
+	populatedConf := view.View().(*beatlesConfig)
 	assert.EqualValues(t, expectedConfig, *populatedConf)
 }
 
