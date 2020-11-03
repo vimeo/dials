@@ -26,10 +26,13 @@ type Option func(*dialsOptions)
 
 type dialsOptions struct {
 	watch          bool
-	flagConfig     *flag.NameConfig
-	autoSetToSlice bool
-	flagSubstitute dials.Source
 	onWatchedError dials.WatchedErrorHandler
+
+	flagConfig     *flag.NameConfig
+	flagSubstitute dials.Source
+
+	autoSetToSlice bool
+
 	fileKeyDecoder caseconversion.DecodeCasingFunc
 	fileKeyEncoder caseconversion.EncodeCasingFunc
 }
@@ -37,12 +40,15 @@ type dialsOptions struct {
 func getDefaultOption() *dialsOptions {
 	return &dialsOptions{
 		watch:          false,
-		flagConfig:     flag.DefaultFlagNameConfig(),
-		autoSetToSlice: true,
-		flagSubstitute: nil,
 		onWatchedError: nil,
-		fileKeyEncoder: nil,
+
+		flagConfig:     flag.DefaultFlagNameConfig(),
+		flagSubstitute: nil,
+
+		autoSetToSlice: true,
+
 		fileKeyDecoder: nil,
+		fileKeyEncoder: nil,
 	}
 }
 
