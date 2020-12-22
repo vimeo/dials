@@ -131,14 +131,14 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		},
 		"complex64": {
 			StructFieldType: reflect.TypeOf(complex64(10 + 3i)),
-			StringValue:     "10 + 3i",
+			StringValue:     "10+3i",
 			AssertFunc: func(i interface{}) {
 				assert.Equal(t, complex64(10+3i), *(i.(*complex64)))
 			},
 		},
 		"complex128": {
 			StructFieldType: reflect.TypeOf(complex128(10 + 3i)),
-			StringValue:     "10 + 3i",
+			StringValue:     "10+3i",
 			AssertFunc: func(i interface{}) {
 				assert.Equal(t, complex128(10+3i), *(i.(*complex128)))
 			},
@@ -193,7 +193,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		},
 		"complex128_slice": {
 			StructFieldType: reflect.TypeOf([]complex128{}),
-			StringValue:     `"10 + 3i", "5 + 2i", "3 + 3i"`,
+			StringValue:     `"10+3i", "5+2i", "3+3i"`,
 			AssertFunc: func(i interface{}) {
 				expected := []complex128{10 + 3i, 5 + 2i, 3 + 3i}
 				actual := i.([]complex128)
