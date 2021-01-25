@@ -101,6 +101,12 @@ func TestPFlags(t *testing.T) {
 			expected: &struct{ A int }{A: 42},
 		},
 		{
+			name:     "basic_float32_set",
+			tmpl:     &struct{ A float32 }{A: 4.5},
+			args:     []string{"--a=42.5"},
+			expected: &struct{ A float32 }{A: 42.5},
+		},
+		{
 			name:     "basic_string_defaulted",
 			tmpl:     &struct{ A string }{A: "foobar"},
 			args:     []string{},
