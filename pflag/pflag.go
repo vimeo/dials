@@ -263,7 +263,7 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 		case reflect.Float64:
 			f = s.Flags.Float64P(name, shorthand, fieldVal.Interface().(float64), help)
 		case reflect.Float32:
-			f = s.Flags.Float64P(name, shorthand, float64(fieldVal.Interface().(float32)), help)
+			f = s.Flags.Float32P(name, shorthand, fieldVal.Interface().(float32), help)
 		case reflect.Complex64:
 			f = fieldVal.Addr().Interface()
 			s.Flags.VarP(flaghelper.NewComplex64Var(fieldVal.Addr().Interface().(*complex64)), name, shorthand, help)
