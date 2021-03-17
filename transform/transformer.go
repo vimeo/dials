@@ -32,9 +32,10 @@ type Mangler interface {
 
 type fieldTransformPair struct {
 	field reflect.StructField
-	// If this field is a struct-type (or pointer-to-struct) and the
-	// associated Mangler requested recursion on the original field, we
-	// record the Transformer used for that recursive translation here.
+	// If this field is a struct-type (or pointer-to-struct, or
+	// slice-of-struct, or array-of-struct) and the associated Mangler
+	// requested recursion on the original field, we record the Transformer
+	// used for that recursive translation here.
 	transform *Transformer
 }
 
@@ -101,11 +102,11 @@ func unpackValueFields(v reflect.Value) []FieldValueTuple {
 	return out
 }
 
-func isStructTypedField(field reflect.StructField) bool {
+func isStructishTypedField(field reflect.StructField) bool {
 	switch field.Type.Kind() {
 	case reflect.Struct:
 		return true
-	case reflect.Ptr:
+	case reflect.Ptr, reflect.Array, reflect.Slice:
 		if field.Type.Elem().Kind() == reflect.Struct {
 			return true
 		}
@@ -120,15 +121,16 @@ func (t *Transformer) maybeRecursivelyMangle(mangler Mangler, state *transformMa
 	// copy fields into another equal-length-slice
 	out := append([]reflect.StructField{}, fields...)
 	for i, field := range fields {
-		if !isStructTypedField(field) {
+		if !isStructishTypedField(field) {
 			continue
 		}
 		if !mangler.ShouldRecurse(field) {
 			continue
 		}
 		ft := field.Type
-		// strip any outer pointerification
-		if ft.Kind() == reflect.Ptr {
+		// strip any outer pointerification, slice or array
+		switch ft.Kind() {
+		case reflect.Ptr, reflect.Array, reflect.Slice:
 			ft = ft.Elem()
 		}
 		fieldTransformer := Transformer{
@@ -142,9 +144,14 @@ func (t *Transformer) maybeRecursivelyMangle(mangler Mangler, state *transformMa
 			return nil, fmt.Errorf("failed to mangle field %d (name %s): %s",
 				i, field.Name, manglingErr)
 		}
-		// Reinstate pointerification
-		if field.Type.Kind() == reflect.Ptr {
+		// Reinstate pointerification, etc.
+		switch field.Type.Kind() {
+		case reflect.Ptr:
 			mangledType = reflect.PtrTo(mangledType)
+		case reflect.Array:
+			mangledType = reflect.ArrayOf(field.Type.Len(), mangledType)
+		case reflect.Slice:
+			mangledType = reflect.SliceOf(mangledType)
 		}
 		out[i].Type = mangledType
 	}
@@ -226,31 +233,59 @@ func (t *Transformer) maybeRecursivelyUnmangle(
 	fieldState *transformMappingElement, mangledField []FieldValueTuple) ([]FieldValueTuple, *UnmangleError) {
 
 	mf := append([]FieldValueTuple{}, mangledField...)
+FIELDITER:
 	for z, field := range mangledField {
 		fieldTransformer := fieldState.out[z].transform
 		if fieldTransformer == nil {
 			continue
 		}
 		v := field.Value
-		isPtr := false
-		if v.Kind() == reflect.Ptr {
+		origKind := v.Kind()
+		switch origKind {
+		case reflect.Ptr:
 			if v.IsNil() {
 				// if it's nil, skip it, the unmangler isn't
 				// going to do anything useful on the field of
 				// a struct pointed to by a nil-pointer.
-				continue
+				continue FIELDITER
 			}
 			v = v.Elem()
-			isPtr = true
-		}
-		unmangledVal, unmangleErr := fieldTransformer.ReverseTranslate(v)
-		if unmangleErr != nil {
-			return nil, &UnmangleError{Err: unmangleErr, ErrString: fmt.Sprintf("failed to recursively inverse transform field %s: %s",
-				field.Field.Name, unmangleErr)}
-		}
-		mf[z].Value = unmangledVal
-		if isPtr {
-			mf[z].Value = unmangledVal.Addr()
+			// now that we've converted this to a struct, fallthrough to the struct handling
+			fallthrough
+		case reflect.Struct:
+			unmangledVal, unmangleErr := fieldTransformer.ReverseTranslate(v)
+			if unmangleErr != nil {
+				return nil, &UnmangleError{Err: unmangleErr, ErrString: fmt.Sprintf("failed to recursively inverse transform field %s: %s",
+					field.Field.Name, unmangleErr)}
+			}
+			mf[z].Value = unmangledVal
+			if origKind == reflect.Ptr {
+				// if we fell-through, we need to fix the value
+				// to match the correct type
+				mf[z].Value = unmangledVal.Addr()
+			}
+		case reflect.Slice:
+			if v.IsNil() {
+				// if it's nil, skip it, the unmangler isn't
+				// going to do anything useful on a nil-slice
+				continue FIELDITER
+			}
+			mf[z].Value = reflect.MakeSlice(field.Field.Type, v.Len(), v.Cap())
+			fallthrough
+		case reflect.Array:
+			if fieldState.in.Type.Kind() == reflect.Array {
+				// we didn't fall-through
+				mf[z].Value = reflect.New(field.Field.Type).Elem()
+			}
+			for l := 0; l < v.Len(); l++ {
+				av := v.Index(l)
+				unmangledVal, unmangleErr := fieldTransformer.ReverseTranslate(av)
+				if unmangleErr != nil {
+					return nil, &UnmangleError{Err: unmangleErr, ErrString: fmt.Sprintf("failed to recursively inverse transform field %s[%d]: %s",
+						field.Field.Name, l, unmangleErr)}
+				}
+				mf[z].Value.Index(l).Set(unmangledVal)
+			}
 		}
 	}
 

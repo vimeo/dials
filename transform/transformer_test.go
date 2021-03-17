@@ -310,6 +310,62 @@ func TestTransformer(t *testing.T) {
 			}},
 			expectedErr: nil,
 		}, {
+			name:        "one_int_slice_to_int",
+			inStruct:    struct{ I []int }{I: []int{42}},
+			unmangleVal: struct{ F int }{F: 42},
+			fm: fakeMangler{
+				fieldNameMods: map[string][]reflect.StructField{
+					"I": {
+						{
+							Name:      "F",
+							PkgPath:   "",
+							Type:      intType,
+							Tag:       "fimbat",
+							Anonymous: false,
+						},
+					},
+				},
+				// recurse into "I"
+				recurseField: map[string]bool{"I": true},
+				origFieldVals: map[string]interface{}{
+					"I": []int{34},
+				},
+			},
+			expectedMangledFieldNames: []string{"F"},
+			expectedUnmangledNameValues: []nameVal{{
+				name: "I",
+				val:  []int{34},
+			}},
+			expectedErr: nil,
+		}, {
+			name:        "one_int_slice_to_int_slice",
+			inStruct:    struct{ I []int }{I: []int{42}},
+			unmangleVal: struct{ F []int }{F: []int{42}},
+			fm: fakeMangler{
+				fieldNameMods: map[string][]reflect.StructField{
+					"I": {
+						{
+							Name:      "F",
+							PkgPath:   "",
+							Type:      reflect.SliceOf(intType),
+							Tag:       "fimbat",
+							Anonymous: false,
+						},
+					},
+				},
+				// recurse into "I"
+				recurseField: map[string]bool{"I": true},
+				origFieldVals: map[string]interface{}{
+					"I": []int{34},
+				},
+			},
+			expectedMangledFieldNames: []string{"F"},
+			expectedUnmangledNameValues: []nameVal{{
+				name: "I",
+				val:  []int{34},
+			}},
+			expectedErr: nil,
+		}, {
 			name: "one_int_one_struct_recurse_flatten",
 			inStruct: struct {
 				J struct{ I int }
@@ -421,6 +477,158 @@ func TestTransformer(t *testing.T) {
 					name: "J",
 					val: struct{ L int }{
 						L: 255,
+					},
+				},
+				{
+					name: "I",
+					val:  34,
+				},
+			},
+			expectedErr: nil,
+		}, {
+			name: "one_int_one_struct_slice_recurse_noflatten",
+			inStruct: struct {
+				J []struct{ L int }
+				I int
+			}{
+				J: []struct{ L int }{
+					{L: 128},
+				},
+				I: 42,
+			},
+			unmangleVal: struct {
+				J []struct{ L int }
+				Q int
+			}{
+				J: []struct{ L int }{{L: 235}},
+				Q: 88,
+			},
+			fm: fakeMangler{
+				fieldNameMods: map[string][]reflect.StructField{
+					"I": {
+						{
+							Name:      "Q",
+							PkgPath:   "",
+							Type:      intType,
+							Tag:       "bitterbattle",
+							Anonymous: false,
+						},
+					},
+					"J": {
+						{
+							Name:      "J",
+							PkgPath:   "",
+							Type:      reflect.SliceOf(reflect.TypeOf(struct{ L int }{})),
+							Tag:       "bizzlebazzle",
+							Anonymous: false,
+						},
+					},
+					"L": {
+						{
+							Name:      "L",
+							PkgPath:   "",
+							Type:      intType,
+							Tag:       "'ellothere",
+							Anonymous: false,
+						},
+					},
+				},
+				recurseField: map[string]bool{
+					"J": true,
+				},
+				origFieldVals: map[string]interface{}{
+					"I": 34,
+					"J": []struct{ L int }{
+						{L: 255},
+					},
+					"L": 3128,
+				},
+			},
+			expectedMangledFieldNames: []string{
+				"J",
+				"Q",
+			},
+			expectedUnmangledNameValues: []nameVal{
+				{
+					name: "J",
+					val: []struct{ L int }{
+						{L: 255},
+					},
+				},
+				{
+					name: "I",
+					val:  34,
+				},
+			},
+			expectedErr: nil,
+		}, {
+			name: "one_int_one_struct_array_recurse_noflatten",
+			inStruct: struct {
+				J [1]struct{ L int }
+				I int
+			}{
+				J: [1]struct{ L int }{
+					{L: 128},
+				},
+				I: 42,
+			},
+			unmangleVal: struct {
+				J [1]struct{ L int }
+				Q int
+			}{
+				J: [1]struct{ L int }{{L: 235}},
+				Q: 88,
+			},
+			fm: fakeMangler{
+				fieldNameMods: map[string][]reflect.StructField{
+					"I": {
+						{
+							Name:      "Q",
+							PkgPath:   "",
+							Type:      intType,
+							Tag:       "bitterbattle",
+							Anonymous: false,
+						},
+					},
+					"J": {
+						{
+							Name:      "J",
+							PkgPath:   "",
+							Type:      reflect.ArrayOf(1, reflect.TypeOf(struct{ L int }{})),
+							Tag:       "bizzlebazzle",
+							Anonymous: false,
+						},
+					},
+					"L": {
+						{
+							Name:      "L",
+							PkgPath:   "",
+							Type:      intType,
+							Tag:       "'ellothere",
+							Anonymous: false,
+						},
+					},
+				},
+				recurseField: map[string]bool{
+					"J": true,
+				},
+				origFieldVals: map[string]interface{}{
+					"I": 34,
+					"J": [1]struct{ L int }{
+						{L: 255},
+					},
+					"L": 3128,
+				},
+			},
+			expectedMangledFieldNames: []string{
+				"J",
+				"Q",
+			},
+			expectedUnmangledNameValues: []nameVal{
+				{
+					name: "J",
+					val: [1]struct{ L int }{
+						{L: 255},
 					},
 				},
 				{
