@@ -48,7 +48,13 @@ func (t *TagCopyingMangler) Mangle(sf reflect.StructField) ([]reflect.StructFiel
 // This just returns the first field, as Mangle only returns one field at a
 // time.
 func (t *TagCopyingMangler) Unmangle(sf reflect.StructField, vs []transform.FieldValueTuple) (reflect.Value, error) {
-	return vs[0].Value.Convert(sf.Type), nil
+	// we always return exactly one field in Mangle, so we can always
+	// return vs[0].Value (after a type conversion) without any issues
+	switch vs[0].Value.Kind() {
+	case reflect.Struct:
+		return vs[0].Value.Convert(sf.Type), nil
+	}
+	return vs[0].Value, nil
 }
 
 // ShouldRecurse is called after Mangle for each field so nested struct

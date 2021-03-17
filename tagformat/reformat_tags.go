@@ -70,7 +70,10 @@ func (k *TagReformattingMangler) Mangle(sf reflect.StructField) ([]reflect.Struc
 func (k *TagReformattingMangler) Unmangle(sf reflect.StructField, vs []transform.FieldValueTuple) (reflect.Value, error) {
 	// we always return exactly one field in Mangle, so we can always
 	// return vs[0].Value (after a type conversion) without any issues
-	return vs[0].Value.Convert(sf.Type), nil
+	if vs[0].Value.Kind() == reflect.Struct {
+		return vs[0].Value.Convert(sf.Type), nil
+	}
+	return vs[0].Value, nil
 }
 
 // ShouldRecurse is called after Mangle for each field so nested struct
