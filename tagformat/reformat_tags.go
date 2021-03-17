@@ -67,9 +67,10 @@ func (k *TagReformattingMangler) Mangle(sf reflect.StructField) ([]reflect.Struc
 // mapping-set, with the mangled-field and its populated value set. The
 // implementation of Unmangle should return a reflect.Value that will
 // be used for the next mangler or final struct value)
-func (k *TagReformattingMangler) Unmangle(_ reflect.StructField, vs []transform.FieldValueTuple) (reflect.Value, error) {
-	// we always return exactly one field in Mangle, so we can always return vs[0].Value without any issues
-	return vs[0].Value, nil
+func (k *TagReformattingMangler) Unmangle(sf reflect.StructField, vs []transform.FieldValueTuple) (reflect.Value, error) {
+	// we always return exactly one field in Mangle, so we can always
+	// return vs[0].Value (after a type conversion) without any issues
+	return vs[0].Value.Convert(sf.Type), nil
 }
 
 // ShouldRecurse is called after Mangle for each field so nested struct

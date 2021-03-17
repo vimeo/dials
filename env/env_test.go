@@ -159,6 +159,30 @@ func TestEnv(t *testing.T) {
 				}{Hello: "", Goodbye: 8},
 			},
 		},
+		"nested_struct_field_with_slice": {
+			ConfigStruct: &struct {
+				Foo string
+				Bar []struct {
+					Hello   string
+					Goodbye int
+				}
+			}{},
+			EnvVarName:  "BAR_GOODBYE",
+			EnvVarValue: "8",
+			Expected: &struct {
+				Foo string
+				Bar []struct {
+					Hello   string
+					Goodbye int
+				}
+			}{
+				Foo: "",
+				Bar: []struct {
+					Hello   string
+					Goodbye int
+				}(nil),
+			},
+		},
 		"embedded_field": {
 			ConfigStruct: &struct {
 				Hello string
