@@ -268,14 +268,16 @@ FIELDITER:
 			if v.IsNil() {
 				// if it's nil, skip it, the unmangler isn't
 				// going to do anything useful on a nil-slice
+				// just make sure it has the right type.
+				mf[z].Value = reflect.Zero(fieldState.out[z].field.Type)
 				continue FIELDITER
 			}
-			mf[z].Value = reflect.MakeSlice(field.Field.Type, v.Len(), v.Cap())
+			mf[z].Value = reflect.MakeSlice(fieldState.out[z].field.Type, v.Len(), v.Cap())
 			fallthrough
 		case reflect.Array:
 			if fieldState.in.Type.Kind() == reflect.Array {
 				// we didn't fall-through
-				mf[z].Value = reflect.New(field.Field.Type).Elem()
+				mf[z].Value = reflect.New(fieldState.out[z].field.Type).Elem()
 			}
 			for l := 0; l < v.Len(); l++ {
 				av := v.Index(l)
