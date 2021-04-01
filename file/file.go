@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -30,6 +31,8 @@ func NewSource(path string, decoder dials.Decoder) (*Source, error) {
 }
 
 // Source is a raw file source.
+// Errors reported by the wrapped decoder will be reported wrapped in a
+// DecoderErr with the error and file-path populated.
 type Source struct {
 	path    string
 	decoder dials.Decoder
@@ -88,24 +91,40 @@ func (d *unchangedCSumErr) Error() string {
 	return fmt.Sprintf("checksum unchanged: %x", d.csum)
 }
 
+// DecoderErr wraps another error returned by the inner decoder
+type DecoderErr struct {
+	Err     error
+	Path    string
+	Decoder dials.Decoder
+}
+
+func (d *DecoderErr) Error() string {
+	return fmt.Sprintf("decoder (type %T) error on %q: %s",
+		d.Decoder, d.Path, d.Err.Error())
+}
+
+func (d *DecoderErr) Unwrap() error {
+	return d.Err
+}
+
 // Value opens the file and passes it to the Decoder.
 func (s *Source) Value(_ context.Context, t *dials.Type) (reflect.Value, error) {
-	f, err := os.Open(s.path)
-	if err != nil {
-		return reflect.Value{}, err
+	f, openErr := os.Open(s.path)
+	if openErr != nil {
+		return reflect.Value{}, openErr
 	}
 	defer f.Close()
 
 	r, csummer := s.hmacReader(f)
-	decoded, err := s.decoder.Decode(r, t)
-	if err != nil {
-		return decoded, err
+	decoded, decErr := s.decoder.Decode(r, t)
+	if decErr != nil {
+		return decoded, &DecoderErr{Err: decErr, Path: s.path, Decoder: s.decoder}
 	}
 	csum := csummer.Sum(nil)
 	if s.lastHMACNew(csum) {
 		return decoded, &unchangedCSumErr{csum: csum}
 	}
-	return decoded, err
+	return decoded, nil
 }
 
 // WatchOpts contains options, which can be mutated by a WatchOpt
@@ -173,6 +192,8 @@ func NewWatchingSource(
 }
 
 // WatchingSource uses fsnotify (inotify, dtrace, etc) to watch for changes to a file
+// Errors reported by the wrapped decoder will be reported wrapped in a
+// DecoderErr with the error and file-path populated.
 type WatchingSource struct {
 	Source
 	Reload       chan os.Signal
@@ -333,11 +354,22 @@ MAINLOOP:
 			}
 		}
 		ws.updateDirWatches(oldResolvedCfgDir, filepath.Dir(resolvedCfgPath))
-		if parseErr != nil {
-			continue
-		}
 
-		args.ReportNewValue(ctx, newVal)
+		switch t := parseErr.(type) {
+		case nil:
+			// no error, report upward
+			args.ReportNewValue(ctx, newVal)
+
+		case *unchangedCSumErr:
+			// Same contents, ignore the new value.
+		case *os.SyscallError:
+			if !errors.Is(t, os.ErrNotExist) {
+				// the file exists, something else failed.
+				args.ReportError(ctx, t)
+			}
+		default:
+			args.ReportError(ctx, t)
+		}
 	}
 
 }
