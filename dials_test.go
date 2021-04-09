@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -342,5 +344,90 @@ func TestConfigWithConfigureVerifier(t *testing.T) {
 		assert.Equal(t, "foo", d.View().(*configurableVerifier).Foo)
 	case err := <-errCh:
 		t.Errorf("unexpected error from monitor: %s", err)
+	}
+}
+
+func TestWatcherWithDoneAndErrorCallback(t *testing.T) {
+	t.Parallel()
+	type testConfig struct {
+		Foo string
+	}
+
+	type ptrifiedConfig struct {
+		Foo *string
+	}
+
+	base := testConfig{
+		Foo: "foo",
+	}
+	emptyConf := ptrifiedConfig{
+		Foo: nil,
+	}
+	// Push a new value, that should overlay on top of the base
+	foozleStr := "foozle"
+	foozleConfig := ptrifiedConfig{
+		Foo: &foozleStr,
+	}
+
+	// setup a cancelable context so the monitor goroutine gets shutdown.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	reportedErrCh := make(chan error)
+	p := Params{
+		OnWatchedError: func(ctx context.Context, err error, oldConfig, newConfig interface{}) {
+			assert.Nil(t, newConfig)
+			assert.NotNil(t, oldConfig)
+			reportedErrCh <- err
+		},
+	}
+	w := fakeWatchingSource{fakeSource: fakeSource{outVal: foozleConfig}}
+	d, err := p.Config(ctx, &base, &fakeSource{outVal: emptyConf}, &w)
+	require.NoError(t, err)
+
+	// pull in the existing value and verify that it works as intended.
+	// overwrite our original "base" to verify deep-copying is doing its job.
+	d.Fill(&base)
+	assert.Equal(t, "foozle", base.Foo)
+
+	// Push a new value, that should overlay on top of the base
+	fimStr := "fim"
+	fimConfig := ptrifiedConfig{
+		Foo: &fimStr,
+	}
+	w.send(ctx, reflect.ValueOf(fimConfig))
+	c := <-d.Events()
+	assert.Equal(t, "fim", c.(*testConfig).Foo)
+	assert.Equal(t, "fim", d.View().(*testConfig).Foo)
+
+	// push another empty config
+	w.send(ctx, reflect.ValueOf(emptyConf))
+	finalConf := <-d.Events()
+	assert.Equal(t, "foo", finalConf.(*testConfig).Foo)
+	assert.Equal(t, "foo", d.View().(*testConfig).Foo)
+
+	repErr := errors.New("fizzlebizzle")
+	assert.NoError(t, w.args.ReportError(ctx, repErr))
+
+	receiveErr := <-reportedErrCh
+	assert.Truef(t, errors.Is(receiveErr, repErr), "received %s", receiveErr)
+
+	w.args.Done(ctx)
+	runtime.Gosched()
+
+	// after this point, reporting an error should either panic, block indefinitely or do nothing
+	toCtx, toCancel := context.WithTimeout(ctx, time.Microsecond)
+	defer toCancel()
+	assert.Error(t, w.args.ReportError(toCtx, repErr))
+
+	select {
+	case w.args.(*watchArgs).c <- nil:
+		t.Errorf("watchargs channel had successful send after Done() call")
+	default:
+	}
+	select {
+	case e := <-reportedErrCh:
+		t.Errorf("unexpected call to error callback after shutdown: %s", e)
+	default:
 	}
 }
