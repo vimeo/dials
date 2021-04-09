@@ -11,9 +11,10 @@ import (
 )
 
 // WatchedErrorHandler is a callback that's called when something fails when
-// dials is operating in a watching mode.  Both oldConfig and NewConfig are
-// guaranteed to be populated with the same pointer-type that was passed to
-// `Config()`.
+// dials is operating in a watching mode.  If non-nil, both oldConfig and
+// newConfig are guaranteed to be populated with the same pointer-type that was
+// passed to `Config()`.
+// newConfig will be nil for errors that prevent stacking.
 type WatchedErrorHandler func(ctx context.Context, err error, oldConfig, newConfig interface{})
 
 // Params provides options for setting Dials's behavior in some cases.
