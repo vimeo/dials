@@ -388,6 +388,13 @@ func (d *Dials) monitor(
 			switch v := watchTab.(type) {
 			case *valueUpdate:
 				d.updateSourceValue(ctx, t, sourceValues, v)
+			case *watchErrorReport:
+				d.submitCallback(ctx, &watchErrorEvent{
+					err: fmt.Errorf("error reported by source of type %T: %w",
+						v.source, v.err),
+					oldConfig: d.value.Load(),
+					newConfig: nil,
+				})
 			case *watcherDone:
 				if !d.markSourceDone(ctx, sourceValues, v) {
 					// if there are no watching sources, just exit.
