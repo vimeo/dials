@@ -115,6 +115,16 @@ func (p Params) Config(ctx context.Context, t interface{}, sources ...Source) (*
 
 	// After this point, computed is owned by the monitor goroutine
 	if someoneWatching {
+		// Give the callback channel enough capacity that we
+		// don't have to worry about dropping anything most of
+		// the time.
+		cbch := make(chan userCallbackEvent, 64)
+		d.cbch = cbch
+		cbmgr := callbackMgr{
+			p:  &p,
+			ch: cbch,
+		}
+		go cbmgr.runCBs(ctx)
 		go d.monitor(ctx, tVal.Interface(), computed, watcherChan)
 	}
 	return d, nil
@@ -257,6 +267,7 @@ type Dials struct {
 	value       atomic.Value
 	updatesChan chan interface{}
 	params      Params
+	cbch        chan<- userCallbackEvent
 }
 
 // View returns the configuration struct populated.
@@ -302,20 +313,18 @@ func (d *Dials) updateSourceValue(
 	}
 	newInterface, stackErr := compose(t, sourceValues)
 	if stackErr != nil {
-		if d.params.OnWatchedError != nil {
-			d.params.OnWatchedError(
-				ctx, stackErr, d.value.Load(), newInterface)
-		}
+		d.submitCallback(ctx, &watchErrorEvent{
+			err: stackErr, oldConfig: d.value.Load(), newConfig: newInterface,
+		})
 		return
 	}
 
 	// Verify that the configuration is valid if a Verify() method is present.
 	if vf, ok := newInterface.(VerifiedConfig); ok {
 		if vfErr := vf.Verify(); vfErr != nil {
-			if d.params.OnWatchedError != nil {
-				d.params.OnWatchedError(
-					ctx, vfErr, d.value.Load(), newInterface)
-			}
+			d.submitCallback(ctx, &watchErrorEvent{
+				err: vfErr, oldConfig: d.value.Load(), newConfig: newInterface,
+			})
 			return
 		}
 	}
@@ -349,6 +358,19 @@ func (d *Dials) markSourceDone(
 		}
 	}
 	return false
+}
+
+func (d *Dials) submitCallback(ctx context.Context, ev userCallbackEvent) {
+	// let it panic for now
+	// if d.cbch == nil {
+	// 	return
+	// }
+	select {
+	case <-ctx.Done():
+	case d.cbch <- ev:
+		// never block we'd rather drop callbacks than deadlock the watchers
+	default:
+	}
 }
 
 func (d *Dials) monitor(
