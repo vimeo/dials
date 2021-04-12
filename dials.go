@@ -313,7 +313,7 @@ func (d *Dials) updateSourceValue(
 	}
 	newInterface, stackErr := compose(t, sourceValues)
 	if stackErr != nil {
-		d.submitCallback(ctx, &watchErrorEvent{
+		d.submitEvent(ctx, &watchErrorEvent{
 			err: stackErr, oldConfig: d.value.Load(), newConfig: newInterface,
 		})
 		return
@@ -322,7 +322,7 @@ func (d *Dials) updateSourceValue(
 	// Verify that the configuration is valid if a Verify() method is present.
 	if vf, ok := newInterface.(VerifiedConfig); ok {
 		if vfErr := vf.Verify(); vfErr != nil {
-			d.submitCallback(ctx, &watchErrorEvent{
+			d.submitEvent(ctx, &watchErrorEvent{
 				err: vfErr, oldConfig: d.value.Load(), newConfig: newInterface,
 			})
 			return
@@ -360,11 +360,11 @@ func (d *Dials) markSourceDone(
 	return false
 }
 
-func (d *Dials) submitCallback(ctx context.Context, ev userCallbackEvent) {
-	// let it panic for now
-	// if d.cbch == nil {
-	// 	return
-	// }
+func (d *Dials) submitEvent(ctx context.Context, ev userCallbackEvent) {
+	// don't panic
+	if d.cbch == nil {
+		return
+	}
 	select {
 	case <-ctx.Done():
 	case d.cbch <- ev:
@@ -389,7 +389,7 @@ func (d *Dials) monitor(
 			case *valueUpdate:
 				d.updateSourceValue(ctx, t, sourceValues, v)
 			case *watchErrorReport:
-				d.submitCallback(ctx, &watchErrorEvent{
+				d.submitEvent(ctx, &watchErrorEvent{
 					err: fmt.Errorf("error reported by source of type %T: %w",
 						v.source, v.err),
 					oldConfig: d.value.Load(),
