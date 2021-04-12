@@ -160,12 +160,9 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 	// Usually `dials.Config` is smart enough not to start a monitor when
 	// there are no `Watcher` implementations in the source-list, but the
 	// `Blank` source uses `Watcher` for its core functionality, so we need
-	// to cancel the context passed to `Config` to actually clean up
-	// resources.
+	// to shutdown the blank source to actually clean up resources.
 	if !option.watch {
-		configCtx, cancel := context.WithCancel(ctx)
-		defer cancel()
-		ctx = configCtx
+		defer blank.Done(ctx)
 	}
 	// OnWatchedError is never called from this goroutine, so it can be
 	// unbuffered without deadlocking.

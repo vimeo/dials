@@ -11,16 +11,17 @@ import (
 )
 
 // WatchedErrorHandler is a callback that's called when something fails when
-// dials is operating in a watching mode.  Both oldConfig and NewConfig are
-// guaranteed to be populated with the same pointer-type that was passed to
-// `Config()`.
+// dials is operating in a watching mode.  If non-nil, both oldConfig and
+// newConfig are guaranteed to be populated with the same pointer-type that was
+// passed to `Config()`.
+// newConfig will be nil for errors that prevent stacking.
 type WatchedErrorHandler func(ctx context.Context, err error, oldConfig, newConfig interface{})
 
 // Params provides options for setting Dials's behavior in some cases.
 type Params struct {
 	// OnWatchedError is called when either of several conditions are met:
 	//  - There is an error re-stacking the configuration
-	//  -
+	//  - One of the Sources implementing the Watcher interface reports an error
 	//  - a Verify() method fails after re-stacking when a new version is
 	//    provided by a watching source
 	OnWatchedError WatchedErrorHandler
@@ -114,6 +115,16 @@ func (p Params) Config(ctx context.Context, t interface{}, sources ...Source) (*
 
 	// After this point, computed is owned by the monitor goroutine
 	if someoneWatching {
+		// Give the callback channel enough capacity that we
+		// don't have to worry about dropping anything most of
+		// the time.
+		cbch := make(chan userCallbackEvent, 64)
+		d.cbch = cbch
+		cbmgr := callbackMgr{
+			p:  &p,
+			ch: cbch,
+		}
+		go cbmgr.runCBs(ctx)
 		go d.monitor(ctx, tVal.Interface(), computed, watcherChan)
 	}
 	return d, nil
@@ -158,6 +169,19 @@ type valueUpdate struct {
 
 func (valueUpdate) isStatusReport() {}
 
+type watcherDone struct {
+	source Source
+}
+
+func (watcherDone) isStatusReport() {}
+
+type watchErrorReport struct {
+	source Source
+	err    error
+}
+
+func (w *watchErrorReport) isStatusReport() {}
+
 type watchStatusUpdate interface {
 	isStatusReport()
 }
@@ -178,6 +202,29 @@ func (w *watchArgs) ReportNewValue(ctx context.Context, val reflect.Value) error
 	}
 }
 
+// Done indicates that this watcher has stopped and will not send any
+// more updates.
+func (w *watchArgs) Done(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+	case w.c <- &watcherDone{source: w.s}:
+	}
+}
+
+// ReportError reports a problem in the watcher. Returns an error if
+// the internal reporting channel is full and the context
+// expires/is-canceled.
+func (w *watchArgs) ReportError(ctx context.Context, err error) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case w.c <- &watchErrorReport{source: w.s, err: err}:
+		return nil
+	}
+}
+
+var _ WatchArgs = (*watchArgs)(nil)
+
 // WatchArgs provides methods for a Watcher implementation to update the state
 // of a Dials instance.
 type WatchArgs interface {
@@ -186,6 +233,13 @@ type WatchArgs interface {
 	// expires/is-canceled, however, wrapping implementations are free to
 	// return any other error as appropriate.
 	ReportNewValue(ctx context.Context, val reflect.Value) error
+	// Done indicates that this watcher has stopped and will not send any
+	// more updates.
+	Done(ctx context.Context)
+	// ReportError reports a problem in the watcher. Returns an error if
+	// the internal reporting channel is full and the context
+	// expires/is-canceled.
+	ReportError(ctx context.Context, err error) error
 }
 
 // Watcher should be implemented by Sources that allow their configuration to be
@@ -213,6 +267,7 @@ type Dials struct {
 	value       atomic.Value
 	updatesChan chan interface{}
 	params      Params
+	cbch        chan<- userCallbackEvent
 }
 
 // View returns the configuration struct populated.
@@ -258,20 +313,18 @@ func (d *Dials) updateSourceValue(
 	}
 	newInterface, stackErr := compose(t, sourceValues)
 	if stackErr != nil {
-		if d.params.OnWatchedError != nil {
-			d.params.OnWatchedError(
-				ctx, stackErr, d.value.Load(), newInterface)
-		}
+		d.submitEvent(ctx, &watchErrorEvent{
+			err: stackErr, oldConfig: d.value.Load(), newConfig: newInterface,
+		})
 		return
 	}
 
 	// Verify that the configuration is valid if a Verify() method is present.
 	if vf, ok := newInterface.(VerifiedConfig); ok {
 		if vfErr := vf.Verify(); vfErr != nil {
-			if d.params.OnWatchedError != nil {
-				d.params.OnWatchedError(
-					ctx, vfErr, d.value.Load(), newInterface)
-			}
+			d.submitEvent(ctx, &watchErrorEvent{
+				err: vfErr, oldConfig: d.value.Load(), newConfig: newInterface,
+			})
 			return
 		}
 	}
@@ -283,12 +336,50 @@ func (d *Dials) updateSourceValue(
 	}
 }
 
+func (d *Dials) markSourceDone(
+	ctx context.Context,
+	sourceValues []sourceValue,
+	watchTab *watcherDone,
+) bool {
+	// Set the calling source's watching bit to false
+	for i, sv := range sourceValues {
+		if watchTab.source == sv.source {
+			sourceValues[i].watching = false
+			break
+		}
+	}
+
+	// check whether any sources have watching set to true
+	// (using a loop here because it's not worth maintaining an extra
+	// datastructure for an infrequent operation)
+	for _, sv := range sourceValues {
+		if sv.watching {
+			return true
+		}
+	}
+	return false
+}
+
+func (d *Dials) submitEvent(ctx context.Context, ev userCallbackEvent) {
+	// don't panic
+	if d.cbch == nil {
+		return
+	}
+	select {
+	case <-ctx.Done():
+	case d.cbch <- ev:
+		// never block we'd rather drop callbacks than deadlock the watchers
+	default:
+	}
+}
+
 func (d *Dials) monitor(
 	ctx context.Context,
 	t interface{},
 	sourceValues []sourceValue,
 	watcherChan chan watchStatusUpdate,
 ) {
+	defer close(d.cbch)
 	for {
 		select {
 		case <-ctx.Done():
@@ -297,6 +388,18 @@ func (d *Dials) monitor(
 			switch v := watchTab.(type) {
 			case *valueUpdate:
 				d.updateSourceValue(ctx, t, sourceValues, v)
+			case *watchErrorReport:
+				d.submitEvent(ctx, &watchErrorEvent{
+					err: fmt.Errorf("error reported by source of type %T: %w",
+						v.source, v.err),
+					oldConfig: d.value.Load(),
+					newConfig: nil,
+				})
+			case *watcherDone:
+				if !d.markSourceDone(ctx, sourceValues, v) {
+					// if there are no watching sources, just exit.
+					return
+				}
 			default:
 				panic(fmt.Errorf("unexpected type %[1]T: %+[1]v", watchTab))
 			}

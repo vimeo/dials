@@ -124,3 +124,23 @@ func (b *Blank) SetSource(ctx context.Context, s dials.Source) error {
 	}
 	return nil
 }
+
+// Done instructs Dials that this Blank source will never be used in a watching
+// mode ever again (allowing Dials to shutdown a goroutine once all other
+// sources implementing Watcher have called Done()).
+// This call is a nop if a source implementing the Watcher interface is present
+// within Blank. (Semantically, the WatchArgs are no longer the Blank's once a
+// Watcher-implementing Source is set)
+func (b *Blank) Done(ctx context.Context) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	switch b.inner.(type) {
+	case dials.Watcher:
+		return
+	default:
+	}
+	if b.wa == nil {
+		return
+	}
+	b.wa.Done(ctx)
+}
