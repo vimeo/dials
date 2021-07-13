@@ -116,6 +116,13 @@ func (p *Panel) SetWriter(w io.Writer) {
 	p.w = w
 }
 
+func (p *Panel) writer() io.Writer {
+	if p.w == nil {
+		return os.Stdout
+	}
+	return p.w
+}
+
 // Run assumes subcommands are registered before Run is called
 func (p *Panel) Run(ctx context.Context, args []string) error {
 	fCfg := p.sp.FlagNameCfg
@@ -123,13 +130,10 @@ func (p *Panel) Run(ctx context.Context, args []string) error {
 		fCfg = flag.DefaultFlagNameConfig()
 	}
 
-	w := p.w
-	if w == nil {
-		w = os.Stdout
-	}
+	w := p.writer()
 
 	if len(args) < 1 {
-		p.w.Write(p.helpString(args[0]))
+		w.Write(p.helpString(args[0]))
 		return fmt.Errorf("empty argument list")
 	}
 
@@ -169,7 +173,7 @@ func (p *Panel) Run(ctx context.Context, args []string) error {
 	}
 
 	if len(argsCopy) < 1 {
-		p.w.Write(p.helpString(args[0]))
+		w.Write(p.helpString(args[0]))
 		return fmt.Errorf("no subcommand found")
 	}
 
@@ -181,7 +185,7 @@ func (p *Panel) Run(ctx context.Context, args []string) error {
 			return p.help(args[0], argsCopy)
 		}
 
-		p.w.Write(p.helpString(args[0]))
+		w.Write(p.helpString(args[0]))
 		return fmt.Errorf("%q subcommand not registered", scmdName)
 	}
 
@@ -189,19 +193,20 @@ func (p *Panel) Run(ctx context.Context, args []string) error {
 }
 
 func (p *Panel) help(binaryName string, args []string) error {
+	w := p.writer()
 	if len(args) < 2 {
-		p.w.Write(p.helpString(args[0]))
+		w.Write(p.helpString(args[0]))
 		return nil
 	}
 
 	scmdName := args[1]
 	sch, ok := p.schMap[scmdName]
 	if !ok {
-		p.w.Write(p.helpString(args[0]))
+		w.Write(p.helpString(args[0]))
 		return fmt.Errorf("%q subcommand not registered", scmdName)
 	}
 
-	p.w.Write(sch.helpString([]string{binaryName, args[1]}))
+	w.Write(sch.helpString([]string{binaryName, args[1]}))
 	return nil
 
 	// TODO: recursive
