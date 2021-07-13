@@ -195,14 +195,14 @@ func (p *Panel) Run(ctx context.Context, args []string) error {
 func (p *Panel) help(binaryName string, args []string) error {
 	w := p.writer()
 	if len(args) < 2 {
-		w.Write(p.helpString(args[0]))
+		w.Write(p.helpString(binaryName))
 		return nil
 	}
 
 	scmdName := args[1]
 	sch, ok := p.schMap[scmdName]
 	if !ok {
-		w.Write(p.helpString(args[0]))
+		w.Write(p.helpString(binaryName))
 		return fmt.Errorf("%q subcommand not registered", scmdName)
 	}
 
