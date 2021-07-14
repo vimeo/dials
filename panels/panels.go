@@ -212,6 +212,13 @@ func (p *Panel) help(binaryName string, args []string) error {
 	// TODO: recursive
 }
 
+func Must(sch *SubCmdHandle, err error) *SubCmdHandle {
+	if err != nil {
+		panic(fmt.Errorf("error registering subcommand: %w", err))
+	}
+	return sch
+}
+
 func (p *Panel) Register(scName string, s Subpanel) (*SubCmdHandle, error) {
 	if p.schMap == nil {
 		p.schMap = make(map[string]*SubCmdHandle, 1)
