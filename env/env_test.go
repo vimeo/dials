@@ -12,18 +12,21 @@ import (
 )
 
 func TestEnv(t *testing.T) {
+	now := time.Now()
+
 	type Embed struct {
 		Foo      int
 		Bar      bool
 		SomeTime time.Duration
 	}
 	cases := map[string]struct {
-		ConfigStruct interface{}
-		EnvVarName   string
-		EnvVarValue  string
-		Source       Source
-		Expected     interface{}
-		ExpectedErr  string
+		ConfigStruct   interface{}
+		EnvVarName     string
+		EnvVarValue    string
+		Source         Source
+		Expected       interface{}
+		ExpectedAssert func(t testing.TB, val interface{})
+		ExpectedErr    string
 	}{
 		"string": {
 			ConfigStruct: &struct{ EnvVar string }{},
@@ -135,6 +138,18 @@ func TestEnv(t *testing.T) {
 			EnvVarValue:  "/path/to/file",
 			Expected:     &struct{ JSONFilePath string }{JSONFilePath: "/path/to/file"},
 		},
+		"text_unmarshaler": {
+			ConfigStruct: &struct{ When time.Time }{},
+			EnvVarName:   "WHEN",
+			EnvVarValue:  now.Format(time.RFC3339),
+			// Expected:     &struct{ When time.Time }{When: now},
+			ExpectedAssert: func(t testing.TB, cfg interface{}) {
+				x, ok := cfg.(*struct{ When time.Time })
+				require.True(t, ok, "type was incorrect")
+				// truncate to seconds because marshaling doesn't include fractional seconds
+				assert.True(t, x.When.Equal(now.Truncate(time.Second)))
+			},
+		},
 		"nested_struct_field": {
 			ConfigStruct: &struct {
 				Foo string
@@ -210,7 +225,11 @@ func TestEnv(t *testing.T) {
 				require.Contains(t, err.Error(), testCase.ExpectedErr)
 			} else {
 				require.NoError(t, err)
-				assert.EqualValues(t, testCase.Expected, d.View())
+				if testCase.ExpectedAssert != nil {
+					testCase.ExpectedAssert(t, d.View())
+				} else {
+					assert.EqualValues(t, testCase.Expected, d.View())
+				}
 			}
 		})
 	}

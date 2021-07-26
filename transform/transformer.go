@@ -175,6 +175,7 @@ func (t *Transformer) TranslateType() (reflect.Type, error) {
 	for manglerNum, mangler := range t.manglers {
 		manglerFields := make([]reflect.StructField, 0, len(layerFields))
 		layerState := make([]transformMappingElement, len(layerFields))
+		fmt.Printf("start %T layerfields: %+v\n", mangler, layerFields)
 		for i, structField := range layerFields {
 
 			// Skip unexported fields
@@ -211,6 +212,7 @@ func (t *Transformer) TranslateType() (reflect.Type, error) {
 		}
 
 		layerFields = manglerFields
+		fmt.Printf("end %T layerfields: %+v\n", mangler, layerFields)
 
 		t.mState[manglerNum] = layerState
 	}
@@ -357,6 +359,7 @@ func (t *Transformer) ReverseTranslate(v reflect.Value) (reflect.Value, error) {
 	for manglerNum := len(t.manglers) - 1; manglerNum >= 0; manglerNum-- {
 		mangledfieldOffset := 0
 		unmangledLayerVals := make([]FieldValueTuple, len(t.mState[manglerNum]))
+		fmt.Printf("unmangle %d start %+v\n", manglerNum, layerMangledVal)
 		for srcFieldIdx, srcFieldstate := range t.mState[manglerNum] {
 			// slice down to just the mangled fields we're
 			// interested in for this unmangled field.
@@ -381,6 +384,7 @@ func (t *Transformer) ReverseTranslate(v reflect.Value) (reflect.Value, error) {
 			mangledfieldOffset += len(srcFieldstate.out)
 		}
 		layerMangledVal = unmangledLayerVals
+		fmt.Printf("unmangle end %+v\n", layerMangledVal)
 	}
 
 	// Now that we've gone through all the manglers, we can reassemble the original struct value.

@@ -30,13 +30,14 @@ func (*TextUnmarshalerMangler) Mangle(sf reflect.StructField) ([]reflect.StructF
 func (*TextUnmarshalerMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) (reflect.Value, error) {
 	return helper.OnImplements(sf.Type, textUnmarshalerType, vs[0].Value, func(input reflect.Value, v reflect.Value) (reflect.Value, error) {
 		strPtr := input.Interface().(*string)
+		fmt.Printf("input is %v\n", strPtr)
 		if strPtr == nil {
 			return reflect.Zero(v.Type()), nil
 		}
 		val := v.Interface().(encoding.TextUnmarshaler)
 		err := val.UnmarshalText([]byte(*strPtr))
 		if err != nil {
-			return reflect.Value{}, fmt.Errorf("Error unmarshaling text into type %+v", sf.Type)
+			return reflect.Value{}, fmt.Errorf("Error unmarshaling text into type %+v, %s", sf.Type, err)
 		}
 		return v, nil
 	})

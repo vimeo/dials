@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,6 +21,7 @@ type config struct {
 	Path string              `dials:"CONFIGPATH"`
 	Val1 int                 `dials:"Val1"`
 	Val2 string              `dials:"Val2"`
+	When time.Time           `dials:"when"`
 	Set  map[string]struct{} `dials:"Set"`
 }
 
@@ -43,11 +45,15 @@ func TestYAMLConfigEnvFlagWithValidConfig(t *testing.T) {
 	view, dialsErr := YAMLConfigEnvFlag(ctx, c)
 	require.NoError(t, dialsErr)
 
+	when, parseErr := time.Parse(time.RFC3339, "2021-07-26T15:00:00-0400")
+	require.NoError(t, parseErr)
+
 	// Val1 and Val2 come from the config file and Path will be populated from env variable
 	expectedConfig := config{
 		Path: "../testhelper/testconfig.yaml",
 		Val1: 456,
 		Val2: "hello-world",
+		When: when,
 		Set: map[string]struct{}{
 			"Keith": {},
 			"Gary":  {},

@@ -39,7 +39,7 @@ func (e *Source) Value(_ context.Context, t *dials.Type) (reflect.Value, error) 
 	tagCopyingMangler := &tagformat.TagCopyingMangler{SrcTag: common.DialsTagName, NewTag: envTagName}
 	// convert all the fields in the flattened struct to string type so the environment variables can be set
 	stringCastingMangler := &transform.StringCastingMangler{}
-	tfmr := transform.NewTransformer(t.Type(), flattenMangler, reformatTagMangler, tagCopyingMangler, stringCastingMangler)
+	tfmr := transform.NewTransformer(t.Type(), &transform.TextUnmarshalerMangler{}, flattenMangler, reformatTagMangler, tagCopyingMangler, stringCastingMangler)
 
 	val, err := tfmr.Translate()
 	if err != nil {

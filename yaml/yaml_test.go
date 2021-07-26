@@ -100,6 +100,7 @@ func TestMoreDeeplyNestedYAML(t *testing.T) {
 					AnotherField string        `dials:"another_field"`
 					IPAddress    net.IP        `dials:"ip_address"`
 					Timeout      time.Duration `dials:"timeout"`
+					When         time.Time     `dials:"when"`
 				} `dials:"something"`
 			} `dials:"other_stuff"`
 		} `dials:"database_user"`
@@ -115,7 +116,8 @@ func TestMoreDeeplyNestedYAML(t *testing.T) {
 				"something": {
 					"another_field": "asdf",
 					"ip_address": "123.10.11.121",
-					"timeout": "10s", 
+					"timeout": "10s",
+					"when": "2021-07-26T15:00:00-04:00"
 				}
 			}
 		}
@@ -132,12 +134,16 @@ func TestMoreDeeplyNestedYAML(t *testing.T) {
 	c, ok := d.View().(*testConfig)
 	assert.True(t, ok)
 
+	stamp, parseErr := time.Parse(time.RFC3339, "2021-07-26T15:00:00-04:00")
+	require.NoError(t, parseErr)
+
 	assert.Equal(t, "something", c.DatabaseName)
 	assert.Equal(t, "test", c.DatabaseUser.Username)
 	assert.Equal(t, "password", c.DatabaseUser.Password)
 	assert.Equal(t, "asdf", c.DatabaseUser.OtherStuff.Something.AnotherField)
 	assert.Equal(t, net.IPv4(123, 10, 11, 121), c.DatabaseUser.OtherStuff.Something.IPAddress)
 	assert.Equal(t, time.Duration(10*time.Second), c.DatabaseUser.OtherStuff.Something.Timeout)
+	assert.True(t, stamp.Equal(c.DatabaseUser.OtherStuff.Something.When), "time %v should equal %v", stamp, c.DatabaseUser.OtherStuff.Something.When)
 }
 
 func TestDecoderBadMarkup(t *testing.T) {

@@ -155,15 +155,6 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 		flagSrc = fset
 	}
 
-	// If file-watching is not enabled, we should shutdown the monitor
-	// goroutine when exiting this function.
-	// Usually `dials.Config` is smart enough not to start a monitor when
-	// there are no `Watcher` implementations in the source-list, but the
-	// `Blank` source uses `Watcher` for its core functionality, so we need
-	// to shutdown the blank source to actually clean up resources.
-	if !option.watch {
-		defer blank.Done(ctx)
-	}
 	// OnWatchedError is never called from this goroutine, so it can be
 	// unbuffered without deadlocking.
 	//
@@ -193,6 +184,16 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 	d, err := p.Config(ctx, cfg, &blank, &env.Source{}, flagSrc)
 	if err != nil {
 		return nil, err
+	}
+
+	// If file-watching is not enabled, we should shutdown the monitor
+	// goroutine when exiting this function.
+	// Usually `dials.Config` is smart enough not to start a monitor when
+	// there are no `Watcher` implementations in the source-list, but the
+	// `Blank` source uses `Watcher` for its core functionality, so we need
+	// to shutdown the blank source to actually clean up resources.
+	if !option.watch {
+		defer blank.Done(ctx)
 	}
 
 	basecfg := d.View().(ConfigWithConfigPath)

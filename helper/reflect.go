@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -33,6 +34,9 @@ func OnImplements(t reflect.Type, iface reflect.Type, input reflect.Value, op Tr
 		t = t.Elem()
 	}
 
+	fmt.Printf("type %v implements iface %v %t\n", t, iface, t.Implements(iface))
+	fmt.Printf("type %v implements iface %v %t\n", reflect.PtrTo(t), iface, reflect.PtrTo(t).Implements(iface))
+
 	switch {
 	case t.Implements(iface):
 		implemented = implementsAsConcrete
@@ -50,6 +54,11 @@ func OnImplements(t reflect.Type, iface reflect.Type, input reflect.Value, op Tr
 	}
 
 	if v.IsNil() {
+		if wasPointer {
+			fmt.Printf("returning zero: %v\n", reflect.Zero(reflect.PtrTo(t)).Type())
+			return reflect.Zero(reflect.PtrTo(t)), nil
+		}
+		fmt.Printf("it wasn't a pointer\n")
 		return reflect.Zero(t), nil
 	}
 
