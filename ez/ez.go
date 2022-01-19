@@ -27,6 +27,7 @@ type Option func(*dialsOptions)
 type dialsOptions struct {
 	watch          bool
 	onWatchedError dials.WatchedErrorHandler
+	onNewConfig    dials.NewConfigHandler
 
 	flagConfig     *flag.NameConfig
 	flagSubstitute dials.Source
@@ -41,6 +42,7 @@ func getDefaultOption() *dialsOptions {
 	return &dialsOptions{
 		watch:          false,
 		onWatchedError: nil,
+		onNewConfig:    nil,
 
 		flagConfig:     flag.DefaultFlagNameConfig(),
 		flagSubstitute: nil,
@@ -80,6 +82,12 @@ func WithAutoSetToSlice(enabled bool) Option {
 // file-watching is enabled)
 func WithOnWatchedError(cb dials.WatchedErrorHandler) Option {
 	return func(d *dialsOptions) { d.onWatchedError = cb }
+}
+
+// WithOnNewConfig registers a callback to record new config versions
+// reported while watching the config
+func WithOnNewConfig(cb dials.NewConfigHandler) Option {
+	return func(d *dialsOptions) { d.onNewConfig = cb }
 }
 
 // WithFileKeyNaming provides a method for manipulating the casing of the keys
@@ -174,6 +182,8 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 	// would block until a new config version (or error) was created
 	// (assuming this is a watching-mode) or possibly forever.
 	blankErrCh := make(chan error, 1)
+	// We need to see the new config from the blank source.
+	evChan := make(chan interface{}, 1)
 	p := dials.Params{
 		OnWatchedError: func(ctx context.Context, err error, oldConfig, newConfig interface{}) {
 			select {
@@ -181,6 +191,15 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 			default:
 				if option.onWatchedError != nil {
 					option.onWatchedError(ctx, err, oldConfig, newConfig)
+				}
+			}
+		},
+		OnNewConfig: func(ctx context.Context, oldConfig, newConfig interface{}) {
+			select {
+			case evChan <- newConfig:
+			default:
+				if option.onNewConfig != nil {
+					option.onNewConfig(ctx, oldConfig, newConfig)
 				}
 			}
 		},
@@ -252,14 +271,24 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 
 	// wait for the composition of the config struct with the config file values
 	select {
-	case <-d.Events():
+	case <-evChan:
 	case err := <-blankErrCh:
 		return d, fmt.Errorf("failed to stack/verify config with file layered: %w", err)
 	}
+
+	// Drain the event from the events channel so users of that interface
+	// don't see the intermediate config.
+	<-d.Events()
+
 	// If there was no error, make sure the blankErrCh buffer is full so
 	// subsequent calls always call the registered callback.
 	select {
 	case blankErrCh <- nil:
+	default:
+	}
+	// Similarly, make sure that evChan is full
+	select {
+	case evChan <- nil:
 	default:
 	}
 	return d, nil
