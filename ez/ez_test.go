@@ -2,8 +2,10 @@ package ez
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"testing"
@@ -177,4 +179,84 @@ func TestYAMLConfigEnvFlagWithValidatingConfigInitiallyValid(t *testing.T) {
 	case err := <-errCh:
 		require.EqualError(t, err, "val1 201 > 200")
 	}
+}
+
+func TestJSONConfigEnvFlagWithNewConfigCallback(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	tmpDir := t.TempDir()
+	defer os.RemoveAll(tmpDir)
+	path := filepath.Join(tmpDir, "fim1.json")
+
+	origCfgFileContents := struct {
+		Val1 int
+		Val2 string
+		Set  []string
+	}{
+		Val1: rand.Intn(100) + 1, // make sure to keep below 200 and above 0
+		Val2: "",
+		Set:  []string{"foo", "bar", "baz"},
+	}
+	origJS, jsMarshalErr := json.Marshal(&origCfgFileContents)
+	require.NoError(t, jsMarshalErr)
+
+	require.NoError(t, ioutil.WriteFile(path, origJS, 0660))
+
+	newCfg := make(chan interface{}, 1)
+	newConfigCB := func(ctx context.Context, oldConfig, newConfig interface{}) {
+		newCfg <- newConfig
+	}
+	c := &validatingConfig{Path: path}
+	view, dialsErr := JSONConfigEnvFlag(ctx, c, WithOnNewConfig(newConfigCB), WithWatchingConfigFile(true))
+	require.NoError(t, dialsErr)
+	assert.NotNil(t, view)
+
+	expectedConfig := validatingConfig{
+		Path: path,
+		Val1: origCfgFileContents.Val1,
+		Val2: "",
+		Set:  map[string]struct{}{"foo": {}, "bar": {}, "baz": {}},
+	}
+	populatedConf := view.View().(*validatingConfig)
+	assert.EqualValues(t, expectedConfig, *populatedConf)
+
+	select {
+	case cfg, ok := <-newCfg:
+		if !ok {
+			panic("newCfg channel closed somehow")
+		}
+		t.Errorf("unexpected config before update: %+v", cfg)
+	default:
+	}
+
+	select {
+	case cfg, ok := <-view.Events():
+		if !ok {
+			panic("events channel closed")
+		}
+		t.Errorf("unexpected events config before update: %+v", cfg)
+	default:
+	}
+
+	// Write a new version of the config
+	updatedCfgContents := origCfgFileContents
+	updatedCfgContents.Val1 += 87
+	updateJS, updatejsMarshalErr := json.Marshal(&updatedCfgContents)
+	require.NoError(t, updatejsMarshalErr)
+
+	tmpPath2 := filepath.Join(tmpDir, "_tmp_fim1.json")
+	require.NoError(t, ioutil.WriteFile(tmpPath2, updateJS, os.FileMode(0660)))
+
+	require.NoError(t, os.Rename(tmpPath2, path))
+
+	expectedFinalConfig := expectedConfig
+	expectedFinalConfig.Val1 = updatedCfgContents.Val1
+
+	finalCfg := <-newCfg
+	assert.EqualValues(t, expectedFinalConfig, *finalCfg.(*validatingConfig))
+
+	finalViewEventCfg := <-view.Events()
+	assert.EqualValues(t, expectedFinalConfig, *finalViewEventCfg.(*validatingConfig))
+	assert.EqualValues(t, expectedFinalConfig, *view.View().(*validatingConfig))
 }
