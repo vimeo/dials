@@ -21,13 +21,46 @@ import (
 	"github.com/vimeo/dials/yaml"
 )
 
-// Option sets an option on dialsOptions
-type Option func(*dialsOptions)
+// Option sets an option for typedDialsOptions
+type Option interface {
+	// typeless is a method for updating type-agnositc configuration
+	// parameters
+	typeless(*dialsOptions)
+}
+
+type typedOption[T any] interface {
+	// embed Option
+	Option
+
+	typed(d *typedDialsOptions[T])
+}
+
+type typedOptionWrap[T any] func(*typedDialsOptions[T])
+
+func (o typedOptionWrap[T]) typeless(d *dialsOptions) {
+	panic("shouldn't be called; implements typedOption")
+}
+
+func (o typedOptionWrap[T]) typed(d *typedDialsOptions[T]) {
+	o(d)
+}
+
+// make sure our typed wrapper type implements the correct interfaces
+var _ typedOption[struct{}] = typedOptionWrap[struct{}](nil)
+var _ Option = typedOptionWrap[struct{}](nil)
+
+// typelessOptionWrap sets an option on dialsOptions
+type typelessOptionWrap func(*dialsOptions)
+
+func (o typelessOptionWrap) typeless(d *dialsOptions) {
+	o(d)
+}
+
+// make sure our typeless wrapper type implements the Option interface
+var _ Option = typelessOptionWrap(nil)
 
 type dialsOptions struct {
-	watch          bool
-	onWatchedError dials.WatchedErrorHandler
-	onNewConfig    dials.NewConfigHandler
+	watch bool
 
 	flagConfig     *flag.NameConfig
 	flagSubstitute dials.Source
@@ -38,56 +71,65 @@ type dialsOptions struct {
 	fileKeyEncoder caseconversion.EncodeCasingFunc
 }
 
-func getDefaultOption() *dialsOptions {
-	return &dialsOptions{
-		watch:          false,
+type typedDialsOptions[T any] struct {
+	dialsOptions
+
+	onWatchedError dials.WatchedErrorHandler[T]
+	onNewConfig    dials.NewConfigHandler[T]
+}
+
+func getDefaultOption[T any]() *typedDialsOptions[T] {
+	return &typedDialsOptions[T]{
 		onWatchedError: nil,
 		onNewConfig:    nil,
+		dialsOptions: dialsOptions{
+			watch: false,
 
-		flagConfig:     flag.DefaultFlagNameConfig(),
-		flagSubstitute: nil,
+			flagConfig:     flag.DefaultFlagNameConfig(),
+			flagSubstitute: nil,
 
-		autoSetToSlice: true,
+			autoSetToSlice: true,
 
-		fileKeyDecoder: nil,
-		fileKeyEncoder: nil,
+			fileKeyDecoder: nil,
+			fileKeyEncoder: nil,
+		},
 	}
 }
 
 // WithPflagSet allows you to use pflag source instead of the default flag source
 func WithPflagSet(set *pflag.Set) Option {
-	return func(d *dialsOptions) { d.flagSubstitute = set }
+	return typelessOptionWrap(func(d *dialsOptions) { d.flagSubstitute = set })
 }
 
 // WithFlagConfig sets the flag NameConfig to the specified one
 func WithFlagConfig(flagConfig *flag.NameConfig) Option {
-	return func(d *dialsOptions) { d.flagConfig = flagConfig }
+	return typelessOptionWrap(func(d *dialsOptions) { d.flagConfig = flagConfig })
 }
 
 // WithWatchingConfigFile allows to watch the config file by using the watching
 // file source.  This defaults to false.
 func WithWatchingConfigFile(enabled bool) Option {
-	return func(d *dialsOptions) { d.watch = enabled }
+	return typelessOptionWrap(func(d *dialsOptions) { d.watch = enabled })
 }
 
 // WithAutoSetToSlice allows you to set whether sets (map[string]struct{})
 // should be automatically converted to slices ([]string) so they can be
 // naturally parsed by JSON, YAML, or TOML parsers.  This defaults to true.
 func WithAutoSetToSlice(enabled bool) Option {
-	return func(d *dialsOptions) { d.autoSetToSlice = enabled }
+	return typelessOptionWrap(func(d *dialsOptions) { d.autoSetToSlice = enabled })
 }
 
 // WithOnWatchedError registers a callback to record any errors encountered
 // while stacking or verifying a new version of a configuration (if
 // file-watching is enabled)
-func WithOnWatchedError(cb dials.WatchedErrorHandler) Option {
-	return func(d *dialsOptions) { d.onWatchedError = cb }
+func WithOnWatchedError[T any](cb dials.WatchedErrorHandler[T]) Option {
+	return typedOptionWrap[T](func(d *typedDialsOptions[T]) { d.onWatchedError = cb })
 }
 
 // WithOnNewConfig registers a callback to record new config versions
 // reported while watching the config
-func WithOnNewConfig(cb dials.NewConfigHandler) Option {
-	return func(d *dialsOptions) { d.onNewConfig = cb }
+func WithOnNewConfig[T any](cb dials.NewConfigHandler[T]) Option {
+	return typedOptionWrap[T](func(d *typedDialsOptions[T]) { d.onNewConfig = cb })
 }
 
 // WithFileKeyNaming provides a method for manipulating the casing of the keys
@@ -101,10 +143,10 @@ func WithOnNewConfig(cb dials.NewConfigHandler) Option {
 // caseconversion.EncodeKebabCase). Note that this does not affect the flags or
 // environment naming.  To manipulate flag naming, see `WithFlagConfig`.
 func WithFileKeyNaming(decoder caseconversion.DecodeCasingFunc, encoder caseconversion.EncodeCasingFunc) Option {
-	return func(d *dialsOptions) {
+	return typelessOptionWrap(func(d *dialsOptions) {
 		d.fileKeyDecoder = decoder
 		d.fileKeyEncoder = encoder
-	}
+	})
 }
 
 // DecoderFactory should return the appropriate decoder based on the config file
@@ -114,7 +156,8 @@ type DecoderFactory func(string) dials.Decoder
 // ConfigWithConfigPath is an interface config struct that supplies a
 // ConfigPath() method to indicate which file to read as the config file once
 // populated.
-type ConfigWithConfigPath interface {
+type ConfigWithConfigPath[T any] interface {
+	*T
 	// ConfigPath implementations should return the configuration file to
 	// be read as the first return-value, and true, or an empty string and
 	// false.
@@ -145,12 +188,17 @@ func fileSource(cfgPath string, decoder dials.Decoder, watch bool) (dials.Source
 //   - flags it registers with the standard library flags package
 // The contents of cfg for the defaults
 // cfg.ConfigPath() is evaluated on the stacked config with the file-contents omitted (using a "blank" source)
-func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df DecoderFactory, options ...Option) (*dials.Dials, error) {
+func ConfigFileEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, df DecoderFactory, options ...Option) (*dials.Dials[T], error) {
 	blank := sourcewrap.Blank{}
 
-	option := getDefaultOption()
+	option := getDefaultOption[T]()
 	for _, o := range options {
-		o(option)
+		switch of := o.(type) {
+		case typedOption[T]:
+			of.typed(option)
+		default:
+			of.typeless(&option.dialsOptions)
+		}
 	}
 
 	flagSrc := option.flagSubstitute
@@ -184,8 +232,8 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 	blankErrCh := make(chan error, 1)
 	// We need to see the new config from the blank source.
 	evChan := make(chan interface{}, 1)
-	p := dials.Params{
-		OnWatchedError: func(ctx context.Context, err error, oldConfig, newConfig interface{}) {
+	p := dials.Params[T]{
+		OnWatchedError: func(ctx context.Context, err error, oldConfig, newConfig *T) {
 			select {
 			case blankErrCh <- err:
 			default:
@@ -194,7 +242,7 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 				}
 			}
 		},
-		OnNewConfig: func(ctx context.Context, oldConfig, newConfig interface{}) {
+		OnNewConfig: func(ctx context.Context, oldConfig, newConfig *T) {
 			select {
 			case evChan <- newConfig:
 			default:
@@ -209,18 +257,18 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 		SkipInitialVerification: true,
 	}
 
-	d, err := p.Config(ctx, cfg, &blank, &env.Source{}, flagSrc)
+	d, err := p.Config(ctx, (*T)(cfg), &blank, &env.Source{}, flagSrc)
 	if err != nil {
 		return nil, err
 	}
 
-	basecfg := d.View().(ConfigWithConfigPath)
-	cfgPath, filepathSet := basecfg.ConfigPath()
+	basecfg := d.View()
+	cfgPath, filepathSet := (TP)(basecfg).ConfigPath()
 	if !filepathSet {
 		// Since we disabled initial verification earlier verify the config explicitly.
 		// Without a config file, the sources never get re-stacked, so the `Verify()`
 		// method is never run by `dials.Config`.
-		if vf, ok := basecfg.(dials.VerifiedConfig); ok {
+		if vf, ok := any(basecfg).(dials.VerifiedConfig); ok {
 			if vfErr := vf.Verify(); vfErr != nil {
 				return nil, fmt.Errorf("Initial configuration verification failed: %w", vfErr)
 			}
@@ -296,19 +344,19 @@ func ConfigFileEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, df Decoder
 
 // YAMLConfigEnvFlag takes advantage of the ConfigWithConfigPath cfg, thinly
 // wraping ConfigFileEnvFlag with the decoder statically set to YAML.
-func YAMLConfigEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, options ...Option) (*dials.Dials, error) {
+func YAMLConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, options ...Option) (*dials.Dials[T], error) {
 	return ConfigFileEnvFlag(ctx, cfg, func(string) dials.Decoder { return &yaml.Decoder{} }, options...)
 }
 
 // JSONConfigEnvFlag takes advantage of the ConfigWithConfigPath cfg, thinly
 // wraping ConfigFileEnvFlag with the decoder statically set to JSON.
-func JSONConfigEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, options ...Option) (*dials.Dials, error) {
+func JSONConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, options ...Option) (*dials.Dials[T], error) {
 	return ConfigFileEnvFlag(ctx, cfg, func(string) dials.Decoder { return &json.Decoder{} }, options...)
 }
 
 // TOMLConfigEnvFlag takes advantage of the ConfigWithConfigPath cfg, thinly
 // wraping ConfigFileEnvFlag with the decoder statically set to TOML.
-func TOMLConfigEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, options ...Option) (*dials.Dials, error) {
+func TOMLConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, options ...Option) (*dials.Dials[T], error) {
 	return ConfigFileEnvFlag(ctx, cfg, func(string) dials.Decoder { return &toml.Decoder{} }, options...)
 }
 
@@ -317,7 +365,7 @@ func TOMLConfigEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, options ..
 // wraps ConfigFileEnvFlag choosing the dials.Decoder used when handling the
 // file contents based on the file extension (from the limited set of JSON,
 // YAML and TOML).
-func FileExtensionDecoderConfigEnvFlag(ctx context.Context, cfg ConfigWithConfigPath, options ...Option) (*dials.Dials, error) {
+func FileExtensionDecoderConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, options ...Option) (*dials.Dials[T], error) {
 	return ConfigFileEnvFlag(ctx, cfg, func(fp string) dials.Decoder {
 		ext := filepath.Ext(fp)
 		switch strings.ToLower(ext) {
