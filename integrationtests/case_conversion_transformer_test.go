@@ -73,8 +73,7 @@ func TestReformatDialsTags(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			c, ok := d.View().(*testConfig)
-			assert.True(t, ok)
+			c := d.View()
 			assert.Equal(t, "something", c.DatabaseName)
 			assert.Equal(t, "127.0.0.1", c.DatabaseAddress)
 			if !tc.ignoreIPv4 {
@@ -172,8 +171,7 @@ func TestReformatDialsTagsInNestedStruct(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			c, ok := d.View().(*testConfig)
-			assert.True(t, ok)
+			c := d.View()
 			assert.Equal(t, "something", c.DatabaseName)
 			assert.Equal(t, "test", c.DatabaseUser.Username)
 			assert.Equal(t, "password", c.DatabaseUser.Password)
