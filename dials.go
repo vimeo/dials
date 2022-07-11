@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"sync/atomic"
 
 	"github.com/vimeo/dials/ptrify"
 )
@@ -113,12 +112,13 @@ func (p Params[T]) Config(ctx context.Context, t *T, sources ...Source) (*Dials[
 		return nil, err
 	}
 
+	nv, _ := newValue.(*T)
+
 	d := &Dials[T]{
-		value:       atomic.Value{},
 		updatesChan: make(chan *T, 1),
 		params:      p,
 	}
-	d.value.Store(newValue)
+	d.value.Store(nv)
 
 	// Verify that the configuration is valid if a Verify() method is present.
 	if vf, ok := newValue.(VerifiedConfig); ok && !p.SkipInitialVerification {
@@ -276,14 +276,6 @@ type VerifiedConfig interface {
 	Verify() error
 }
 
-// Dials is the main access point for your configuration.
-type Dials[T any] struct {
-	value       atomic.Value
-	updatesChan chan *T
-	params      Params[T]
-	cbch        chan<- userCallbackEvent
-}
-
 // Events returns a channel that will get a message every time the configuration
 // is updated.
 func (d *Dials[T]) Events() <-chan *T {
@@ -295,12 +287,6 @@ func (d *Dials[T]) Events() <-chan *T {
 // deprecated: assign return value from View() instead
 func (d *Dials[T]) Fill(blankConfig *T) {
 	*blankConfig = *d.View()
-}
-
-// View returns the configuration struct populated.
-func (d *Dials[T]) View() *T {
-	v, _ := d.value.Load().(*T)
-	return v
 }
 
 // returns the new value (if any)
@@ -318,7 +304,7 @@ func (d *Dials[T]) updateSourceValue(
 	}
 	newInterface, stackErr := compose(t, sourceValues)
 	if stackErr != nil {
-		oldVal, _ := d.value.Load().(*T)
+		oldVal := d.View()
 		newVal, _ := newInterface.(*T)
 		d.submitEvent(ctx, &watchErrorEvent[T]{
 			err: stackErr, oldConfig: oldVal, newConfig: newVal,
@@ -329,7 +315,7 @@ func (d *Dials[T]) updateSourceValue(
 	// Verify that the configuration is valid if a Verify() method is present.
 	if vf, ok := newInterface.(VerifiedConfig); ok {
 		if vfErr := vf.Verify(); vfErr != nil {
-			oldVal, _ := d.value.Load().(*T)
+			oldVal := d.View()
 
 			newVal := newInterface.(*T)
 
@@ -342,7 +328,7 @@ func (d *Dials[T]) updateSourceValue(
 
 	newVers := newInterface.(*T)
 
-	d.value.Store(newInterface)
+	d.value.Store(newVers)
 	select {
 	case d.updatesChan <- newVers:
 	default:
@@ -402,7 +388,7 @@ func (d *Dials[T]) monitor(
 		case watchTab := <-watcherChan:
 			switch v := watchTab.(type) {
 			case *valueUpdate:
-				oldConfig, _ := d.value.Load().(*T)
+				oldConfig := d.View()
 				newConfig := d.updateSourceValue(ctx, t, sourceValues, v)
 				if newConfig != nil {
 					d.submitEvent(ctx, &newConfigEvent[T]{
