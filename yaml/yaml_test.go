@@ -31,8 +31,7 @@ func TestYAML(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	c, ok := d.View().(*testConfig)
-	require.True(t, ok)
+	c := d.View()
 
 	assert.Equal(t, "something", c.Val1)
 	assert.Equal(t, 42, c.Val2)
@@ -77,8 +76,7 @@ func TestShallowlyNestedYAML(t *testing.T) {
 	)
 
 	require.NoError(t, err)
-	c, ok := d.View().(*testConfig)
-	assert.True(t, ok)
+	c := d.View()
 
 	assert.Equal(t, "something", c.DatabaseName)
 	assert.Equal(t, "test", c.DatabaseUser.Username)
@@ -129,8 +127,7 @@ func TestMoreDeeplyNestedYAML(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	c, ok := d.View().(*testConfig)
-	assert.True(t, ok)
+	c := d.View()
 
 	assert.Equal(t, "something", c.DatabaseName)
 	assert.Equal(t, "test", c.DatabaseUser.Username)
