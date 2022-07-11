@@ -42,7 +42,7 @@ func TestYAMLConfigEnvFlagWithValidConfig(t *testing.T) {
 	defer os.Unsetenv("CONFIGPATH")
 
 	c := &config{}
-	view, dialsErr := YAMLConfigEnvFlag(ctx, c)
+	view, dialsErr := YAMLConfigEnvFlag(ctx, c, Params[config]{})
 	require.NoError(t, dialsErr)
 
 	// Val1 and Val2 come from the config file and Path will be populated from env variable
@@ -76,7 +76,11 @@ func TestYAMLConfigEnvFlagWithFileKeyNaming(t *testing.T) {
 	defer cancel()
 
 	c := &beatlesConfig{YAMLPath: "../testhelper/testconfig.yaml"}
-	view, dialsErr := YAMLConfigEnvFlag(ctx, c, WithFileKeyNaming(caseconversion.DecodeGoCamelCase, caseconversion.EncodeKebabCase))
+	view, dialsErr := YAMLConfigEnvFlag(ctx, c, Params[beatlesConfig]{
+		DialsTagNameDecoder:  caseconversion.DecodeGoCamelCase,
+		FileFieldNameEncoder: caseconversion.EncodeKebabCase,
+	})
+
 	require.NoError(t, dialsErr)
 
 	expectedConfig := beatlesConfig{
@@ -133,7 +137,7 @@ func TestYAMLConfigEnvFlagWithValidatingConfig(t *testing.T) {
 	defer os.Remove(path)
 
 	c := &validatingConfig{Path: path}
-	d, dialsErr := YAMLConfigEnvFlag(ctx, c)
+	d, dialsErr := YAMLConfigEnvFlag(ctx, c, Params[validatingConfig]{})
 	assert.NotNil(t, d)
 	require.EqualError(t, dialsErr, "failed to stack/verify config with file layered: val1 789 > 200")
 }
@@ -154,7 +158,7 @@ func TestYAMLConfigEnvFlagWithValidatingConfigInitiallyValid(t *testing.T) {
 		errCh <- err
 	}
 	c := &validatingConfig{Path: path}
-	view, dialsErr := YAMLConfigEnvFlag(ctx, c, WithOnWatchedError(errHandler), WithWatchingConfigFile(true))
+	view, dialsErr := YAMLConfigEnvFlag(ctx, c, Params[validatingConfig]{OnWatchedError: errHandler, WatchConfigFile: true})
 	require.NoError(t, dialsErr)
 	assert.NotNil(t, view)
 
@@ -208,7 +212,7 @@ func TestJSONConfigEnvFlagWithNewConfigCallback(t *testing.T) {
 		newCfg <- newConfig
 	}
 	c := &validatingConfig{Path: path}
-	view, dialsErr := JSONConfigEnvFlag(ctx, c, WithOnNewConfig(newConfigCB), WithWatchingConfigFile(true))
+	view, dialsErr := JSONConfigEnvFlag(ctx, c, Params[validatingConfig]{OnNewConfig: newConfigCB, WatchConfigFile: true})
 	require.NoError(t, dialsErr)
 	assert.NotNil(t, view)
 
