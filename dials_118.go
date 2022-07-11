@@ -16,6 +16,16 @@ type Dials[T any] struct {
 
 // View returns the configuration struct populated.
 func (d *Dials[T]) View() *T {
-	v, _ := d.value.Load().(*T)
-	return v
+	v, _ := d.value.Load().(*versionedConfig[T])
+	// v cannot be nil because we initialize this value immediately after
+	// creating the the Dials object
+	return v.cfg
+}
+
+// View returns the configuration struct populated, and an opaque token.
+func (d *Dials[T]) ViewVersion() (*T, CfgSerial[T]) {
+	v, _ := d.value.Load().(*versionedConfig[T])
+	// v cannot be nil because we initialize this value immediately after
+	// creating the the Dials object
+	return v.cfg, CfgSerial[T]{s: v.serial, cfg: v.cfg}
 }
