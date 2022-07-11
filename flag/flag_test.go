@@ -43,10 +43,7 @@ func TestDirectBasic(t *testing.T) {
 	src.Flags.Usage()
 	t.Log(buf.String())
 
-	got, ok := d.View().(*Config)
-	if !ok {
-		t.Fatalf("want: *Config, got: %T", got)
-	}
+	got := d.View()
 	t.Logf("%+v", got)
 	if got.Hello != "foobar" {
 		t.Errorf("expected \"foobar\" for Hello, got %q", got.Hello)
@@ -78,203 +75,307 @@ func (u tu) UnmarshalText(data []byte) error {
 	return nil
 }
 
+func testWrapDials[T any](tmpl *T) func(ctx context.Context, src *Set) (any, error) {
+	return func(ctx context.Context, src *Set) (any, error) {
+		d, err := dials.Config(context.Background(), tmpl, src)
+		if d == nil {
+			return nil, err
+		}
+		return d.View(), err
+	}
+}
+
 func TestTable(t *testing.T) {
 	for _, itbl := range []struct {
-		name     string
-		tmpl     interface{}
+		name string
+		// returns the template and a callback for using the Set-typed source with dials
+		tmplCB   func() (any, func(ctx context.Context, src *Set) (any, error))
 		args     []string
-		expected interface{}
+		expected any
 		expErr   string
 	}{
 		{
-			name:     "basic_int_defaulted",
-			tmpl:     &struct{ A int }{A: 4},
+			name: "basic_int_defaulted",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A int }{A: 4}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{},
 			expected: &struct{ A int }{A: 4},
 		},
 		{
-			name:     "basic_int_set",
-			tmpl:     &struct{ A int }{A: 4},
+			name: "basic_int_set",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A int }{A: 4}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--a=42"},
 			expected: &struct{ A int }{A: 42},
 		},
 		{
-			name:     "basic_string_defaulted",
-			tmpl:     &struct{ A string }{A: "foobar"},
+			name: "basic_string_defaulted",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A string }{A: "foobar"}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{},
 			expected: &struct{ A string }{A: "foobar"},
 		},
 		{
-			name:     "basic_string_set",
-			tmpl:     &struct{ A string }{A: "foobar"},
+			name: "basic_string_set",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A string }{A: "foobar"}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--a=bizzleboodle"},
 			expected: &struct{ A string }{A: "bizzleboodle"},
 		},
 		{
-			name:     "basic_int16_default",
-			tmpl:     &struct{ A int16 }{A: 10},
+			name: "basic_int16_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A int16 }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{},
 			expected: &struct{ A int16 }{A: 10},
 		},
 		{
-			name:     "basic_int16_set_nooverflow",
-			tmpl:     &struct{ A int16 }{A: 10},
+			name: "basic_int16_set_nooverflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A int16 }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--a=128"},
 			expected: &struct{ A int16 }{A: 128},
 		},
 		{
-			name:     "basic_int16_set_overflow",
-			tmpl:     &struct{ A int16 }{A: 10},
+			name: "basic_int16_set_overflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A int16 }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--a=1000000"},
 			expected: nil,
 			expErr:   "value for flag \"a\" (1000000) would overflow type int16",
 		},
 		{
-			name:     "basic_int8_default",
-			tmpl:     &struct{ A int8 }{A: 10},
+			name: "basic_int8_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A int8 }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{},
 			expected: &struct{ A int8 }{A: 10},
 		},
 		{
-			name:     "basic_int8_set_nooverflow",
-			tmpl:     &struct{ A int8 }{A: 10},
+			name: "basic_int8_set_nooverflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A int8 }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--a=125"},
 			expected: &struct{ A int8 }{A: 125},
 		},
 		{
-			name:     "basic_int8_set_overflow",
-			tmpl:     &struct{ A int8 }{A: 10},
+			name: "basic_int8_set_overflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A int8 }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--a=1000000"},
 			expected: nil,
 			expErr:   "value for flag \"a\" (1000000) would overflow type int8",
 		},
 		{
-			name:     "map_string_string_set",
-			tmpl:     &struct{ A map[string]string }{A: map[string]string{"z": "i"}},
+			name: "map_string_string_set",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A map[string]string }{A: map[string]string{"z": "i"}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--a=l:v"},
 			expected: &struct{ A map[string]string }{A: map[string]string{"l": "v"}},
 		},
 		{
-			name:     "map_string_string_default",
-			tmpl:     &struct{ A map[string]string }{A: map[string]string{"z": "i"}},
+			name: "map_string_string_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A map[string]string }{A: map[string]string{"z": "i"}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{},
 			expected: &struct{ A map[string]string }{A: map[string]string{"z": "i"}},
 		},
 		{
-			name:     "map_string_string_slice_set",
-			tmpl:     &struct{ A map[string][]string }{A: map[string][]string{"z": {"i"}}},
+			name: "map_string_string_slice_set",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A map[string][]string }{A: map[string][]string{"z": {"i"}}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--a=l:v,l:z"},
 			expected: &struct{ A map[string][]string }{A: map[string][]string{"l": {"v", "z"}}},
 		},
 		{
-			name:     "map_string_string_slice_default",
-			tmpl:     &struct{ A map[string][]string }{A: map[string][]string{"z": {"i"}}},
+			name: "map_string_string_slice_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A map[string][]string }{A: map[string][]string{"z": {"i"}}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{},
 			expected: &struct{ A map[string][]string }{A: map[string][]string{"z": {"i"}}},
 		},
 		{
-			name:     "string_slice_set",
-			tmpl:     &struct{ A []string }{A: []string{"i"}},
+			name: "string_slice_set",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []string }{A: []string{"i"}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--a=v"},
 			expected: &struct{ A []string }{A: []string{"v"}},
 		},
 		{
-			name:     "string_slice_default",
-			tmpl:     &struct{ A []string }{A: []string{"i"}},
+			name: "string_slice_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []string }{A: []string{"i"}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{},
 			expected: &struct{ A []string }{A: []string{"i"}},
 		},
 		{
-			name:     "string_set_set",
-			tmpl:     &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
+			name: "string_set_set",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--a=v"},
 			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"v": {}}},
 		},
 		{
-			name:     "string_set_default",
-			tmpl:     &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
+			name: "string_set_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{},
 			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
 		},
 		{
-			name:     "basic_duration_default",
-			tmpl:     &struct{ A time.Duration }{A: 10 * time.Nanosecond},
+			name: "basic_duration_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A time.Duration }{A: 10 * time.Nanosecond}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{},
 			expected: &struct{ A time.Duration }{A: 10 * time.Nanosecond},
 		},
 		{
-			name:     "basic_duration_set",
-			tmpl:     &struct{ A time.Duration }{A: 10 * time.Nanosecond},
+			name: "basic_duration_set",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A time.Duration }{A: 10 * time.Nanosecond}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--a=3ms"},
 			expected: &struct{ A time.Duration }{A: 3 * time.Millisecond},
 		},
 		{
 			// use time.Time for a of couple test-cases since it implements TextUnmarshaler
-			name:     "marshaler_time_set",
-			tmpl:     &struct{ A time.Time }{A: time.Time{}},
+			name: "marshaler_time_set",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A time.Time }{A: time.Time{}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--a=2019-12-18T14:00:12Z"},
 			expected: &struct{ A time.Time }{A: time.Date(2019, time.December, 18, 14, 00, 12, 0, time.UTC)},
 		},
 		{
-			name:     "marshaler_time_default",
-			tmpl:     &struct{ A time.Time }{A: time.Time{}},
+			name: "marshaler_time_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A time.Time }{A: time.Time{}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{},
 			expected: &struct{ A time.Time }{A: time.Time{}},
 		},
 		{
-			name:     "complex128_default",
-			tmpl:     &struct{ A complex128 }{A: 10 + 3i},
+			name: "complex128_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A complex128 }{A: 10 + 3i}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{},
 			expected: &struct{ A complex128 }{A: 10 + 3i},
 		},
 		{
-			name:     "complex128_set_nooverflow",
-			tmpl:     &struct{ A complex128 }{A: 10 + 3i},
+			name: "complex128_set_nooverflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A complex128 }{A: 10 + 3i}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--a=128+4i"},
 			expected: &struct{ A complex128 }{A: 128 + 4i},
 		},
 		{
-			name:     "complex64_default",
-			tmpl:     &struct{ A complex64 }{A: 10 + 3i},
+			name: "complex64_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A complex64 }{A: 10 + 3i}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{},
 			expected: &struct{ A complex64 }{A: 10 + 3i},
 		},
 		{
-			name:     "complex64_set_nooverflow",
-			tmpl:     &struct{ A complex64 }{A: 10 + 3i},
+			name: "complex64_set_nooverflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A complex64 }{A: 10 + 3i}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--a=128+4i"},
 			expected: &struct{ A complex64 }{A: 128 + 4i},
 		},
 		{
-			name:     "hierarchical_int_defaulted",
-			tmpl:     &struct{ F struct{ A int } }{F: struct{ A int }{A: 4}},
+			name: "hierarchical_int_defaulted",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ F struct{ A int } }{F: struct{ A int }{A: 4}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{},
 			expected: &struct{ F struct{ A int } }{F: struct{ A int }{A: 4}},
 		},
 		{
-			name:     "hierarchical_int_set",
-			tmpl:     &struct{ F struct{ A int } }{F: struct{ A int }{A: 4}},
+			name: "hierarchical_int_set",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ F struct{ A int } }{F: struct{ A int }{A: 4}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--f-a=42"},
 			expected: &struct{ F struct{ A int } }{F: struct{ A int }{A: 42}},
 		},
 		{
-			name:     "hierarchical_ints_set",
-			tmpl:     &struct{ F struct{ A, B int } }{F: struct{ A, B int }{A: 4, B: 34}},
+			name: "hierarchical_ints_set",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ F struct{ A, B int } }{F: struct{ A, B int }{A: 4, B: 34}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{"--f-a=42", "--f-b=4123"},
 			expected: &struct{ F struct{ A, B int } }{F: struct{ A, B int }{A: 42, B: 4123}},
 		},
 		{
-			name:     "hierarchical_ints_defaulted",
-			tmpl:     &struct{ F struct{ A, B int } }{F: struct{ A, B int }{A: 4, B: 34}},
+			name: "hierarchical_ints_defaulted",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ F struct{ A, B int } }{F: struct{ A, B int }{A: 4, B: 34}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:     []string{},
 			expected: &struct{ F struct{ A, B int } }{F: struct{ A, B int }{A: 4, B: 34}},
 		},
 		{
 			name: "hierarchical_ints_multi_struct_set",
-			tmpl: &struct {
-				F struct{ A, B int }
-				G struct{ A int }
-			}{F: struct{ A, B int }{A: 4, B: 34}, G: struct{ A int }{A: 5234}},
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct {
+					F struct{ A, B int }
+					G struct{ A int }
+				}{F: struct{ A, B int }{A: 4, B: 34}, G: struct{ A int }{A: 5234}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args: []string{"--f-a=42", "--f-b=4123", "--g-a=5"},
 			expected: &struct {
 				F struct{ A, B int }
@@ -283,10 +384,13 @@ func TestTable(t *testing.T) {
 		},
 		{
 			name: "hierarchical_ints_multi_struct_partially_defaulted",
-			tmpl: &struct {
-				F struct{ A, B int }
-				G struct{ A int }
-			}{F: struct{ A, B int }{A: 4, B: 34}, G: struct{ A int }{A: 5234}},
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct {
+					F struct{ A, B int }
+					G struct{ A int }
+				}{F: struct{ A, B int }{A: 4, B: 34}, G: struct{ A int }{A: 5234}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args: []string{"--f-a=42", "--g-a=5"},
 			expected: &struct {
 				F struct{ A, B int }
@@ -295,14 +399,17 @@ func TestTable(t *testing.T) {
 		},
 		{
 			name: "hierarchical_ints_multi_struct_with_hypen",
-			tmpl: &struct {
-				F struct{ A, B int }
-				G struct {
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct {
+					F struct{ A, B int }
+					G struct {
+						A int `dialsflag:"-"`
+					}
+				}{F: struct{ A, B int }{A: 4, B: 34}, G: struct {
 					A int `dialsflag:"-"`
-				}
-			}{F: struct{ A, B int }{A: 4, B: 34}, G: struct {
-				A int `dialsflag:"-"`
-			}{A: 5234}},
+				}{A: 5234}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args:   []string{"--f-a=42", "--g-a=5"},
 			expErr: "failed to parse: failed to parse flags: flag provided but not defined: -g-a",
 			expected: &struct {
@@ -312,23 +419,26 @@ func TestTable(t *testing.T) {
 		},
 		{
 			name: "hierarchical_ints_multi_struct_partially_defaulted _with_tags",
-			tmpl: &struct {
-				F struct {
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct {
+					F struct {
+						A int `dials:"NotA"`
+						B int
+					}
+					G struct {
+						A int `dialsflag:"NotB"`
+					}
+				}{F: struct {
 					A int `dials:"NotA"`
 					B int
-				}
-				G struct {
-					A int `dialsflag:"NotB"`
-				}
-			}{F: struct {
-				A int `dials:"NotA"`
-				B int
-			}{
-				A: 4, B: 34,
+				}{
+					A: 4, B: 34,
+				},
+					G: struct {
+						A int `dialsflag:"NotB"`
+					}{A: 5234}}
+				return &cfg, testWrapDials(&cfg)
 			},
-				G: struct {
-					A int `dialsflag:"NotB"`
-				}{A: 5234}},
 			args: []string{"--f-NotA=42", "--NotB=76"},
 			expected: &struct {
 				F struct{ A, B int }
@@ -336,11 +446,14 @@ func TestTable(t *testing.T) {
 			}{F: struct{ A, B int }{A: 42, B: 34}, G: struct{ A int }{A: 76}},
 		}, {
 			name: "non_pointer_text_unmarshal_implementation",
-			tmpl: &struct {
-				T tu
-			}{T: tu{
-				Text: "Hello",
-			}},
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct {
+					T tu
+				}{T: tu{
+					Text: "Hello",
+				}}
+				return &cfg, testWrapDials(&cfg)
+			},
 			args: []string{"--t=foobar"},
 			expected: &struct {
 				T tu
@@ -360,16 +473,18 @@ func TestTable(t *testing.T) {
 				FieldNameEncodeCasing: caseconversion.EncodeUpperSnakeCase,
 				TagEncodeCasing:       caseconversion.EncodeKebabCase,
 			}
-			s, setupErr := NewSetWithArgs(nameConfig, tbl.tmpl, tbl.args)
+			tmpl, run := tbl.tmplCB()
+			s, setupErr := NewSetWithArgs(nameConfig, tmpl, tbl.args)
 			require.NoError(t, setupErr, "failed to setup Set")
 
-			d, cfgErr := dials.Config(ctx, tbl.tmpl, s)
+			c, cfgErr := run(ctx, s)
+
 			if tbl.expErr != "" {
 				require.EqualError(t, cfgErr, tbl.expErr)
 				return
 			}
 			require.NoError(t, cfgErr, "failed to stack/Value()")
-			assert.EqualValues(t, tbl.expected, d.View())
+			assert.EqualValues(t, tbl.expected, c)
 		})
 	}
 }
@@ -390,10 +505,7 @@ func TestMust(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, ok := d.View().(*Config)
-	if !ok {
-		t.Fatalf("want: *Config, got: %T", got)
-	}
+	got := d.View()
 
 	if got.Hello != "foobar" {
 		t.Errorf("expected \"foobar\" for Hello, got %q", got.Hello)
