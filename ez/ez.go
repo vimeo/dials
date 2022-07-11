@@ -186,6 +186,7 @@ func fileSource(cfgPath string, decoder dials.Decoder, watch bool) (dials.Source
 //   - configuration file
 //   - environment variables
 //   - flags it registers with the standard library flags package
+//
 // The contents of cfg for the defaults
 // cfg.ConfigPath() is evaluated on the stacked config with the file-contents omitted (using a "blank" source)
 func ConfigFileEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, df DecoderFactory, options ...Option) (*dials.Dials[T], error) {

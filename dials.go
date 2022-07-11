@@ -59,11 +59,11 @@ type Params[T any] struct {
 // on Verify()) in VerifiedConfig for details)
 //
 // If complicated/blocking initialization/verification is necessary, one can either:
-//  - If not using any watching sources, do any verification with the returned
-//    config from Config.
-//  - If using at least one watching source, configure a goroutine to watch the
-//    channel returned by the `Dials.Events()` method that does its own
-//    installation after verifying the config.
+//   - If not using any watching sources, do any verification with the returned
+//     config from Config.
+//   - If using at least one watching source, configure a goroutine to watch the
+//     channel returned by the `Dials.Events()` method that does its own
+//     installation after verifying the config.
 //
 // More complicated verification/initialization should be done by
 // consuming from the channel returned by `Events()`.
