@@ -96,14 +96,14 @@ func TestConfigWithoutVerifier(t *testing.T) {
 	}
 	w.send(ctx, reflect.ValueOf(fimConfig))
 	c := <-d.Events()
-	assert.Equal(t, "fim", c.(*testConfig).Foo)
-	assert.Equal(t, "fim", d.View().(*testConfig).Foo)
+	assert.Equal(t, "fim", c.Foo)
+	assert.Equal(t, "fim", d.View().Foo)
 
 	// push another empty config
 	w.send(ctx, reflect.ValueOf(emptyConf))
 	finalConf := <-d.Events()
-	assert.Equal(t, "foo", finalConf.(*testConfig).Foo)
-	assert.Equal(t, "foo", d.View().(*testConfig).Foo)
+	assert.Equal(t, "foo", finalConf.Foo)
+	assert.Equal(t, "foo", d.View().Foo)
 }
 
 // failVerifier is a struct with a Verify() method that always fails with an error
@@ -179,7 +179,7 @@ func TestConfigWithSkippedInitialVerify(t *testing.T) {
 	defer cancel()
 
 	w := fakeWatchingSource{fakeSource: fakeSource{outVal: foozleConfig}}
-	_, err := Params{
+	_, err := Params[testConfig]{
 		SkipInitialVerification: true,
 	}.Config(ctx, &base, &fakeSource{outVal: emptyConf}, &w)
 	assert.NoError(t, err)
@@ -237,14 +237,14 @@ func TestConfigWithSuccessVerifier(t *testing.T) {
 	}
 	w.send(ctx, reflect.ValueOf(fimConfig))
 	c := <-d.Events()
-	assert.Equal(t, "fim", c.(*testConfig).Foo)
-	assert.Equal(t, "fim", d.View().(*testConfig).Foo)
+	assert.Equal(t, "fim", c.Foo)
+	assert.Equal(t, "fim", d.View().Foo)
 
 	// push another empty config
 	w.send(ctx, reflect.ValueOf(emptyConf))
 	finalConf := <-d.Events()
-	assert.Equal(t, "foo", finalConf.(*testConfig).Foo)
-	assert.Equal(t, "foo", d.View().(*testConfig).Foo)
+	assert.Equal(t, "foo", finalConf.Foo)
+	assert.Equal(t, "foo", d.View().Foo)
 }
 
 // configurableVerifier is a struct with a Verify() method that fails depending
@@ -293,8 +293,8 @@ func TestConfigWithConfigureVerifier(t *testing.T) {
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	params := Params{
-		OnWatchedError: func(ctx context.Context, err error, _, _ interface{}) { errCh <- err },
+	params := Params[configurableVerifier]{
+		OnWatchedError: func(ctx context.Context, err error, _, _ *configurableVerifier) { errCh <- err },
 	}
 
 	w := fakeWatchingSource{fakeSource: fakeSource{outVal: foozleConfig}}
@@ -314,8 +314,8 @@ func TestConfigWithConfigureVerifier(t *testing.T) {
 	w.send(ctx, reflect.ValueOf(fimConfig))
 	select {
 	case c := <-d.Events():
-		assert.Equal(t, "fim", c.(*configurableVerifier).Foo)
-		assert.Equal(t, "fim", d.View().(*configurableVerifier).Foo)
+		assert.Equal(t, "fim", c.Foo)
+		assert.Equal(t, "fim", d.View().Foo)
 	case err := <-errCh:
 		t.Errorf("unexpected error from monitor: %s", err)
 	}
@@ -326,10 +326,10 @@ func TestConfigWithConfigureVerifier(t *testing.T) {
 	w.send(ctx, reflect.ValueOf(invalidConfig))
 	select {
 	case unexpectedConf := <-d.Events():
-		assert.Equal(t, "foo", unexpectedConf.(*configurableVerifier).Foo)
-		assert.Equal(t, "foo", d.View().(*configurableVerifier).Foo)
-		assert.False(t, unexpectedConf.(*configurableVerifier).Valid)
-		assert.False(t, d.View().(*configurableVerifier).Valid)
+		assert.Equal(t, "foo", unexpectedConf.Foo)
+		assert.Equal(t, "foo", d.View().Foo)
+		assert.False(t, unexpectedConf.Valid)
+		assert.False(t, d.View().Valid)
 	case err := <-errCh:
 		if !errors.Is(err, errFailVerifier) {
 			t.Errorf("unexpected error from verification failure: %s", err)
@@ -340,8 +340,8 @@ func TestConfigWithConfigureVerifier(t *testing.T) {
 	w.send(ctx, reflect.ValueOf(emptyConf))
 	select {
 	case finalConf := <-d.Events():
-		assert.Equal(t, "foo", finalConf.(*configurableVerifier).Foo)
-		assert.Equal(t, "foo", d.View().(*configurableVerifier).Foo)
+		assert.Equal(t, "foo", finalConf.Foo)
+		assert.Equal(t, "foo", d.View().Foo)
 	case err := <-errCh:
 		t.Errorf("unexpected error from monitor: %s", err)
 	}
@@ -374,8 +374,8 @@ func TestWatcherWithDoneAndErrorCallback(t *testing.T) {
 	defer cancel()
 
 	reportedErrCh := make(chan error)
-	p := Params{
-		OnWatchedError: func(ctx context.Context, err error, oldConfig, newConfig interface{}) {
+	p := Params[testConfig]{
+		OnWatchedError: func(ctx context.Context, err error, oldConfig, newConfig *testConfig) {
 			assert.Nil(t, newConfig)
 			assert.NotNil(t, oldConfig)
 			reportedErrCh <- err
@@ -397,14 +397,14 @@ func TestWatcherWithDoneAndErrorCallback(t *testing.T) {
 	}
 	w.send(ctx, reflect.ValueOf(fimConfig))
 	c := <-d.Events()
-	assert.Equal(t, "fim", c.(*testConfig).Foo)
-	assert.Equal(t, "fim", d.View().(*testConfig).Foo)
+	assert.Equal(t, "fim", c.Foo)
+	assert.Equal(t, "fim", d.View().Foo)
 
 	// push another empty config
 	w.send(ctx, reflect.ValueOf(emptyConf))
 	finalConf := <-d.Events()
-	assert.Equal(t, "foo", finalConf.(*testConfig).Foo)
-	assert.Equal(t, "foo", d.View().(*testConfig).Foo)
+	assert.Equal(t, "foo", finalConf.Foo)
+	assert.Equal(t, "foo", d.View().Foo)
 
 	repErr := errors.New("fizzlebizzle")
 	assert.NoError(t, w.args.ReportError(ctx, repErr))
@@ -461,12 +461,12 @@ func TestConfigWithNewConfigCallback(t *testing.T) {
 	oldConf := make(chan *testConfig, 1)
 	newConf := make(chan *testConfig)
 	w := fakeWatchingSource{fakeSource: fakeSource{outVal: foozleConfig}}
-	p := Params{
+	p := Params[testConfig]{
 		OnWatchedError:          nil,
 		SkipInitialVerification: false,
-		OnNewConfig: func(ctx context.Context, oldConfig interface{}, newConfig interface{}) {
-			oldConf <- oldConfig.(*testConfig)
-			newConf <- newConfig.(*testConfig)
+		OnNewConfig: func(ctx context.Context, oldConfig, newConfig *testConfig) {
+			oldConf <- oldConfig
+			newConf <- newConfig
 		},
 	}
 	d, err := p.Config(ctx, &base, &fakeSource{outVal: emptyConf}, &w)
@@ -487,7 +487,7 @@ func TestConfigWithNewConfigCallback(t *testing.T) {
 	assert.Equal(t, "fim", c.Foo)
 	oc := <-oldConf
 	assert.Equal(t, "foozle", oc.Foo)
-	assert.Equal(t, "fim", d.View().(*testConfig).Foo)
+	assert.Equal(t, "fim", d.View().Foo)
 
 	// push another empty config
 	w.send(ctx, reflect.ValueOf(emptyConf))
@@ -495,5 +495,5 @@ func TestConfigWithNewConfigCallback(t *testing.T) {
 	assert.Equal(t, "foo", finalConf.Foo)
 	ocFinal := <-oldConf
 	assert.Equal(t, "fim", ocFinal.Foo)
-	assert.Equal(t, "foo", d.View().(*testConfig).Foo)
+	assert.Equal(t, "foo", d.View().Foo)
 }

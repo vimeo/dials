@@ -15,22 +15,22 @@ import (
 // newConfig are guaranteed to be populated with the same pointer-type that was
 // passed to `Config()`.
 // newConfig will be nil for errors that prevent stacking.
-type WatchedErrorHandler func(ctx context.Context, err error, oldConfig, newConfig interface{})
+type WatchedErrorHandler[T any] func(ctx context.Context, err error, oldConfig, newConfig *T)
 
 // NewConfigHandler is a callback that's called after a new config is installed.
 // Callbacks are run on a dedicated Goroutine, so one can do expensive/blocking
 // work in this callback, however, execution should not last longer than the
 // interval between new configs.
-type NewConfigHandler func(ctx context.Context, oldConfig, newConfig interface{})
+type NewConfigHandler[T any] func(ctx context.Context, oldConfig, newConfig *T)
 
 // Params provides options for setting Dials's behavior in some cases.
-type Params struct {
+type Params[T any] struct {
 	// OnWatchedError is called when either of several conditions are met:
 	//  - There is an error re-stacking the configuration
 	//  - One of the Sources implementing the Watcher interface reports an error
 	//  - a Verify() method fails after re-stacking when a new version is
 	//    provided by a watching source
-	OnWatchedError WatchedErrorHandler
+	OnWatchedError WatchedErrorHandler[T]
 
 	// SkipInitialVerification skips the initial call to `Verify()` on any
 	// configurations that implement the `VerifiedConfig` interface.
@@ -46,7 +46,7 @@ type Params struct {
 	// OnWatchedError callback, with callbacks being executed in-order.
 	// In the event that a call to OnNewConfig blocks too long, some calls
 	// may be dropped.
-	OnNewConfig NewConfigHandler
+	OnNewConfig NewConfigHandler[T]
 }
 
 // Config populates the passed in config struct by reading the values from the
@@ -59,15 +59,15 @@ type Params struct {
 // on Verify()) in VerifiedConfig for details)
 //
 // If complicated/blocking initialization/verification is necessary, one can either:
-//  - If not using any watching sources, do any verification with the returned
-//    config from Config.
-//  - If using at least one watching source, configure a goroutine to watch the
-//    channel returned by the `Dials.Events()` method that does its own
-//    installation after verifying the config.
+//   - If not using any watching sources, do any verification with the returned
+//     config from Config.
+//   - If using at least one watching source, configure a goroutine to watch the
+//     channel returned by the `Dials.Events()` method that does its own
+//     installation after verifying the config.
 //
 // More complicated verification/initialization should be done by
 // consuming from the channel returned by `Events()`.
-func (p Params) Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, error) {
+func (p Params[T]) Config(ctx context.Context, t *T, sources ...Source) (*Dials[T], error) {
 
 	watcherChan := make(chan watchStatusUpdate)
 	computed := make([]sourceValue, len(sources))
@@ -113,9 +113,9 @@ func (p Params) Config(ctx context.Context, t interface{}, sources ...Source) (*
 		return nil, err
 	}
 
-	d := &Dials{
+	d := &Dials[T]{
 		value:       atomic.Value{},
-		updatesChan: make(chan interface{}, 1),
+		updatesChan: make(chan *T, 1),
 		params:      p,
 	}
 	d.value.Store(newValue)
@@ -123,7 +123,7 @@ func (p Params) Config(ctx context.Context, t interface{}, sources ...Source) (*
 	// Verify that the configuration is valid if a Verify() method is present.
 	if vf, ok := newValue.(VerifiedConfig); ok && !p.SkipInitialVerification {
 		if vfErr := vf.Verify(); vfErr != nil {
-			return nil, fmt.Errorf("Initial configuration verification failed: %w", vfErr)
+			return nil, fmt.Errorf("initial configuration verification failed: %w", vfErr)
 		}
 	}
 
@@ -134,12 +134,12 @@ func (p Params) Config(ctx context.Context, t interface{}, sources ...Source) (*
 		// the time.
 		cbch := make(chan userCallbackEvent, 64)
 		d.cbch = cbch
-		cbmgr := callbackMgr{
+		cbmgr := callbackMgr[T]{
 			p:  &p,
 			ch: cbch,
 		}
 		go cbmgr.runCBs(ctx)
-		go d.monitor(ctx, tVal.Interface(), computed, watcherChan)
+		go d.monitor(ctx, tVal.Interface().(*T), computed, watcherChan)
 	}
 	return d, nil
 }
@@ -150,8 +150,8 @@ func (p Params) Config(ctx context.Context, t interface{}, sources ...Source) (*
 // were set by previous sources
 // This top-level function is present for convenience and backwards
 // compatibility when there is no need to specify an error-handler.
-func Config(ctx context.Context, t interface{}, sources ...Source) (*Dials, error) {
-	return Params{}.Config(ctx, t, sources...)
+func Config[T any](ctx context.Context, t *T, sources ...Source) (*Dials[T], error) {
+	return Params[T]{}.Config(ctx, t, sources...)
 }
 
 // Source interface is implemented by each configuration source that is used to
@@ -277,49 +277,39 @@ type VerifiedConfig interface {
 }
 
 // Dials is the main access point for your configuration.
-type Dials struct {
+type Dials[T any] struct {
 	value       atomic.Value
-	updatesChan chan interface{}
-	params      Params
+	updatesChan chan *T
+	params      Params[T]
 	cbch        chan<- userCallbackEvent
-}
-
-// View returns the configuration struct populated.
-func (d *Dials) View() interface{} {
-	return d.value.Load()
 }
 
 // Events returns a channel that will get a message every time the configuration
 // is updated.
-func (d *Dials) Events() <-chan interface{} {
+func (d *Dials[T]) Events() <-chan *T {
 	return d.updatesChan
 }
 
 // Fill populates the passed struct with the current value of the configuration.
-// It will panic if the type of `blankConfig` does not match the type of the
-// configuration value passed to `Config` in the first place.
-func (d *Dials) Fill(blankConfig interface{}) {
-	bVal := reflect.ValueOf(blankConfig)
-	currentVal := reflect.ValueOf(d.value.Load())
+// It is a thin wrapper around assignment
+// deprecated: assign return value from View() instead
+func (d *Dials[T]) Fill(blankConfig *T) {
+	*blankConfig = *d.View()
+}
 
-	if bVal.Type() != currentVal.Type() {
-		panic(fmt.Sprintf(
-			"value to fill type (%s) does not match actual type (%s)",
-			bVal.Type(),
-			currentVal.Type(),
-		))
-	}
-
-	bVal.Elem().Set(currentVal.Elem())
+// View returns the configuration struct populated.
+func (d *Dials[T]) View() *T {
+	v, _ := d.value.Load().(*T)
+	return v
 }
 
 // returns the new value (if any)
-func (d *Dials) updateSourceValue(
+func (d *Dials[T]) updateSourceValue(
 	ctx context.Context,
-	t interface{},
+	t *T,
 	sourceValues []sourceValue,
 	watchTab *valueUpdate,
-) interface{} {
+) *T {
 	for i, sv := range sourceValues {
 		if watchTab.source == sv.source {
 			sourceValues[i].value = watchTab.value
@@ -328,8 +318,10 @@ func (d *Dials) updateSourceValue(
 	}
 	newInterface, stackErr := compose(t, sourceValues)
 	if stackErr != nil {
-		d.submitEvent(ctx, &watchErrorEvent{
-			err: stackErr, oldConfig: d.value.Load(), newConfig: newInterface,
+		oldVal, _ := d.value.Load().(*T)
+		newVal, _ := newInterface.(*T)
+		d.submitEvent(ctx, &watchErrorEvent[T]{
+			err: stackErr, oldConfig: oldVal, newConfig: newVal,
 		})
 		return nil
 	}
@@ -337,23 +329,29 @@ func (d *Dials) updateSourceValue(
 	// Verify that the configuration is valid if a Verify() method is present.
 	if vf, ok := newInterface.(VerifiedConfig); ok {
 		if vfErr := vf.Verify(); vfErr != nil {
-			d.submitEvent(ctx, &watchErrorEvent{
-				err: vfErr, oldConfig: d.value.Load(), newConfig: newInterface,
+			oldVal, _ := d.value.Load().(*T)
+
+			newVal := newInterface.(*T)
+
+			d.submitEvent(ctx, &watchErrorEvent[T]{
+				err: vfErr, oldConfig: oldVal, newConfig: newVal,
 			})
 			return nil
 		}
 	}
 
+	newVers := newInterface.(*T)
+
 	d.value.Store(newInterface)
 	select {
-	case d.updatesChan <- newInterface:
+	case d.updatesChan <- newVers:
 	default:
 	}
 
-	return newInterface
+	return newVers
 }
 
-func (d *Dials) markSourceDone(
+func (d *Dials[T]) markSourceDone(
 	ctx context.Context,
 	sourceValues []sourceValue,
 	watchTab *watcherDone,
@@ -377,7 +375,7 @@ func (d *Dials) markSourceDone(
 	return false
 }
 
-func (d *Dials) submitEvent(ctx context.Context, ev userCallbackEvent) {
+func (d *Dials[T]) submitEvent(ctx context.Context, ev userCallbackEvent) {
 	// don't panic
 	if d.cbch == nil {
 		return
@@ -390,9 +388,9 @@ func (d *Dials) submitEvent(ctx context.Context, ev userCallbackEvent) {
 	}
 }
 
-func (d *Dials) monitor(
+func (d *Dials[T]) monitor(
 	ctx context.Context,
-	t interface{},
+	t *T,
 	sourceValues []sourceValue,
 	watcherChan chan watchStatusUpdate,
 ) {
@@ -404,19 +402,19 @@ func (d *Dials) monitor(
 		case watchTab := <-watcherChan:
 			switch v := watchTab.(type) {
 			case *valueUpdate:
-				oldConfig := d.value.Load()
+				oldConfig, _ := d.value.Load().(*T)
 				newConfig := d.updateSourceValue(ctx, t, sourceValues, v)
 				if newConfig != nil {
-					d.submitEvent(ctx, &newConfigEvent{
+					d.submitEvent(ctx, &newConfigEvent[T]{
 						oldConfig: oldConfig,
 						newConfig: newConfig,
 					})
 				}
 			case *watchErrorReport:
-				d.submitEvent(ctx, &watchErrorEvent{
+				d.submitEvent(ctx, &watchErrorEvent[T]{
 					err: fmt.Errorf("error reported by source of type %T: %w",
 						v.source, v.err),
-					oldConfig: d.value.Load(),
+					oldConfig: d.View(),
 					newConfig: nil,
 				})
 			case *watcherDone:

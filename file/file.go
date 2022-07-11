@@ -247,17 +247,18 @@ func (ws *WatchingSource) Watch(
 
 // Kubernetes uses its AtomicWriter for updating configmaps, which has
 // a somewhat unique structure:
-//  It creates a timestamped tempdir named by
-//  `ioutil.TempDir(w.targetDir, time.Now().UTC().Format("..2006_01_02_15_04_05."))`
-//  which contains all the "projected" files, and a `..dir` symlink to that directory.
-//  It then creates symlinks from the user-visible location into the
-//  `..dir` directory, so it can populate a new timestamped dir and do
-//  an atomic rename (from `..data_tmp` to `..data`) of the symlink to
-//  make all contents of the configmap atomically updatable.
-//  The timestamped directory is then symlinked to `..data_tmp`, which
-//  is then atomically renamed over the `..data` directory.
-//  At this point, we don't care, but it then cleans up the old directory.
-//  doc for the k8s AtomicWriter: https://godoc.org/k8s.io/kubernetes/pkg/volume/util#AtomicWriter
+//
+//	It creates a timestamped tempdir named by
+//	`ioutil.TempDir(w.targetDir, time.Now().UTC().Format("..2006_01_02_15_04_05."))`
+//	which contains all the "projected" files, and a `..dir` symlink to that directory.
+//	It then creates symlinks from the user-visible location into the
+//	`..dir` directory, so it can populate a new timestamped dir and do
+//	an atomic rename (from `..data_tmp` to `..data`) of the symlink to
+//	make all contents of the configmap atomically updatable.
+//	The timestamped directory is then symlinked to `..data_tmp`, which
+//	is then atomically renamed over the `..data` directory.
+//	At this point, we don't care, but it then cleans up the old directory.
+//	doc for the k8s AtomicWriter: https://godoc.org/k8s.io/kubernetes/pkg/volume/util#AtomicWriter
 //
 // The upshot is that we need to watch the parent directory for
 // renames, (which may show up as create/delete pairs) that affect the

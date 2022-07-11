@@ -56,7 +56,7 @@ func TestTransformingDecoder(t *testing.T) {
 	d, err := dials.Config(ctx, &c, &ss)
 	require.NoError(t, err)
 
-	theConf := d.View().(*conf)
+	theConf := d.View()
 	assert.Len(t, theConf.Set, 3)
 	assert.Contains(t, theConf.Set, "a")
 	assert.Contains(t, theConf.Set, "b")

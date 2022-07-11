@@ -73,8 +73,7 @@ func TestWatchingFile(t *testing.T) {
 	d, err := dials.Config(ctx, myConfig, watchingFile)
 	assert.NoError(t, err)
 
-	c, ok := d.View().(*config)
-	assert.True(t, ok)
+	c := d.View()
 	assert.Equal(t, 42, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
 
@@ -90,8 +89,7 @@ func TestWatchingFile(t *testing.T) {
 
 	wg.Wait()
 
-	c, ok = d.View().(*config)
-	assert.True(t, ok)
+	c = d.View()
 	assert.Equal(t, 47, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
 }
@@ -133,8 +131,7 @@ func TestWatchingFileWithRelativePathAndChdir(t *testing.T) {
 	d, err := dials.Config(ctx, myConfig, watchingFile)
 	assert.NoError(t, err)
 
-	c, ok := d.View().(*config)
-	assert.True(t, ok)
+	c := d.View()
 	assert.Equal(t, 42, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
 
@@ -154,8 +151,7 @@ func TestWatchingFileWithRelativePathAndChdir(t *testing.T) {
 
 	wg.Wait()
 
-	c, ok = d.View().(*config)
-	assert.True(t, ok)
+	c = d.View()
 	assert.Equal(t, 47, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
 }
@@ -183,9 +179,7 @@ func TestWatchingFileWithRemove(t *testing.T) {
 	d, err := dials.Config(ctx, myConfig, watchingFile)
 	require.NoErrorf(t, err, "failed to construct watcher (on file %q)", firstConfig)
 
-	// let it panic (it's a test, and the panic trace will give us the data
-	// we want.
-	c := d.View().(*config)
+	c := d.View()
 	assert.Equal(t, 42, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
 
@@ -210,7 +204,7 @@ func TestWatchingFileWithRemove(t *testing.T) {
 	cancel()
 
 	// should still be set to what it was before
-	c = d.View().(*config)
+	c = d.View()
 	assert.Equal(t, 42, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
 }
@@ -239,8 +233,7 @@ func TestWatchingFileWithTrickle(t *testing.T) {
 	d, err := dials.Config(ctx, myConfig, watchingFile)
 	assert.NoError(t, err)
 
-	c, ok := d.View().(*config)
-	assert.True(t, ok)
+	c := d.View()
 	assert.Equal(t, 42, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
 
@@ -287,8 +280,7 @@ func TestWatchingFileWithTrickle(t *testing.T) {
 	assert.EqualValues(t, atomic.LoadInt32(&counter), 1)
 
 	// should still be set to what it was before
-	c, ok = d.View().(*config)
-	assert.True(t, ok)
+	c = d.View()
 	assert.Equal(t, 11, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
 }
@@ -339,8 +331,7 @@ func TestWatchingFileWithK8SEmulatedAtomicWriter(t *testing.T) {
 	d, err := dials.Config(ctx, myConfig, watchingFile)
 	assert.NoError(t, err)
 
-	c, ok := d.View().(*config)
-	assert.True(t, ok)
+	c := d.View()
 	assert.Equal(t, 42, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
 
@@ -355,9 +346,8 @@ func TestWatchingFileWithK8SEmulatedAtomicWriter(t *testing.T) {
 			select {
 			case conf := <-d.Events():
 				atomic.AddInt32(&counter, 1)
-				c := conf.(*config)
-				assert.EqualValues(t, 4, c.NumBeatles)
-				assert.EqualValues(t, expectedSecret, c.SecretOfLife)
+				assert.EqualValues(t, 4, conf.NumBeatles)
+				assert.EqualValues(t, expectedSecret, conf.SecretOfLife)
 				expectedSecret++
 				received <- struct{}{}
 			case <-ctx.Done():
@@ -396,7 +386,7 @@ func TestWatchingFileWithK8SEmulatedAtomicWriter(t *testing.T) {
 	assert.EqualValues(t, atomic.LoadInt32(&counter), 13)
 
 	// let it panic if it isn't the &config type we expect
-	c = d.View().(*config)
+	c = d.View()
 	assert.Equal(t, 9+14, c.SecretOfLife)
 	assert.Equal(t, 4, c.NumBeatles)
 }

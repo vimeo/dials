@@ -56,7 +56,7 @@ func TestYAMLConfigEnvFlagWithValidConfig(t *testing.T) {
 			"Jack":  {},
 		},
 	}
-	populatedConf := view.View().(*config)
+	populatedConf := view.View()
 	assert.EqualValues(t, expectedConfig, *populatedConf)
 }
 
@@ -88,7 +88,7 @@ func TestYAMLConfigEnvFlagWithFileKeyNaming(t *testing.T) {
 			"Ringo":  "drums",
 		},
 	}
-	populatedConf := view.View().(*beatlesConfig)
+	populatedConf := view.View()
 	assert.EqualValues(t, expectedConfig, *populatedConf)
 }
 
@@ -150,7 +150,7 @@ func TestYAMLConfigEnvFlagWithValidatingConfigInitiallyValid(t *testing.T) {
 	defer os.Remove(path)
 
 	errCh := make(chan error)
-	errHandler := func(ctx context.Context, err error, oldConfig, newConfig interface{}) {
+	errHandler := func(ctx context.Context, err error, oldConfig, newConfig *validatingConfig) {
 		errCh <- err
 	}
 	c := &validatingConfig{Path: path}
@@ -164,7 +164,7 @@ func TestYAMLConfigEnvFlagWithValidatingConfigInitiallyValid(t *testing.T) {
 		Val2: "",
 		Set:  map[string]struct{}{},
 	}
-	populatedConf := view.View().(*validatingConfig)
+	populatedConf := view.View()
 	assert.EqualValues(t, expectedConfig, *populatedConf)
 
 	tmpPath2 := filepath.Join(tmpDir, "_tmp_fim1.yaml")
@@ -204,7 +204,7 @@ func TestJSONConfigEnvFlagWithNewConfigCallback(t *testing.T) {
 	require.NoError(t, ioutil.WriteFile(path, origJS, 0660))
 
 	newCfg := make(chan interface{}, 1)
-	newConfigCB := func(ctx context.Context, oldConfig, newConfig interface{}) {
+	newConfigCB := func(ctx context.Context, oldConfig, newConfig *validatingConfig) {
 		newCfg <- newConfig
 	}
 	c := &validatingConfig{Path: path}
@@ -218,7 +218,7 @@ func TestJSONConfigEnvFlagWithNewConfigCallback(t *testing.T) {
 		Val2: "",
 		Set:  map[string]struct{}{"foo": {}, "bar": {}, "baz": {}},
 	}
-	populatedConf := view.View().(*validatingConfig)
+	populatedConf := view.View()
 	assert.EqualValues(t, expectedConfig, *populatedConf)
 
 	select {
@@ -257,6 +257,6 @@ func TestJSONConfigEnvFlagWithNewConfigCallback(t *testing.T) {
 	assert.EqualValues(t, expectedFinalConfig, *finalCfg.(*validatingConfig))
 
 	finalViewEventCfg := <-view.Events()
-	assert.EqualValues(t, expectedFinalConfig, *finalViewEventCfg.(*validatingConfig))
-	assert.EqualValues(t, expectedFinalConfig, *view.View().(*validatingConfig))
+	assert.EqualValues(t, expectedFinalConfig, *finalViewEventCfg)
+	assert.EqualValues(t, expectedFinalConfig, *view.View())
 }

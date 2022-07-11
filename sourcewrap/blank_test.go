@@ -97,7 +97,7 @@ func TestBlankSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to construct View: %s", err)
 	}
-	initConf := d.View().(*basicConf)
+	initConf := d.View()
 	if *initConf != c {
 		t.Errorf("unexpected initial config: got %+v; expected %+v", *initConf, c)
 	}
@@ -110,8 +110,7 @@ func TestBlankSource(t *testing.T) {
 	}
 
 	// Await the new value, since it's sent asynchronously
-	newConfIface := <-d.Events()
-	newConf := newConfIface.(*basicConf)
+	newConf := <-d.Events()
 	if *newConf != c {
 		t.Errorf("unexpected new config: got %+v; expected %+v", *newConf, c)
 	}
@@ -139,7 +138,7 @@ func TestBlankSourceError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to construct View: %s", err)
 	}
-	initConf := d.View().(*basicConf)
+	initConf := d.View()
 	if *initConf != c {
 		t.Errorf("unexpected initial config: got %+v; expected %+v", *initConf, c)
 	}
@@ -188,7 +187,7 @@ func TestBlankSourceWatcher(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to construct View: %s", err)
 	}
-	initConf := d.View().(*basicConf)
+	initConf := d.View()
 	if *initConf != c {
 		t.Errorf("unexpected initial config: got %+v; expected %+v", *initConf, c)
 	}
@@ -202,8 +201,7 @@ func TestBlankSourceWatcher(t *testing.T) {
 
 	{
 		// Await the new value, since it's sent asynchronously
-		newConfIface := <-d.Events()
-		newConf := newConfIface.(*basicConf)
+		newConf := <-d.Events()
 		if *newConf != c {
 			t.Errorf("unexpected new config: got %+v; expected %+v", *newConf, c)
 		}
@@ -216,8 +214,7 @@ func TestBlankSourceWatcher(t *testing.T) {
 	triv.poke(ctx)
 	{
 		// Await the new value, since it's sent asynchronously
-		newConfIface := <-d.Events()
-		newConf := newConfIface.(*basicConf)
+		newConf := <-d.Events()
 		if *newConf != c {
 			t.Errorf("unexpected new config: got %+v; expected %+v", *newConf, c)
 		}
@@ -249,7 +246,7 @@ func TestBlankSourceErrorWatcher(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to construct View: %s", err)
 	}
-	initConf := d.View().(*basicConf)
+	initConf := d.View()
 	if *initConf != c {
 		t.Errorf("unexpected initial config: got %+v; expected %+v", *initConf, c)
 	}
@@ -268,8 +265,7 @@ func TestBlankSourceErrorWatcher(t *testing.T) {
 
 	{
 		// Await the new value, since it's sent asynchronously
-		newConfIface := <-d.Events()
-		newConf := newConfIface.(*basicConf)
+		newConf := <-d.Events()
 		if *newConf != c {
 			t.Errorf("unexpected new config: got %+v; expected %+v", *newConf, c)
 		}

@@ -1,6 +1,6 @@
 module github.com/vimeo/dials
 
-go 1.13
+go 1.18
 
 require (
 	github.com/fatih/structtag v1.2.0
@@ -8,6 +8,11 @@ require (
 	github.com/pelletier/go-toml v1.6.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0
-	golang.org/x/sys v0.0.0-20190312061237-fead79001313 // indirect
 	gopkg.in/yaml.v2 v2.4.0
+)
+
+require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	golang.org/x/sys v0.0.0-20220708085239-5a0f0661e09d // indirect
 )

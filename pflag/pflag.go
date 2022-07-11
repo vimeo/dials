@@ -112,7 +112,8 @@ func NewDefaultSetWithFlagSet(template interface{}, flagset *pflag.FlagSet) (*Se
 // Must is a helper that wraps a call to a function returning (*Set, error)
 // and panics if the error is non-nil. It is intended for use in variable
 // initializations such as
-// 	var flagset = pflag.Must(pflag.NewCmdLineSet(pflag.DefaultFlagNameConfig(), config))
+//
+//	var flagset = pflag.Must(pflag.NewCmdLineSet(pflag.DefaultFlagNameConfig(), config))
 func Must(s *Set, err error) *Set {
 	if err != nil {
 		panic(fmt.Errorf("Error registering flags: %w", err))

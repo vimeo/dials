@@ -11,6 +11,13 @@ import (
 	"github.com/vimeo/dials"
 )
 
+func testSafeDialsRet[T any](d *dials.Dials[T], err error) (any, error) {
+	if d == nil {
+		return nil, err
+	}
+	return d.View(), err
+}
+
 func TestEnv(t *testing.T) {
 	type Embed struct {
 		Foo      int
@@ -18,131 +25,185 @@ func TestEnv(t *testing.T) {
 		SomeTime time.Duration
 	}
 	cases := map[string]struct {
-		ConfigStruct interface{}
-		EnvVarName   string
-		EnvVarValue  string
-		Source       Source
-		Expected     interface{}
-		ExpectedErr  string
+		EnvVarName  string
+		EnvVarValue string
+		Source      Source
+		Run         func(ctx context.Context, src *Source) (any, error)
+		Expected    any
+		ExpectedErr string
 	}{
 		"string": {
-			ConfigStruct: &struct{ EnvVar string }{},
-			EnvVarName:   "ENV_VAR",
-			EnvVarValue:  "asdf",
-			Expected:     &struct{ EnvVar string }{EnvVar: "asdf"},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct{ EnvVar string }{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
+			EnvVarName:  "ENV_VAR",
+			EnvVarValue: "asdf",
+			Expected:    &struct{ EnvVar string }{EnvVar: "asdf"},
 		},
 		"string_with_dials_tag": {
-			ConfigStruct: &struct {
-				EnvVar string `dials:"ENVIRONMENT_VARIABLE"`
-			}{},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct {
+					EnvVar string `dials:"ENVIRONMENT_VARIABLE"`
+				}{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
 			EnvVarName:  "ENVIRONMENT_VARIABLE",
 			EnvVarValue: "asdf",
 			Expected:    &struct{ EnvVar string }{EnvVar: "asdf"},
 		},
 		"string_with_env_tag": {
-			ConfigStruct: &struct {
-				EnvVar string `dialsenv:"ENVIRONMENT_VARIABLE"`
-			}{},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct {
+					EnvVar string `dialsenv:"ENVIRONMENT_VARIABLE"`
+				}{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
 			EnvVarName:  "ENVIRONMENT_VARIABLE",
 			EnvVarValue: "asdf",
 			Expected:    &struct{ EnvVar string }{EnvVar: "asdf"},
 		},
 		"string_with_dials_and_env_tags": {
-			ConfigStruct: &struct {
-				EnvVar string `dials:"env-var" dialsenv:"ENV_TWO"`
-			}{},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct {
+					EnvVar string `dials:"env-var" dialsenv:"ENV_TWO"`
+				}{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
 			EnvVarName:  "ENV_TWO",
 			EnvVarValue: "asdf",
 			Expected:    &struct{ EnvVar string }{EnvVar: "asdf"},
 		},
 		"int": {
-			ConfigStruct: &struct{ EnvVar int }{},
-			EnvVarName:   "ENV_VAR",
-			EnvVarValue:  "123",
-			Expected:     &struct{ EnvVar int }{EnvVar: 123},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct{ EnvVar int }{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
+			EnvVarName:  "ENV_VAR",
+			EnvVarValue: "123",
+			Expected:    &struct{ EnvVar int }{EnvVar: 123},
 		},
 		"int8": {
-			ConfigStruct: &struct{ EnvVar int8 }{},
-			EnvVarName:   "ENV_VAR",
-			EnvVarValue:  "123",
-			Expected:     &struct{ EnvVar int8 }{EnvVar: int8(123)},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct{ EnvVar int8 }{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
+			EnvVarName:  "ENV_VAR",
+			EnvVarValue: "123",
+			Expected:    &struct{ EnvVar int8 }{EnvVar: int8(123)},
 		},
 		"int8_overflow": {
-			ConfigStruct: &struct{ EnvVar int8 }{},
-			EnvVarName:   "ENV_VAR",
-			EnvVarValue:  "999999",
-			Expected:     nil,
-			ExpectedErr:  "Overflow of int8 type: 999999",
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct{ EnvVar int8 }{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
+			EnvVarName:  "ENV_VAR",
+			EnvVarValue: "999999",
+			Expected:    nil,
+			ExpectedErr: "Overflow of int8 type: 999999",
 		},
 		"bool": {
-			ConfigStruct: &struct{ EnvVar bool }{},
-			EnvVarName:   "ENV_VAR",
-			EnvVarValue:  "true",
-			Expected:     &struct{ EnvVar bool }{EnvVar: true},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct{ EnvVar bool }{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
+			EnvVarName:  "ENV_VAR",
+			EnvVarValue: "true",
+			Expected:    &struct{ EnvVar bool }{EnvVar: true},
 		},
 		"float32": {
-			ConfigStruct: &struct{ EnvVar float32 }{},
-			EnvVarName:   "ENV_VAR",
-			EnvVarValue:  "1.123",
-			Expected:     &struct{ EnvVar float32 }{EnvVar: float32(1.123)},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct{ EnvVar float32 }{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
+			EnvVarName:  "ENV_VAR",
+			EnvVarValue: "1.123",
+			Expected:    &struct{ EnvVar float32 }{EnvVar: float32(1.123)},
 		},
 		"string_slice": {
-			ConfigStruct: &struct{ EnvVar []string }{},
-			EnvVarName:   "ENV_VAR",
-			EnvVarValue:  `"a","b"`,
-			Expected:     &struct{ EnvVar []string }{EnvVar: []string{"a", "b"}},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct{ EnvVar []string }{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
+			EnvVarName:  "ENV_VAR",
+			EnvVarValue: `"a","b"`,
+			Expected:    &struct{ EnvVar []string }{EnvVar: []string{"a", "b"}},
 		},
 		"prefixed_string": {
-			ConfigStruct: &struct{ EnvVar string }{},
-			EnvVarName:   "PREFIX_ENV_VAR",
-			EnvVarValue:  "asdf",
-			Source:       Source{Prefix: "PREFIX"},
-			Expected:     &struct{ EnvVar string }{EnvVar: "asdf"},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct{ EnvVar string }{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
+			EnvVarName:  "PREFIX_ENV_VAR",
+			EnvVarValue: "asdf",
+			Source:      Source{Prefix: "PREFIX"},
+			Expected:    &struct{ EnvVar string }{EnvVar: "asdf"},
 		},
 		"zero_value_string": {
-			ConfigStruct: &struct{ EnvVar string }{},
-			EnvVarName:   "NOT_STRUCT_FIELD_NAME",
-			EnvVarValue:  "asdf",
-			Expected:     &struct{ EnvVar string }{EnvVar: ""},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct{ EnvVar string }{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
+			EnvVarName:  "NOT_STRUCT_FIELD_NAME",
+			EnvVarValue: "asdf",
+			Expected:    &struct{ EnvVar string }{EnvVar: ""},
 		},
 		"zero_value_int": {
-			ConfigStruct: &struct{ EnvVar int }{},
-			EnvVarName:   "NOT_STRUCT_FIELD_NAME",
-			EnvVarValue:  "123",
-			Expected:     &struct{ EnvVar int }{EnvVar: 0},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct{ EnvVar int }{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
+			EnvVarName:  "NOT_STRUCT_FIELD_NAME",
+			EnvVarValue: "123",
+			Expected:    &struct{ EnvVar int }{EnvVar: 0},
 		},
 		"zero_value_bool": {
-			ConfigStruct: &struct{ EnvVar bool }{},
-			EnvVarName:   "NOT_STRUCT_FIELD_NAME",
-			EnvVarValue:  "true",
-			Expected:     &struct{ EnvVar bool }{EnvVar: false},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct{ EnvVar bool }{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
+			EnvVarName:  "NOT_STRUCT_FIELD_NAME",
+			EnvVarValue: "true",
+			Expected:    &struct{ EnvVar bool }{EnvVar: false},
 		},
 		"zero_value_string_slice": {
-			ConfigStruct: &struct{ EnvVar []string }{},
-			EnvVarName:   "ENV_VAR",
-			EnvVarValue:  "",
-			Expected:     &struct{ EnvVar []string }{EnvVar: []string{}},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct{ EnvVar []string }{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
+			EnvVarName:  "ENV_VAR",
+			EnvVarValue: "",
+			Expected:    &struct{ EnvVar []string }{EnvVar: []string{}},
 		},
 		"multiple_fields": {
-			ConfigStruct: &struct{ EnvVarA, EnvVarB string }{},
-			EnvVarName:   "ENV_VAR_A",
-			EnvVarValue:  "asdf",
-			Expected:     &struct{ EnvVarA, EnvVarB string }{EnvVarA: "asdf", EnvVarB: ""},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct{ EnvVarA, EnvVarB string }{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
+			EnvVarName:  "ENV_VAR_A",
+			EnvVarValue: "asdf",
+			Expected:    &struct{ EnvVarA, EnvVarB string }{EnvVarA: "asdf", EnvVarB: ""},
 		},
 		"golang_camel_case_naming": {
-			ConfigStruct: &struct{ JSONFilePath string }{},
-			EnvVarName:   "JSON_FILE_PATH",
-			EnvVarValue:  "/path/to/file",
-			Expected:     &struct{ JSONFilePath string }{JSONFilePath: "/path/to/file"},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct{ JSONFilePath string }{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
+			EnvVarName:  "JSON_FILE_PATH",
+			EnvVarValue: "/path/to/file",
+			Expected:    &struct{ JSONFilePath string }{JSONFilePath: "/path/to/file"},
 		},
 		"nested_struct_field": {
-			ConfigStruct: &struct {
-				Foo string
-				Bar *struct {
-					Hello   string
-					Goodbye int
-				}
-			}{},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct {
+					Foo string
+					Bar *struct {
+						Hello   string
+						Goodbye int
+					}
+				}{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
 			EnvVarName:  "BAR_GOODBYE",
 			EnvVarValue: "8",
 			Expected: &struct {
@@ -160,13 +221,16 @@ func TestEnv(t *testing.T) {
 			},
 		},
 		"nested_struct_field_with_slice": {
-			ConfigStruct: &struct {
-				Foo string
-				Bar []struct {
-					Hello   string
-					Goodbye int
-				}
-			}{},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct {
+					Foo string
+					Bar []struct {
+						Hello   string
+						Goodbye int
+					}
+				}{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
 			EnvVarName:  "BAR_GOODBYE",
 			EnvVarValue: "8",
 			Expected: &struct {
@@ -184,10 +248,13 @@ func TestEnv(t *testing.T) {
 			},
 		},
 		"embedded_field": {
-			ConfigStruct: &struct {
-				Hello string
-				Embed
-			}{},
+			Run: func(ctx context.Context, src *Source) (any, error) {
+				cfg := struct {
+					Hello string
+					Embed
+				}{}
+				return testSafeDialsRet(dials.Config(context.Background(), &cfg, src))
+			},
 			EnvVarName:  "FOO", // Embed struct had field Foo
 			EnvVarValue: "8",
 			Expected: &struct {
@@ -201,16 +268,17 @@ func TestEnv(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
 	for name, testCase := range cases {
 		t.Run(name, func(t *testing.T) {
 			os.Setenv(testCase.EnvVarName, testCase.EnvVarValue)
 			defer os.Unsetenv(testCase.EnvVarName)
-			d, err := dials.Config(context.Background(), testCase.ConfigStruct, &testCase.Source)
+			cfg, err := testCase.Run(ctx, &testCase.Source)
 			if testCase.ExpectedErr != "" {
 				require.Contains(t, err.Error(), testCase.ExpectedErr)
 			} else {
 				require.NoError(t, err)
-				assert.EqualValues(t, testCase.Expected, d.View())
+				assert.EqualValues(t, testCase.Expected, cfg)
 			}
 		})
 	}

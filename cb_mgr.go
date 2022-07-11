@@ -5,8 +5,8 @@ import (
 	"fmt"
 )
 
-type callbackMgr struct {
-	p *Params
+type callbackMgr[T any] struct {
+	p *Params[T]
 
 	ch <-chan userCallbackEvent
 }
@@ -15,33 +15,33 @@ type userCallbackEvent interface {
 	isUserCallbackEvent()
 }
 
-type newConfigEvent struct {
-	oldConfig, newConfig interface{}
+type newConfigEvent[T any] struct {
+	oldConfig, newConfig *T
 }
 
-func (*newConfigEvent) isUserCallbackEvent() {}
+func (*newConfigEvent[T]) isUserCallbackEvent() {}
 
-var _ userCallbackEvent = (*newConfigEvent)(nil)
+var _ userCallbackEvent = (*newConfigEvent[struct{}])(nil)
 
 // watchErrorEvent sends the arguments to an OnWatchedError callback. The
 // fields here must stay in sync with the arguments to WatchedErrorHandler.
-type watchErrorEvent struct {
+type watchErrorEvent[T any] struct {
 	err                  error
-	oldConfig, newConfig interface{}
+	oldConfig, newConfig *T
 }
 
-func (*watchErrorEvent) isUserCallbackEvent() {}
+func (*watchErrorEvent[T]) isUserCallbackEvent() {}
 
-var _ userCallbackEvent = (*watchErrorEvent)(nil)
+var _ userCallbackEvent = (*watchErrorEvent[struct{}])(nil)
 
-func (cbm *callbackMgr) runCBs(ctx context.Context) {
+func (cbm *callbackMgr[T]) runCBs(ctx context.Context) {
 	for ev := range cbm.ch {
 		switch e := ev.(type) {
-		case *watchErrorEvent:
+		case *watchErrorEvent[T]:
 			if cbm.p.OnWatchedError != nil {
 				cbm.p.OnWatchedError(ctx, e.err, e.oldConfig, e.newConfig)
 			}
-		case *newConfigEvent:
+		case *newConfigEvent[T]:
 			if cbm.p.OnNewConfig != nil {
 				cbm.p.OnNewConfig(ctx, e.oldConfig, e.newConfig)
 			}
