@@ -301,6 +301,66 @@ func (d *Dials[T]) Fill(blankConfig *T) {
 	*blankConfig = *d.View()
 }
 
+type userCallbackUnregisterToken[T any] struct {
+	d *Dials[T]
+	h *userCallbackHandle[T]
+}
+
+func (u *userCallbackUnregisterToken[T]) unregister(ctx context.Context) bool {
+	doneCh := make(chan struct{})
+	submitted := u.d.submitEventBlocking(ctx, &userCallbackUnregister[T]{
+		handle: u.h,
+		done:   doneCh,
+	})
+	if !submitted {
+		return false
+	}
+
+	// Wait for the unregister "event" to be processed.
+	select {
+	case <-ctx.Done():
+		return false
+	case <-doneCh:
+		return true
+	}
+}
+
+// UnregisterCBFunc unregisters a callback from the dials object it was registered with.
+type UnregisterCBFunc func(ctx context.Context) bool
+
+// RegisterCallback registers the callback cb to receive notifications whenever
+// a new configuration is installed. If the "current" version is later than the
+// one represented by the value of CfgSerial, a notification will be delivered immediately.
+// This call is only blocking if the callback handling has filled up an
+// internal channel. (likely because an already-registered callback is slow or
+// blocking)
+// serial must be obtained from [Dials.ViewVersion()]. Catch-up callbacks are
+// suppressed if passed passed an invalid CfgSerial (including the zero-value)
+//
+// May return a nil [UnregisterCBFunc] if the context expires
+//
+// The returned UnregisterCBFunc will block until the relevant callback has
+// been removed from the set of callbacks.
+func (d *Dials[T]) RegisterCallback(ctx context.Context, serial CfgSerial[T], cb NewConfigHandler[T]) UnregisterCBFunc {
+	handle := userCallbackHandle[T]{
+		cb:        cb,
+		minSerial: serial.s,
+	}
+	submitted := d.submitEventBlocking(ctx, &userCallbackRegistration[T]{
+		handle: &handle,
+		serial: &serial,
+	})
+
+	if !submitted {
+		return nil
+	}
+	tok := userCallbackUnregisterToken[T]{
+		d: d,
+		h: &handle,
+	}
+	return tok.unregister
+}
+
 // returns the new value (if any)
 func (d *Dials[T]) updateSourceValue(
 	ctx context.Context,
@@ -377,6 +437,19 @@ func (d *Dials[T]) markSourceDone(
 	return false
 }
 
+func (d *Dials[T]) submitEventBlocking(ctx context.Context, ev userCallbackEvent) bool {
+	// don't panic
+	if d.cbch == nil {
+		return false
+	}
+	select {
+	case <-ctx.Done():
+		return false
+	case d.cbch <- ev:
+		return true
+	}
+}
+
 func (d *Dials[T]) submitEvent(ctx context.Context, ev userCallbackEvent) {
 	// don't panic
 	if d.cbch == nil {
@@ -404,12 +477,13 @@ func (d *Dials[T]) monitor(
 		case watchTab := <-watcherChan:
 			switch v := watchTab.(type) {
 			case *valueUpdate:
-				oldConfig := d.View()
+				oldConfig, oldSerial := d.ViewVersion()
 				newConfig := d.updateSourceValue(ctx, t, sourceValues, v)
 				if newConfig != nil {
 					d.submitEvent(ctx, &newConfigEvent[T]{
 						oldConfig: oldConfig,
 						newConfig: newConfig,
+						serial:    oldSerial.s + 1,
 					})
 				}
 			case *watchErrorReport:
