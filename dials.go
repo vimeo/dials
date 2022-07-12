@@ -118,7 +118,7 @@ func (p Params[T]) Config(ctx context.Context, t *T, sources ...Source) (*Dials[
 		updatesChan: make(chan *T, 1),
 		params:      p,
 	}
-	d.value.Store(nv)
+	d.value.Store(&versionedConfig[T]{serial: 0, cfg: nv})
 
 	// Verify that the configuration is valid if a Verify() method is present.
 	if vf, ok := newValue.(VerifiedConfig); ok && !p.SkipInitialVerification {
@@ -276,6 +276,18 @@ type VerifiedConfig interface {
 	Verify() error
 }
 
+// versionedConfig is the value-type of the value struct
+type versionedConfig[T any] struct {
+	serial uint64
+	cfg    *T
+}
+
+// CfgSerial is an opaque object unique to a config-version
+type CfgSerial[T any] struct {
+	s   uint64
+	cfg *T
+}
+
 // Events returns a channel that will get a message every time the configuration
 // is updated.
 func (d *Dials[T]) Events() <-chan *T {
@@ -328,7 +340,11 @@ func (d *Dials[T]) updateSourceValue(
 
 	newVers := newInterface.(*T)
 
-	d.value.Store(newVers)
+	_, oldSerial := d.ViewVersion()
+
+	// We can do a blind-store here because this goroutine (monitor()) has
+	// exclusive ownership of writes to this atomic-value
+	d.value.Store(&versionedConfig[T]{serial: oldSerial.s + 1, cfg: newVers})
 	select {
 	case d.updatesChan <- newVers:
 	default:
