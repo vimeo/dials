@@ -177,8 +177,9 @@ type Decoder interface {
 }
 
 type valueUpdate struct {
-	source Source
-	value  reflect.Value
+	source    Source
+	value     reflect.Value
+	installed chan<- error
 }
 
 func (valueUpdate) isStatusReport() {}
@@ -213,6 +214,34 @@ func (w *watchArgs) ReportNewValue(ctx context.Context, val reflect.Value) error
 		return ctx.Err()
 	case w.c <- &valueUpdate{source: w.s, value: val}:
 		return nil
+	}
+}
+
+// BlockingReportNewValue reports a new value. Returns an error if the internal
+// reporting channel is full and the context expires/is-canceled.
+// Blocks until the new value has been or returns an error.
+//
+// Most Source implementations should use ReportNewValue(). This was added to
+// support [github.com/vimeo/dials/sourcewrap.Blank]. This should only be used
+// in similar cases.
+func (w *watchArgs) BlockingReportNewValue(ctx context.Context, val reflect.Value) error {
+	installed := make(chan error, 1)
+	vu := valueUpdate{source: w.s, value: val, installed: installed}
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("context expired while attempting to submit new value: %w", ctx.Err())
+	case w.c <- &vu:
+	}
+
+	// Submitted, now we wait for the new value to be handled.
+	select {
+	case err := <-installed:
+		if err != nil {
+			return fmt.Errorf("stacking failed: %w", err)
+		}
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("context expired while awaiting restack: %w", ctx.Err())
 	}
 }
 
@@ -254,6 +283,15 @@ type WatchArgs interface {
 	// the internal reporting channel is full and the context
 	// expires/is-canceled.
 	ReportError(ctx context.Context, err error) error
+
+	// BlockingReportNewValue reports a new value. Returns an error if the internal
+	// reporting channel is full and the context expires/is-canceled.
+	// Blocks until the new value has been or returns an error.
+	//
+	// Most Source implementations should use ReportNewValue(). This was added to
+	// support [github.com/vimeo/dials/sourcewrap.Blank]. This should only be used
+	// in similar cases.
+	BlockingReportNewValue(ctx context.Context, val reflect.Value) error
 }
 
 // Watcher should be implemented by Sources that allow their configuration to be
@@ -381,6 +419,9 @@ func (d *Dials[T]) updateSourceValue(
 		d.submitEvent(ctx, &watchErrorEvent[T]{
 			err: stackErr, oldConfig: oldVal, newConfig: newVal,
 		})
+		if watchTab.installed != nil {
+			watchTab.installed <- stackErr
+		}
 		return nil
 	}
 
@@ -394,6 +435,10 @@ func (d *Dials[T]) updateSourceValue(
 			d.submitEvent(ctx, &watchErrorEvent[T]{
 				err: vfErr, oldConfig: oldVal, newConfig: newVal,
 			})
+
+			if watchTab.installed != nil {
+				watchTab.installed <- vfErr
+			}
 			return nil
 		}
 	}
@@ -408,6 +453,11 @@ func (d *Dials[T]) updateSourceValue(
 	select {
 	case d.updatesChan <- newVers:
 	default:
+	}
+
+	// If there's an installed channel, poke it.
+	if watchTab.installed != nil {
+		watchTab.installed <- nil
 	}
 
 	return newVers

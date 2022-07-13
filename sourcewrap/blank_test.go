@@ -109,8 +109,8 @@ func TestBlankSource(t *testing.T) {
 		t.Errorf("b.SetSource() failed with trivial nop impl: %s", setErr)
 	}
 
-	// Await the new value, since it's sent asynchronously
-	newConf := <-d.Events()
+	// SetSource should have installed the new version.
+	newConf := d.View()
 	if *newConf != c {
 		t.Errorf("unexpected new config: got %+v; expected %+v", *newConf, c)
 	}
@@ -160,7 +160,7 @@ func TestBlankSourceError(t *testing.T) {
 	// give another goroutine a chance to run before we do a non-blocking read on a channel.
 	runtime.Gosched()
 
-	// make sure nothing comes through on the events channel, sinc our
+	// make sure nothing comes through on the events channel
 	select {
 	case <-d.Events():
 		t.Errorf("unexpected update to view with errored source")
@@ -264,8 +264,8 @@ func TestBlankSourceErrorWatcher(t *testing.T) {
 	}
 
 	{
-		// Await the new value, since it's sent asynchronously
-		newConf := <-d.Events()
+		// Pull the new value (it should be immediately available)
+		newConf := d.View()
 		if *newConf != c {
 			t.Errorf("unexpected new config: got %+v; expected %+v", *newConf, c)
 		}
