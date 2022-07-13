@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/vimeo/dials"
-	"github.com/vimeo/dials/static"
+	"github.com/vimeo/dials/sources/static"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -11,8 +11,8 @@ import (
 
 	"github.com/vimeo/dials"
 	"github.com/vimeo/dials/common"
-	"github.com/vimeo/dials/flag/flaghelper"
 	"github.com/vimeo/dials/ptrify"
+	"github.com/vimeo/dials/sources/flag/flaghelper"
 	"github.com/vimeo/dials/tagformat/caseconversion"
 	"github.com/vimeo/dials/transform"
 )

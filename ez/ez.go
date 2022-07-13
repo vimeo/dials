@@ -8,16 +8,16 @@ import (
 
 	"github.com/vimeo/dials"
 	"github.com/vimeo/dials/common"
-	"github.com/vimeo/dials/env"
-	"github.com/vimeo/dials/file"
-	"github.com/vimeo/dials/flag"
-	"github.com/vimeo/dials/json"
+	"github.com/vimeo/dials/sources/env"
+	"github.com/vimeo/dials/sources/file"
+	"github.com/vimeo/dials/sources/flag"
+	"github.com/vimeo/dials/sources/json"
+	"github.com/vimeo/dials/sources/toml"
+	"github.com/vimeo/dials/sources/yaml"
 	"github.com/vimeo/dials/sourcewrap"
 	"github.com/vimeo/dials/tagformat"
 	"github.com/vimeo/dials/tagformat/caseconversion"
-	"github.com/vimeo/dials/toml"
 	"github.com/vimeo/dials/transform"
-	"github.com/vimeo/dials/yaml"
 )
 
 // Params defines options for the configuration functions within this package
