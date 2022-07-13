@@ -2,6 +2,8 @@ package panels
 
 import (
 	"context"
+	"errors"
+	stdflag "flag"
 	"fmt"
 
 	"github.com/vimeo/dials"
@@ -67,6 +69,10 @@ func (sch *SubCmdHandle[RT, T]) run(ctx context.Context, args []string, bs *Base
 
 	d, dErr := ndFunc(ctx, sch.sp.DefaultConfig(), fs)
 	if dErr != nil {
+		if errors.Is(dErr, stdflag.ErrHelp) {
+			// if one passed `-help` that's not an error
+			return nil
+		}
 		return fmt.Errorf("error parsing flags: %w", dErr)
 	}
 
