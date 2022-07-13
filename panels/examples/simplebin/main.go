@@ -8,7 +8,7 @@ import (
 	"github.com/vimeo/dials/panels"
 )
 
-var p panels.Panel
+var p panels.Panel[struct{}]
 
 func main() {
 	if err := p.Process(context.Background()); err != nil {

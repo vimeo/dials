@@ -34,14 +34,16 @@ func (a *animals) LongUsage(scPath []string) string {
 	return strings.Join(scPath, " ") + "\n\tget all the animals"
 }
 
-func (a *animals) DefaultConfig() interface{}      { return &animalTraits{} }
-func (a *animals) SetupParams() panels.SetupParams { return panels.SetupParams{} }
+func (a *animals) DefaultConfig() *animalTraits { return &animalTraits{} }
+func (a *animals) SetupParams() panels.SetupParams[animalTraits] {
+	return panels.SetupParams[animalTraits]{}
+}
 
-func (a *animals) Run(ctx context.Context, s *panels.Something) error {
+func (a *animals) Run(ctx context.Context, s *panels.Handle[animal, animalTraits]) error {
 
-	rootDial := s.DialsPath[0]
-	c := rootDial.View().(*animal)
-	an := s.Dials.View().(*animalTraits)
+	rootDial := s.RootDials
+	c := rootDial.View()
+	an := s.Dials.View()
 
 	foundMatch := false
 	for n, animal := range a.m {
@@ -107,4 +109,4 @@ func defaultAnimals() *animals {
 	}
 }
 
-var _ = panels.Must(p.Register("animals", defaultAnimals()))
+var _ = panels.Must(panels.Register[animal, animalTraits](p, "animals", defaultAnimals()))

@@ -8,7 +8,7 @@ import (
 	"github.com/vimeo/dials/panels"
 )
 
-var p = panels.NewPanel(&animal{}, nil, panels.SetupParams{})
+var p = panels.NewPanel(&animal{}, nil, panels.SetupParams[animal]{})
 
 func main() {
 	if err := p.Process(context.Background()); err != nil {

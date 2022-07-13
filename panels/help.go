@@ -7,7 +7,7 @@ import (
 	"text/tabwriter"
 )
 
-func (p *Panel) helpString(binaryName string) []byte {
+func (p *Panel[T]) helpString(binaryName string) []byte {
 	var b bytes.Buffer
 	tw := tabwriter.NewWriter(&b, 0, 8, 0, '\t', 0)
 
@@ -28,8 +28,8 @@ func (p *Panel) helpString(binaryName string) []byte {
 	for command, sch := range p.schMap {
 		scPath := []string{binaryName, command}
 		fmt.Fprintf(tw, "%s: %s\n%s\n\n", command,
-			indentString(sch.sp.Description(scPath)),
-			indentString(sch.sp.ShortUsage(scPath)))
+			indentString(sch.spHelp().Description(scPath)),
+			indentString(sch.spHelp().ShortUsage(scPath)))
 	}
 
 	tw.Flush()
@@ -40,7 +40,7 @@ func indentString(s string) string {
 	return "\t" + strings.ReplaceAll(s, "\n", "\t\n")
 }
 
-func (s *SubCmdHandle) helpString(scPath []string) []byte {
+func (s *SubCmdHandle[RT, T]) helpString(scPath []string) []byte {
 	var b bytes.Buffer
 
 	fmt.Fprintf(&b, "Usage for %s:\n", strings.Join(scPath, " "))
