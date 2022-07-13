@@ -149,49 +149,47 @@ func ConfigFileEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 	if !params.WatchConfigFile {
 		defer blank.Done(ctx)
 	}
-	// OnWatchedError is never called from this goroutine, so it can be
-	// unbuffered without deadlocking.
-	//
-	// However, it is buffered to avoid a race where the non-blocking send
-	// in the callback happens before the select statement at the bottom of
-	// this function starts. If this weren't buffered, the send would fall
-	// through to the delegated error-handler, and the select statement
-	// would block until a new config version (or error) was created
-	// (assuming this is a watching-mode) or possibly forever.
-	blankErrCh := make(chan error, 1)
-	// We need to see the new config from the blank source.
-	evChan := make(chan interface{}, 1)
-	p := dials.Params[T]{
-		OnWatchedError: func(ctx context.Context, err error, oldConfig, newConfig *T) {
+
+	watchErrCB := dials.WatchedErrorHandler[T](nil)
+	if params.OnWatchedError != nil {
+		// if there's an error-callback set, it'll only be used if the config is invalid
+		// however, we don't really want to force callers to handle
+		// error-callbacks before this function has returned.
+		// defer a close on this channel so upon exit, all calls to the
+		// watch callback pas through to the wrapped callback.
+		passError := make(chan struct{})
+		defer close(passError)
+		watchErrCB = func(ctx context.Context, err error, oldConfig, newConfig *T) {
 			select {
-			case blankErrCh <- err:
+			case <-passError:
+				// passError closed, so ConfigFileEnvFlag has exited, and we can now deliver new config errors.
 			default:
-				if params.OnWatchedError != nil {
-					params.OnWatchedError(ctx, err, oldConfig, newConfig)
-				}
+				return
 			}
-		},
-		OnNewConfig: func(ctx context.Context, oldConfig, newConfig *T) {
-			select {
-			case evChan <- newConfig:
-			default:
-				if params.OnNewConfig != nil {
-					params.OnNewConfig(ctx, oldConfig, newConfig)
-				}
+			if params.OnWatchedError != nil {
+				params.OnWatchedError(ctx, err, oldConfig, newConfig)
 			}
-		},
+		}
+	}
+
+	dp := dials.Params[T]{
+		OnWatchedError: watchErrCB,
+		// We'll set the OnNewConfig callback after we've inserted the
+		// blank source (or decided that the config is otherwise
+		// valid).
+		OnNewConfig: nil,
 		// Skip the initial verification to allow files to provide values that
 		// will be considered during verification.  If a file source isn't
 		// provided we'll appropriately call Verify before returning.
 		SkipInitialVerification: true,
 	}
 
-	d, err := p.Config(ctx, (*T)(cfg), &blank, &env.Source{}, flagSrc)
+	d, err := dp.Config(ctx, (*T)(cfg), &blank, &env.Source{}, flagSrc)
 	if err != nil {
 		return nil, err
 	}
 
-	basecfg := d.View()
+	basecfg, tok := d.ViewVersion()
 	cfgPath, filepathSet := (TP)(basecfg).ConfigPath()
 	if !filepathSet {
 		// Since we disabled initial verification earlier verify the config explicitly.
@@ -199,8 +197,12 @@ func ConfigFileEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 		// method is never run by `dials.Config`.
 		if vf, ok := any(basecfg).(dials.VerifiedConfig); ok {
 			if vfErr := vf.Verify(); vfErr != nil {
-				return nil, fmt.Errorf("Initial configuration verification failed: %w", vfErr)
+				return nil, fmt.Errorf("initial configuration verification failed: %w", vfErr)
 			}
+		}
+		if params.OnNewConfig != nil {
+			// new config callback set; register it just before returning.
+			d.RegisterCallback(ctx, tok, params.OnNewConfig)
 		}
 
 		// The callback indicated that we shouldn't read any config
@@ -210,7 +212,7 @@ func ConfigFileEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 
 	decoder := df(cfgPath)
 	if decoder == nil {
-		return nil, fmt.Errorf("decoderFactory provided a nil decoder")
+		return nil, fmt.Errorf("decoderFactory provided a nil decoder for path: %s", cfgPath)
 	}
 
 	manglers := make([]transform.Mangler, 0, 2)
@@ -245,33 +247,24 @@ func ConfigFileEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 		return nil, fileErr
 	}
 
+	// SetSource blocks until the new config is re-stacked. It will fail if
+	// either the file source fails, or the config fails validation.
 	blankErr := blank.SetSource(ctx, fileSrc)
 	if blankErr != nil {
-		return d, fmt.Errorf("failed to read config file: %w", blankErr)
-	}
-
-	// wait for the composition of the config struct with the config file values
-	select {
-	case <-evChan:
-	case err := <-blankErrCh:
-		return d, fmt.Errorf("failed to stack/verify config with file layered: %w", err)
+		return d, fmt.Errorf("failed to integrate file source: %w", blankErr)
 	}
 
 	// Drain the event from the events channel so users of that interface
 	// don't see the intermediate config.
 	<-d.Events()
 
-	// If there was no error, make sure the blankErrCh buffer is full so
-	// subsequent calls always call the registered callback.
-	select {
-	case blankErrCh <- nil:
-	default:
+	// If there's a callback to register; register it.
+	if params.OnNewConfig != nil {
+		// Use a zero-valued token so we ignore any intermediate config values.
+		// note: this throws away the unregistration handle.
+		d.RegisterCallback(ctx, dials.CfgSerial[T]{}, params.OnNewConfig)
 	}
-	// Similarly, make sure that evChan is full
-	select {
-	case evChan <- nil:
-	default:
-	}
+
 	return d, nil
 }
 

@@ -139,7 +139,7 @@ func TestYAMLConfigEnvFlagWithValidatingConfig(t *testing.T) {
 	c := &validatingConfig{Path: path}
 	d, dialsErr := YAMLConfigEnvFlag(ctx, c, Params[validatingConfig]{})
 	assert.NotNil(t, d)
-	require.EqualError(t, dialsErr, "failed to stack/verify config with file layered: val1 789 > 200")
+	require.EqualError(t, dialsErr, "failed to integrate file source: failed to propagate change: stacking failed: val1 789 > 200")
 }
 
 func TestYAMLConfigEnvFlagWithValidatingConfigInitiallyValid(t *testing.T) {
@@ -207,7 +207,7 @@ func TestJSONConfigEnvFlagWithNewConfigCallback(t *testing.T) {
 
 	require.NoError(t, ioutil.WriteFile(path, origJS, 0660))
 
-	newCfg := make(chan interface{}, 1)
+	newCfg := make(chan *validatingConfig, 1)
 	newConfigCB := func(ctx context.Context, oldConfig, newConfig *validatingConfig) {
 		newCfg <- newConfig
 	}
@@ -258,7 +258,7 @@ func TestJSONConfigEnvFlagWithNewConfigCallback(t *testing.T) {
 	expectedFinalConfig.Val1 = updatedCfgContents.Val1
 
 	finalCfg := <-newCfg
-	assert.EqualValues(t, expectedFinalConfig, *finalCfg.(*validatingConfig))
+	assert.EqualValues(t, expectedFinalConfig, *finalCfg)
 
 	finalViewEventCfg := <-view.Events()
 	assert.EqualValues(t, expectedFinalConfig, *finalViewEventCfg)
