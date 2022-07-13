@@ -6,12 +6,12 @@ import (
 	"testing"
 
 	"github.com/vimeo/dials"
-	"github.com/vimeo/dials/json"
-	"github.com/vimeo/dials/static"
+	"github.com/vimeo/dials/sources/json"
+	"github.com/vimeo/dials/sources/static"
+	"github.com/vimeo/dials/sources/toml"
+	"github.com/vimeo/dials/sources/yaml"
 	"github.com/vimeo/dials/tagformat"
 	"github.com/vimeo/dials/tagformat/caseconversion"
-	"github.com/vimeo/dials/toml"
-	"github.com/vimeo/dials/yaml"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

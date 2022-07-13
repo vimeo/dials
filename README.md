@@ -154,10 +154,10 @@ import (
 	"fmt"
 
 	"github.com/vimeo/dials"
-	"github.com/vimeo/dials/env"
-	"github.com/vimeo/dials/file"
-	"github.com/vimeo/dials/flag"
-	"github.com/vimeo/dials/yaml"
+	"github.com/vimeo/dials/sources/env"
+	"github.com/vimeo/dials/sources/file"
+	"github.com/vimeo/dials/sources/flag"
+	"github.com/vimeo/dials/sources/yaml"
 )
 
 type Config struct {
