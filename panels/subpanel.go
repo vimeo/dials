@@ -2,11 +2,9 @@ package panels
 
 import (
 	"context"
-	"errors"
-	stdflag "flag"
 	"fmt"
+	"io"
 
-	"github.com/vimeo/dials"
 	"github.com/vimeo/dials/sources/flag"
 )
 
@@ -25,6 +23,8 @@ type subCmdRunner[RT any] interface {
 	run(ctx context.Context, args []string, bs *BaseHandle[RT], fCfg *flag.NameConfig) error
 	helpString(scPath []string) []byte
 	spHelp() PanelHelp
+
+	fs(args []string) (*flag.Set, error)
 }
 
 // SubCmdHandle is a handle for a specific subcommand registration, with a
@@ -40,6 +40,15 @@ func (sch *SubCmdHandle[RT, T]) spHelp() PanelHelp {
 	return sch.sp
 }
 
+func (sch *SubCmdHandle[RT, T]) fs(args []string) (*flag.Set, error) {
+	subFCfg := sch.sp.SetupParams().flagNameCfg()
+	fs, nsErr := flag.NewSetWithArgs(subFCfg, sch.sp.DefaultConfig(), args)
+	if nsErr != nil {
+		return nil, fmt.Errorf("error registering flags: %w", nsErr)
+	}
+	return fs, nil
+}
+
 func (sch *SubCmdHandle[RT, T]) run(ctx context.Context, args []string, bs *BaseHandle[RT], fCfg *flag.NameConfig) error {
 	scmdName := args[0]
 	s := Handle[RT, T]{
@@ -47,32 +56,17 @@ func (sch *SubCmdHandle[RT, T]) run(ctx context.Context, args []string, bs *Base
 	}
 	s.SCPath[1] = scmdName
 
-	subFCfg := sch.sp.SetupParams().FlagNameCfg
-	if subFCfg == nil {
-		subFCfg = fCfg
+	sp := sch.sp.SetupParams()
+
+	fs, fsErr := sch.fs(args[1:])
+	if fsErr != nil {
+		return fsErr
 	}
 
-	fs, nsErr := flag.NewSetWithArgs(subFCfg, sch.sp.DefaultConfig(), args[1:])
-	if nsErr != nil {
-		return fmt.Errorf("error registering flags: %w", nsErr)
-	}
+	fs.Flags.SetOutput(io.Discard)
 
-	fs.Flags.SetOutput(s.W)
-
-	ndFunc := func(ctx context.Context, defaultCfg *T, flagsSource dials.Source) (*dials.Dials[T], error) {
-		return dials.Config(ctx, defaultCfg, fs)
-	}
-
-	if sch.sp.SetupParams().NewDials != nil {
-		ndFunc = sch.sp.SetupParams().NewDials
-	}
-
-	d, dErr := ndFunc(ctx, sch.sp.DefaultConfig(), fs)
+	d, dErr := sp.newDials(ctx, sch.sp.DefaultConfig(), fs)
 	if dErr != nil {
-		if errors.Is(dErr, stdflag.ErrHelp) {
-			// if one passed `-help` that's not an error
-			return nil
-		}
 		return fmt.Errorf("error parsing flags: %w", dErr)
 	}
 
@@ -85,7 +79,7 @@ func (sch *SubCmdHandle[RT, T]) run(ctx context.Context, args []string, bs *Base
 		return sch.sp.Run(ctx, &s)
 	}
 
-	// recurse
+	// recurse here
 
 	return sch.sp.Run(ctx, &s)
 }

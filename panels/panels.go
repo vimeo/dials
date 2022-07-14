@@ -1,6 +1,7 @@
 package panels
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -27,6 +28,21 @@ type SetupParams[T any] struct {
 	// FlagNameCfg lets one use a non-default flag.NameConfig
 	// Defaults to the return value of [flag.DefaultFlagNameConfig]
 	FlagNameCfg *flag.NameConfig
+}
+
+func (s SetupParams[T]) flagNameCfg() *flag.NameConfig {
+	if s.FlagNameCfg == nil {
+		return flag.DefaultFlagNameConfig()
+	}
+	return s.FlagNameCfg
+}
+
+func (s SetupParams[T]) newDials(ctx context.Context, defaultCfg *T, flagsSource dials.Source) (*dials.Dials[T], error) {
+	if s.NewDials == nil {
+		return dials.Config(ctx, defaultCfg, flagsSource)
+	}
+
+	return s.NewDials(ctx, defaultCfg, flagsSource)
 }
 
 // BaseHandle is the core portion of Handle, which can be (partially) set by the root command (Panel)
@@ -97,21 +113,36 @@ func (p *Panel[T]) writer() io.Writer {
 	return p.w
 }
 
+func (p *Panel[T]) defCfg() *T {
+	if p.dCfg == nil {
+		var zCfg T
+		return &zCfg
+	}
+	return p.dCfg
+}
+
+// ErrNoSubcommand indicates that there was no subcommand specified
+var ErrNoSubcommand = errors.New("no subcommand found")
+
+// ErrPrintHelpSuccess is a sentinel-error that instructs panels to print the help for the selected subcommand, and
+// return a nil error/success
+var ErrPrintHelpSuccess = errors.New("help requested: success")
+
+// ErrPrintHelpFailure is a sentinel error, which instructs panels to print the help for the selected subcommand, and
+// return the full error (note: [errors.Is] just nees to return true)
+var ErrPrintHelpFailure = errors.New("help requested: failure")
+
 // Run assumes subcommands are registered before Run is called
 func (p *Panel[T]) Run(ctx context.Context, args []string) error {
-	fCfg := p.sp.FlagNameCfg
-	if fCfg == nil {
-		fCfg = flag.DefaultFlagNameConfig()
-	}
+	fCfg := p.sp.flagNameCfg()
 
 	w := p.writer()
 
+	// This won't happen if we're being executed by a reasonable shell
 	if len(args) < 1 {
 		w.Write(p.helpString(args[0]))
-		return fmt.Errorf("empty argument list")
+		return errors.New("empty argument list")
 	}
-
-	argsCopy := args[1:]
 
 	s := BaseHandle[T]{
 		CommandArgs: args,
@@ -119,74 +150,117 @@ func (p *Panel[T]) Run(ctx context.Context, args []string) error {
 		W:           w,
 	}
 
-	if p.dCfg != nil {
-		fs, nsErr := flag.NewSetWithArgs(fCfg, p.dCfg, args[1:])
-		if nsErr != nil {
-			return fmt.Errorf("error registering flags: %w", nsErr)
-		}
-		fs.Flags.SetOutput(w)
-
-		var d *dials.Dials[T]
-
-		ndFunc := func(ctx context.Context, defaultCfg *T, flagsSource dials.Source) (*dials.Dials[T], error) {
-			return dials.Config(ctx, defaultCfg, fs)
-		}
-
-		if p.sp.NewDials != nil {
-			ndFunc = p.sp.NewDials
-		}
-
-		d, dErr := ndFunc(ctx, p.dCfg, fs)
-		if dErr != nil {
-			if errors.Is(dErr, stdflag.ErrHelp) {
-				// if one passed `-help` that's not an error
-				return nil
-			}
-			return fmt.Errorf("error parsing flags: %w", dErr)
-		}
-
-		s.RootDials = d
-		argsCopy = fs.Flags.Args()
+	dCfg := p.defCfg()
+	fs, nsErr := flag.NewSetWithArgs(fCfg, dCfg, args[1:])
+	if nsErr != nil {
+		return fmt.Errorf("error registering flags: %w", nsErr)
 	}
+	rootFlagOutBuf := bytes.Buffer{}
+	fs.Flags.SetOutput(&rootFlagOutBuf)
+	// If the flagset outlives this function, set it back to using the w writer, so it doesn't pin a random buffer.
+	defer fs.Flags.SetOutput(w)
+
+	d, dErr := p.sp.newDials(ctx, dCfg, fs)
+	if dErr != nil {
+		if errors.Is(dErr, stdflag.ErrHelp) {
+			// if one passed `-help` that's not an error, and we want to print the help, just the same as if
+			// one passed `help` as the subcommand.
+			w.Write(p.helpString(args[0]))
+			rootFlagOutBuf.WriteTo(w)
+			return nil
+		}
+		return fmt.Errorf("error parsing flags: %w", dErr)
+	}
+
+	s.RootDials = d
+	argsCopy := fs.Flags.Args()
 
 	if len(argsCopy) < 1 {
 		w.Write(p.helpString(args[0]))
-		return fmt.Errorf("no subcommand found")
+		rootFlagOutBuf.WriteTo(w)
+		return ErrNoSubcommand
 	}
 
 	scmdName := argsCopy[0]
 	sch, ok := p.schMap[scmdName]
 	if !ok {
 
+		// since we were able to actually run a subcommand, we know that the root args never dumped the
+		// commandline help to the rootFlagOutBuf from an error.
+		// call it explicitly
+		fs.Flags.PrintDefaults()
+
 		if scmdName == helpCmdName {
-			return p.help(args[0], argsCopy)
+			return p.help(rootFlagOutBuf.Bytes(), args[0], argsCopy)
 		}
 
 		w.Write(p.helpString(args[0]))
+		rootFlagOutBuf.WriteTo(w)
 		return fmt.Errorf("%q subcommand not registered", scmdName)
 	}
 
-	return sch.run(ctx, argsCopy, &s, fCfg)
+	runErr := sch.run(ctx, argsCopy, &s, fCfg)
+	if runErr == nil {
+		return nil
+	}
+	if errors.Is(runErr, stdflag.ErrHelp) || errors.Is(runErr, ErrPrintHelpSuccess) ||
+		errors.Is(runErr, ErrPrintHelpFailure) {
+
+		// since we were able to actually run a subcommand, we know that the root args never dumped the
+		// commandline help to the rootFlagOutBuf from an error.
+		// call it explicitly
+		fs.Flags.PrintDefaults()
+
+		p.help(rootFlagOutBuf.Bytes(), args[0], []string{scmdName})
+
+		if errors.Is(runErr, stdflag.ErrHelp) || errors.Is(runErr, ErrPrintHelpSuccess) {
+			return nil
+		}
+
+	}
+	return runErr
 }
 
-func (p *Panel[T]) help(binaryName string, args []string) error {
+func (p *Panel[T]) help(flagHelp []byte, binaryName string, scmdPath []string) error {
 	w := p.writer()
-	if len(args) < 2 {
+	if len(scmdPath) < 1 {
+		//
 		w.Write(p.helpString(binaryName))
+		w.Write(flagHelp)
 		return nil
 	}
 
-	scmdName := args[1]
+	// for now, we only support one level of subcommands
+	scmdName := scmdPath[0]
 	sch, ok := p.schMap[scmdName]
 	if !ok {
 		w.Write(p.helpString(binaryName))
+		w.Write(flagHelp)
 		return fmt.Errorf("%q subcommand not registered", scmdName)
 	}
 
-	w.Write(sch.helpString([]string{binaryName, args[1]}))
+	// This subcommand exists
+	w.Write(sch.helpString([]string{binaryName, scmdName}))
+
+	// don't bother passing the right arg-list (we're passing an empty set anyway)
+	scFS, fsErr := sch.fs([]string{})
+	if fsErr != nil {
+		return fmt.Errorf("error registering flags: %w", fsErr)
+	}
+	scFlagBuf := bytes.Buffer{}
+	scFS.Flags.SetOutput(&scFlagBuf)
+	scFS.Flags.PrintDefaults()
+
+	// dump the subcommand flags:
+	fmt.Fprintf(p.w, "%s flags:\n", scmdName)
+	scFlagBuf.WriteTo(p.w)
+
+	// dump the root flags
+	fmt.Fprintf(p.w, "Root Flags:\n")
+	w.Write(flagHelp)
 	return nil
 
-	// TODO: recursive
+	// TODO: iterate for inner subcommands
 }
 
 // Must is a convenience wrapper to panic when an error is encountered.
