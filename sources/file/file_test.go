@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vimeo/dials"
-	"github.com/vimeo/dials/sources/json"
+	"github.com/vimeo/dials/decoders/json"
 )
 
 type testStdLogger struct {

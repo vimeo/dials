@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/vimeo/dials"
-	"github.com/vimeo/dials/sources/json"
+	"github.com/vimeo/dials/decoders/json"
+	"github.com/vimeo/dials/decoders/toml"
+	"github.com/vimeo/dials/decoders/yaml"
 	"github.com/vimeo/dials/sources/static"
-	"github.com/vimeo/dials/sources/toml"
-	"github.com/vimeo/dials/sources/yaml"
 	"github.com/vimeo/dials/tagformat"
 	"github.com/vimeo/dials/tagformat/caseconversion"
 
