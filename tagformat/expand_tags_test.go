@@ -11,7 +11,7 @@ import (
 	"github.com/vimeo/dials/transform"
 )
 
-func TestExpanddialsTag(t *testing.T) {
+func TestExpandDialsTag(t *testing.T) {
 	t.Parallel()
 	mangler := TagCopyingMangler{SrcTag: common.DialsTagName, NewTag: "json"}
 	sf := reflect.StructField{
@@ -24,8 +24,13 @@ func TestExpanddialsTag(t *testing.T) {
 }
 
 func TestTagCopyingMangler(t *testing.T) {
+	type inner struct {
+		User string `dials:"user"`
+	}
+
 	type nested struct {
-		YAMLConfig string `dials:"config"`
+		YAMLConfig string  `dials:"config"`
+		List       []inner `dials:"inners"`
 	}
 
 	testcases := []struct {
@@ -61,7 +66,6 @@ func TestTagCopyingMangler(t *testing.T) {
 				Nested          nested
 			}{},
 			assertion: func(t testing.TB, val reflect.Value, tagName string) {
-
 				sf, ok := val.Type().FieldByName("DatabaseName")
 				require.True(t, ok)
 				assert.Equal(t, "database_name", sf.Tag.Get(tagName))
@@ -69,6 +73,18 @@ func TestTagCopyingMangler(t *testing.T) {
 				sf, ok = val.Type().FieldByName("DatabaseAddress")
 				require.True(t, ok)
 				assert.Equal(t, "database_address", sf.Tag.Get(tagName))
+			},
+		},
+		{
+			name: "struct with slice of struct",
+			tag:  "yaml",
+			testStruct: struct {
+				Vals []inner `dials:"the_vals"`
+			}{},
+			assertion: func(t testing.TB, val reflect.Value, tagName string) {
+				sf, ok := val.Type().FieldByName("Vals")
+				require.True(t, ok)
+				assert.Equal(t, "the_vals", sf.Tag.Get(tagName))
 			},
 		},
 	}
@@ -88,7 +104,6 @@ func TestTagCopyingMangler(t *testing.T) {
 
 			_, revErr := tfm.ReverseTranslate(mangledVal)
 			assert.NoError(t, revErr)
-
 		})
 	}
 }
