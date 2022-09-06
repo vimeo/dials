@@ -7,24 +7,27 @@ import (
 )
 
 func TestHelpString(t *testing.T) {
-	p := Panel{}
+	type tlCfg struct{}
+	p := Panel[tlCfg]{}
+
+	type srCfg struct{}
 
 	// TODO: add test for panel usage and desc
 
-	tsp := testSubPanel{}
+	tsp := testSubPanel[tlCfg, srCfg]{}
 
 	{
-		_, regErr := p.Register("foo", &tsp)
+		_, regErr := Register(&p, "foo", &tsp)
 		require.NoError(t, regErr)
 	}
 
 	{
-		_, regErr := p.Register("bar", &tsp)
+		_, regErr := Register(&p, "bar", &tsp)
 		require.NoError(t, regErr)
 	}
 
 	{
-		_, regErr := p.Register("fizzle", &tsp)
+		_, regErr := Register(&p, "fizzle", &tsp)
 		require.NoError(t, regErr)
 	}
 
