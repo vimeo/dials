@@ -24,6 +24,7 @@ type Mangler interface {
 	// mapping-set, with the mangled-field and its populated value set. The
 	// implementation of Unmangle should return a reflect.Value that will
 	// be used for the next mangler or final struct value)
+	// Returned reflect.Value should be convertible to the field's type.
 	Unmangle(reflect.StructField, []FieldValueTuple) (reflect.Value, error)
 	// ShouldRecurse is called after Mangle for each field so nested struct
 	// fields get iterated over after any transformation done by Mangle().
@@ -247,6 +248,7 @@ FIELDITER:
 				// if it's nil, skip it, the unmangler isn't
 				// going to do anything useful on the field of
 				// a struct pointed to by a nil-pointer.
+				mf[z].Value = reflect.Zero(fieldState.in.Type)
 				continue FIELDITER
 			}
 			v = v.Elem()
@@ -269,7 +271,7 @@ FIELDITER:
 				// if it's nil, skip it, the unmangler isn't
 				// going to do anything useful on a nil-slice
 				// just make sure it has the right type.
-				mf[z].Value = reflect.Zero(fieldState.out[z].field.Type)
+				mf[z].Value = reflect.Zero(fieldState.in.Type)
 				continue FIELDITER
 			}
 			mf[z].Value = reflect.MakeSlice(fieldState.out[z].field.Type, v.Len(), v.Cap())
@@ -277,7 +279,7 @@ FIELDITER:
 		case reflect.Array:
 			if fieldState.in.Type.Kind() == reflect.Array {
 				// we didn't fall-through
-				mf[z].Value = reflect.New(fieldState.out[z].field.Type).Elem()
+				mf[z].Value = reflect.New(fieldState.in.Type).Elem()
 			}
 			for l := 0; l < v.Len(); l++ {
 				av := v.Index(l)
