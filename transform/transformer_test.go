@@ -497,10 +497,16 @@ func TestTransformer(t *testing.T) {
 				I: 42,
 			},
 			unmangleVal: struct {
-				J []struct{ L int }
+				J []struct {
+					L int `bizzlebazzle:"foobar"`
+					K int
+				}
 				Q int
 			}{
-				J: []struct{ L int }{{L: 235}},
+				J: []struct {
+					L int `bizzlebazzle:"foobar"`
+					K int
+				}{{L: 235, K: 23}},
 				Q: 88,
 			},
 			fm: fakeMangler{
@@ -516,9 +522,12 @@ func TestTransformer(t *testing.T) {
 					},
 					"J": {
 						{
-							Name:      "J",
-							PkgPath:   "",
-							Type:      reflect.SliceOf(reflect.TypeOf(struct{ L int }{})),
+							Name:    "J",
+							PkgPath: "",
+							Type: reflect.SliceOf(reflect.TypeOf(struct {
+								L int `bizzlebazzle:"foobar"`
+								K int
+							}{})),
 							Tag:       "bizzlebazzle",
 							Anonymous: false,
 						},
@@ -542,6 +551,7 @@ func TestTransformer(t *testing.T) {
 						{L: 255},
 					},
 					"L": 3128,
+					"K": 333,
 				},
 			},
 			expectedMangledFieldNames: []string{
@@ -814,6 +824,7 @@ func TestTransformer(t *testing.T) {
 			}
 			require.NoError(t, mangleErr)
 			require.NotNil(t, mangled)
+			t.Logf("mangled type: %s", mangled)
 
 			require.Equal(t, mangled.NumField(), len(tbl.expectedMangledFieldNames))
 

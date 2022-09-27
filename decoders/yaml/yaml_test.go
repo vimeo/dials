@@ -87,6 +87,9 @@ func TestShallowlyNestedYAML(t *testing.T) {
 }
 
 func TestMoreDeeplyNestedYAML(t *testing.T) {
+	type innerSliceVal struct {
+		Zizzle string
+	}
 	type testConfig struct {
 		DatabaseName    string `dials:"database_name"`
 		DatabaseAddress string `dials:"database_address"`
@@ -100,6 +103,7 @@ func TestMoreDeeplyNestedYAML(t *testing.T) {
 					Timeout      time.Duration `dials:"timeout"`
 				} `dials:"something"`
 			} `dials:"other_stuff"`
+			SliceThing []innerSliceVal `dials:"slicething"`
 		} `dials:"database_user"`
 	}
 
@@ -113,9 +117,10 @@ func TestMoreDeeplyNestedYAML(t *testing.T) {
 				"something": {
 					"another_field": "asdf",
 					"ip_address": "123.10.11.121",
-					"timeout": "10s", 
+					"timeout": "10s",
 				}
-			}
+			},
+			"slicething": [{"zizzle": "foobar"}, {"zizzle": "fizzlebat"}]
 		}
 	}`
 
@@ -135,6 +140,9 @@ func TestMoreDeeplyNestedYAML(t *testing.T) {
 	assert.Equal(t, "asdf", c.DatabaseUser.OtherStuff.Something.AnotherField)
 	assert.Equal(t, net.IPv4(123, 10, 11, 121), c.DatabaseUser.OtherStuff.Something.IPAddress)
 	assert.Equal(t, time.Duration(10*time.Second), c.DatabaseUser.OtherStuff.Something.Timeout)
+	require.Len(t, c.DatabaseUser.SliceThing, 2)
+	assert.Equal(t, c.DatabaseUser.SliceThing[0].Zizzle, "foobar")
+	assert.Equal(t, c.DatabaseUser.SliceThing[1].Zizzle, "fizzlebat")
 }
 
 func TestDecoderBadMarkup(t *testing.T) {

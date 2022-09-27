@@ -248,7 +248,7 @@ FIELDITER:
 				// if it's nil, skip it, the unmangler isn't
 				// going to do anything useful on the field of
 				// a struct pointed to by a nil-pointer.
-				mf[z].Value = reflect.Zero(fieldState.in.Type)
+				mf[z].Value = reflect.Zero(fieldState.out[z].field.Type)
 				continue FIELDITER
 			}
 			v = v.Elem()
@@ -271,7 +271,7 @@ FIELDITER:
 				// if it's nil, skip it, the unmangler isn't
 				// going to do anything useful on a nil-slice
 				// just make sure it has the right type.
-				mf[z].Value = reflect.Zero(fieldState.in.Type)
+				mf[z].Value = reflect.Zero(fieldState.out[z].field.Type)
 				continue FIELDITER
 			}
 			mf[z].Value = reflect.MakeSlice(fieldState.out[z].field.Type, v.Len(), v.Cap())
@@ -279,7 +279,7 @@ FIELDITER:
 		case reflect.Array:
 			if fieldState.in.Type.Kind() == reflect.Array {
 				// we didn't fall-through
-				mf[z].Value = reflect.New(fieldState.in.Type).Elem()
+				mf[z].Value = reflect.New(fieldState.out[z].field.Type).Elem()
 			}
 			for l := 0; l < v.Len(); l++ {
 				av := v.Index(l)
@@ -287,6 +287,11 @@ FIELDITER:
 				if unmangleErr != nil {
 					return nil, &UnmangleError{Err: unmangleErr, ErrString: fmt.Sprintf("failed to recursively inverse transform field %s[%d]: %s",
 						field.Field.Name, l, unmangleErr)}
+				}
+				if !unmangledVal.Type().AssignableTo(fieldState.out[z].field.Type.Elem()) {
+					unassignableErr := fmt.Errorf("unable to assign type %s from recursive unmangling to %s", unmangledVal.Type(), fieldState.in.Type.Elem())
+					return nil, &UnmangleError{Err: unassignableErr, ErrString: fmt.Sprintf("failed to recursively inverse transform field %s[%d]: %s",
+						field.Field.Name, l, unassignableErr)}
 				}
 				mf[z].Value.Index(l).Set(unmangledVal)
 			}
@@ -395,7 +400,16 @@ func (t *Transformer) ReverseTranslate(v reflect.Value) (reflect.Value, error) {
 		// We preserved the indices on the original outer-struct, and
 		// the other ones were cleared, so this should be safe if we
 		// managed our fields properly.
-		outField := outVal.FieldByIndex(field.Field.Index)
+		outField, fieldErr := outVal.FieldByIndexErr(field.Field.Index)
+		if fieldErr != nil {
+			return reflect.Value{}, fmt.Errorf("failed to get field %v from struct of type %T: %w",
+				field.Field.Index, outVal, fieldErr)
+		}
+		if outField == (reflect.Value{}) {
+			return reflect.Value{}, fmt.Errorf("received zero-valued %v from struct of type %s",
+				field.Field.Index, outVal.Type())
+
+		}
 		if !field.Value.Type().ConvertibleTo(outField.Type()) {
 			errString := fmt.Sprintf("incompatible types for field %q; original field type %s; final unmangled type %s",
 				field.Field.Name, outField.Type(), field.Value.Type())
