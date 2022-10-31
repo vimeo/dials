@@ -63,7 +63,7 @@ func (*userCallbackUnregister[T]) isUserCallbackEvent() {}
 var _ userCallbackEvent = (*userCallbackUnregister[struct{}])(nil)
 
 func (cbm *callbackMgr[T]) runCBs(ctx context.Context) {
-	newCfgCBs := make(map[*userCallbackHandle[T]]struct{}, 0)
+	newCfgCBs := make([]*userCallbackHandle[T], 0)
 	lastSerial := uint64(0)
 	lastVersion := (*T)(nil)
 	for ev := range cbm.ch {
@@ -78,7 +78,7 @@ func (cbm *callbackMgr[T]) runCBs(ctx context.Context) {
 			if cbm.p.OnNewConfig != nil {
 				cbm.p.OnNewConfig(ctx, e.oldConfig, e.newConfig)
 			}
-			for cbh := range newCfgCBs {
+			for _, cbh := range newCfgCBs {
 				if cbh.minSerial >= e.serial {
 					// Skip the callback if it was registered with a serial for
 					// a version that we haven't caught up to yet.
@@ -93,9 +93,17 @@ func (cbm *callbackMgr[T]) runCBs(ctx context.Context) {
 				e.handle.cb(ctx, e.serial.cfg, lastVersion)
 			}
 			// add this callback to the set of callbacks
-			newCfgCBs[e.handle] = struct{}{}
+			newCfgCBs = append(newCfgCBs, e.handle)
 		case *userCallbackUnregister[T]:
-			delete(newCfgCBs, e.handle)
+			removed := make([]*userCallbackHandle[T], 0, len(newCfgCBs)-1)
+			for _, cb := range newCfgCBs {
+				if e.handle == cb {
+					// don't add the one we're removing to the new list
+					continue
+				}
+				removed = append(removed, cb)
+			}
+			newCfgCBs = removed
 			close(e.done)
 		default:
 			panic(fmt.Errorf("unknown type %T for user callback event", ev))
