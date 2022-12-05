@@ -8,6 +8,7 @@ import (
 
 	"github.com/vimeo/dials"
 	"github.com/vimeo/dials/common"
+	"github.com/vimeo/dials/decoders/cue"
 	"github.com/vimeo/dials/decoders/json"
 	"github.com/vimeo/dials/decoders/toml"
 	"github.com/vimeo/dials/decoders/yaml"
@@ -280,6 +281,12 @@ func JSONConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 	return ConfigFileEnvFlag(ctx, cfg, func(string) dials.Decoder { return &json.Decoder{} }, params)
 }
 
+// CueConfigEnvFlag takes advantage of the ConfigWithConfigPath cfg, thinly
+// wraping ConfigFileEnvFlag with the decoder statically set to Cue.
+func CueConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, params Params[T]) (*dials.Dials[T], error) {
+	return ConfigFileEnvFlag(ctx, cfg, func(string) dials.Decoder { return &cue.Decoder{} }, params)
+}
+
 // TOMLConfigEnvFlag takes advantage of the ConfigWithConfigPath cfg, thinly
 // wraping ConfigFileEnvFlag with the decoder statically set to TOML.
 func TOMLConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, params Params[T]) (*dials.Dials[T], error) {
@@ -290,7 +297,7 @@ func TOMLConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 // ConfigWithConfigPath cfg and thinly wraps ConfigFileEnvFlag and and thinly
 // wraps ConfigFileEnvFlag choosing the dials.Decoder used when handling the
 // file contents based on the file extension (from the limited set of JSON,
-// YAML and TOML).
+// Cue, YAML and TOML).
 func FileExtensionDecoderConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, params Params[T]) (*dials.Dials[T], error) {
 	return ConfigFileEnvFlag(ctx, cfg, func(fp string) dials.Decoder {
 		ext := filepath.Ext(fp)
@@ -301,6 +308,8 @@ func FileExtensionDecoderConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx co
 			return &json.Decoder{}
 		case ".toml":
 			return &toml.Decoder{}
+		case ".cue":
+			return &cue.Decoder{}
 		default:
 			return nil
 		}
