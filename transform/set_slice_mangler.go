@@ -28,7 +28,7 @@ func (*SetSliceMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, e
 // Unmangle turns []T back into a map[T]struct{}.  Naturally, deduplication will
 // occur.
 func (*SetSliceMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) (reflect.Value, error) {
-	if !(sf.Type.Kind() == reflect.Map && sf.Type.Elem() == emptyStructType) {
+	if sf.Type.Kind() != reflect.Map || sf.Type.Elem() != emptyStructType {
 		return vs[0].Value, nil
 	}
 
@@ -47,6 +47,11 @@ func (*SetSliceMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) (
 			slice.Type().Elem(),
 			sf.Type.Key(),
 		)
+	}
+
+	// If the slice is nil, return a nil map.
+	if slice.IsZero() {
+		return reflect.Zero(sf.Type), nil
 	}
 
 	// slice.Len() could be larger if there are duplicates, but it's likely

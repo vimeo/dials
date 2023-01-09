@@ -55,6 +55,11 @@ func TestSetSliceManglerUnmangle(t *testing.T) {
 				"baz": {},
 			},
 		},
+		"nil": {
+			StructFieldType: reflect.TypeOf(map[int]struct{}{}),
+			SrcValue:        []int(nil),
+			ExpectedMap:     map[int]struct{}(nil),
+		},
 	}
 
 	for name, c := range cases {

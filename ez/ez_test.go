@@ -166,7 +166,7 @@ func TestYAMLConfigEnvFlagWithValidatingConfigInitiallyValid(t *testing.T) {
 		Path: path,
 		Val1: 189,
 		Val2: "",
-		Set:  map[string]struct{}{},
+		Set:  map[string]struct{}(nil),
 	}
 	populatedConf := view.View()
 	assert.EqualValues(t, expectedConfig, *populatedConf)
