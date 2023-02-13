@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -128,13 +127,12 @@ func TestYAMLConfigEnvFlagWithValidatingConfig(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	tmpFile, tmpErr := ioutil.TempFile("", "")
+	tmpFile, tmpErr := os.CreateTemp(t.TempDir(), "*")
 	require.NoError(t, tmpErr)
 	tmpFile.Write([]byte("Val1: 789"))
 	require.NoError(t, tmpFile.Sync())
 	require.NoError(t, tmpFile.Close())
 	path := tmpFile.Name()
-	defer os.Remove(path)
 
 	c := &validatingConfig{Path: path}
 	d, dialsErr := YAMLConfigEnvFlag(ctx, c, Params[validatingConfig]{})
@@ -146,12 +144,9 @@ func TestYAMLConfigEnvFlagWithValidatingConfigInitiallyValid(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	tmpDir, tmpErr := ioutil.TempDir("", "")
-	require.NoError(t, tmpErr)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "fim1.yaml")
-	require.NoError(t, ioutil.WriteFile(path, []byte("Val1: 189"), 0660))
-	defer os.Remove(path)
+	require.NoError(t, os.WriteFile(path, []byte("Val1: 189"), os.FileMode(0660)))
 
 	errCh := make(chan error)
 	errHandler := func(ctx context.Context, err error, oldConfig, newConfig *validatingConfig) {
@@ -172,7 +167,7 @@ func TestYAMLConfigEnvFlagWithValidatingConfigInitiallyValid(t *testing.T) {
 	assert.EqualValues(t, expectedConfig, *populatedConf)
 
 	tmpPath2 := filepath.Join(tmpDir, "_tmp_fim1.yaml")
-	require.NoError(t, ioutil.WriteFile(tmpPath2, []byte("Val1: 201"), os.FileMode(0660)))
+	require.NoError(t, os.WriteFile(tmpPath2, []byte("Val1: 201"), os.FileMode(0660)))
 
 	require.NoError(t, os.Rename(tmpPath2, path))
 
@@ -190,7 +185,6 @@ func TestJSONConfigEnvFlagWithNewConfigCallback(t *testing.T) {
 	defer cancel()
 
 	tmpDir := t.TempDir()
-	defer os.RemoveAll(tmpDir)
 	path := filepath.Join(tmpDir, "fim1.json")
 
 	origCfgFileContents := struct {
@@ -205,7 +199,7 @@ func TestJSONConfigEnvFlagWithNewConfigCallback(t *testing.T) {
 	origJS, jsMarshalErr := json.Marshal(&origCfgFileContents)
 	require.NoError(t, jsMarshalErr)
 
-	require.NoError(t, ioutil.WriteFile(path, origJS, 0660))
+	require.NoError(t, os.WriteFile(path, origJS, 0660))
 
 	newCfg := make(chan *validatingConfig, 1)
 	newConfigCB := func(ctx context.Context, oldConfig, newConfig *validatingConfig) {
@@ -250,7 +244,7 @@ func TestJSONConfigEnvFlagWithNewConfigCallback(t *testing.T) {
 	require.NoError(t, updatejsMarshalErr)
 
 	tmpPath2 := filepath.Join(tmpDir, "_tmp_fim1.json")
-	require.NoError(t, ioutil.WriteFile(tmpPath2, updateJS, os.FileMode(0660)))
+	require.NoError(t, os.WriteFile(tmpPath2, updateJS, os.FileMode(0660)))
 
 	require.NoError(t, os.Rename(tmpPath2, path))
 
