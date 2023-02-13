@@ -293,25 +293,30 @@ func TOMLConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 	return ConfigFileEnvFlag(ctx, cfg, func(string) dials.Decoder { return &toml.Decoder{} }, params)
 }
 
+// DecoderFromExtension is a DecoderFactory that returns an appropriate decoder
+// based on the extension of the filename or nil if there is not an appropriate
+// mapping.
+func DecoderFromExtension(path string) dials.Decoder {
+	ext := filepath.Ext(path)
+	switch strings.ToLower(ext) {
+	case ".yaml", ".yml":
+		return &yaml.Decoder{}
+	case ".json":
+		return &json.Decoder{}
+	case ".toml":
+		return &toml.Decoder{}
+	case ".cue":
+		return &cue.Decoder{}
+	default:
+		return nil
+	}
+}
+
 // FileExtensionDecoderConfigEnvFlag takes advantage of the
 // ConfigWithConfigPath cfg and thinly wraps ConfigFileEnvFlag and and thinly
 // wraps ConfigFileEnvFlag choosing the dials.Decoder used when handling the
 // file contents based on the file extension (from the limited set of JSON,
 // Cue, YAML and TOML).
 func FileExtensionDecoderConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, params Params[T]) (*dials.Dials[T], error) {
-	return ConfigFileEnvFlag(ctx, cfg, func(fp string) dials.Decoder {
-		ext := filepath.Ext(fp)
-		switch strings.ToLower(ext) {
-		case ".yaml", ".yml":
-			return &yaml.Decoder{}
-		case ".json":
-			return &json.Decoder{}
-		case ".toml":
-			return &toml.Decoder{}
-		case ".cue":
-			return &cue.Decoder{}
-		default:
-			return nil
-		}
-	}, params)
+	return ConfigFileEnvFlag(ctx, cfg, DecoderFromExtension, params)
 }
