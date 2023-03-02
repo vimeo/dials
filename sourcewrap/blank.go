@@ -84,15 +84,7 @@ func (w *wrappedErr) Unwrap() error {
 	return w.err
 }
 
-// SetSource sets the wrapped source, switching the Blank into full delegation mode.
-// The new Source's Value() method will be called, and the return value will be
-// pushed to the view via the asynchronous watch interface.
-// If the new Source implements dials.Watcher, its Watch method will be called.
-//
-// It is safe to call SetSource multiple times with different Sources, however,
-// once a Watcher is set as the inner source, it takes over ownership of the
-// state for the slot and cannot be replaced.
-func (b *Blank) SetSource(ctx context.Context, s dials.Source) error {
+func (b *Blank) setSource(ctx context.Context, report func(ctx context.Context, val reflect.Value) error, s dials.Source) error {
 	if s == nil {
 		return fmt.Errorf("cannot pass a nil source to *Blank.SetSource with type %s",
 			b.t.Type())
@@ -112,7 +104,7 @@ func (b *Blank) SetSource(ctx context.Context, s dials.Source) error {
 		return &wrappedErr{prefix: "initial call to Value failed: ", err: err}
 	}
 	b.inner = s
-	if newValErr := b.wa.BlockingReportNewValue(ctx, v); newValErr != nil {
+	if newValErr := report(ctx, v); newValErr != nil {
 		return fmt.Errorf("failed to propagate change: %w", newValErr)
 	}
 
@@ -123,6 +115,39 @@ func (b *Blank) SetSource(ctx context.Context, s dials.Source) error {
 		}
 	}
 	return nil
+}
+
+// SetSource sets the wrapped source, switching the Blank into full delegation mode.
+// The new Source's Value() method will be called, and the return value will be
+// pushed to the view via the asynchronous watch interface.
+// If the new Source implements dials.Watcher, its Watch method will be called.
+//
+// It is safe to call SetSource multiple times with different Sources, however,
+// once a Watcher is set as the inner source, it takes over ownership of the
+// state for the slot and cannot be replaced.
+func (b *Blank) SetSource(ctx context.Context, s dials.Source) error {
+	return b.setSource(ctx, b.wa.BlockingReportNewValue, s)
+}
+
+// SetSourceSkipVerify sets the wrapped source, switching the Blank into full
+// delegation mode.  The new Source's Value() method will be called, and the
+// return value will be pushed to the view via the asynchronous watch
+// interface.
+// If the new Source implements dials.Watcher, its Watch method will be called.
+//
+// It is safe to call SetSource multiple times with different Sources, however,
+// once a Watcher is set as the inner source, it takes over ownership of the
+// state for the slot and cannot be replaced.
+//
+// SetSourceSkipVerify differs from SetSource in that it instructs dials not to
+// call the Verify() method on the config after stacking.
+// This is intended to be used in cases where setting multiple sources may end
+// up with intermediate states that would fail verification.
+//
+// If this ends up being the last call to set a source on a dials object, one
+// should call Verify on the config directly this method returns.
+func (b *Blank) SetSourceSkipVerify(ctx context.Context, s dials.Source) error {
+	return b.setSource(ctx, b.wa.BlockingReportNewValueSkipVerify, s)
 }
 
 // Done instructs Dials that this Blank source will never be used in a watching

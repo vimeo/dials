@@ -177,9 +177,10 @@ type Decoder interface {
 }
 
 type valueUpdate struct {
-	source    Source
-	value     reflect.Value
-	installed chan<- error
+	source     Source
+	value      reflect.Value
+	skipVerify bool
+	installed  chan<- error
 }
 
 func (valueUpdate) isStatusReport() {}
@@ -217,16 +218,11 @@ func (w *watchArgs) ReportNewValue(ctx context.Context, val reflect.Value) error
 	}
 }
 
-// BlockingReportNewValue reports a new value. Returns an error if the internal
-// reporting channel is full and the context expires/is-canceled.
-// Blocks until the new value has been or returns an error.
-//
-// Most Source implementations should use ReportNewValue(). This was added to
-// support [github.com/vimeo/dials/sourcewrap.Blank]. This should only be used
-// in similar cases.
-func (w *watchArgs) BlockingReportNewValue(ctx context.Context, val reflect.Value) error {
+// blockingReportNewValue is the backing implementation for both
+// BlockingReportNewValue and BlockingReportNewValueSkipVerify
+func (w *watchArgs) blockingReportNewValue(ctx context.Context, skipVerify bool, val reflect.Value) error {
 	installed := make(chan error, 1)
-	vu := valueUpdate{source: w.s, value: val, installed: installed}
+	vu := valueUpdate{source: w.s, value: val, installed: installed, skipVerify: skipVerify}
 	select {
 	case <-ctx.Done():
 		return fmt.Errorf("context expired while attempting to submit new value: %w", ctx.Err())
@@ -243,6 +239,33 @@ func (w *watchArgs) BlockingReportNewValue(ctx context.Context, val reflect.Valu
 	case <-ctx.Done():
 		return fmt.Errorf("context expired while awaiting restack: %w", ctx.Err())
 	}
+}
+
+// BlockingReportNewValue reports a new value. Returns an error if the internal
+// reporting channel is full and the context expires/is-canceled.
+// Blocks until the new value has been or returns an error.
+//
+// Most Source implementations should use ReportNewValue(). This was added to
+// support [github.com/vimeo/dials/sourcewrap.Blank]. This should only be used
+// in similar cases.
+func (w *watchArgs) BlockingReportNewValue(ctx context.Context, val reflect.Value) error {
+	return w.blockingReportNewValue(ctx, false, val)
+}
+
+// BlockingReportNewValueSkipVerify reports a new value. Returns an error if the internal
+// reporting channel is full and the context expires/is-canceled.
+// Blocks until the new value has been or returns an error.
+//
+// Most Source implementations should use ReportNewValue(). This was added to
+// support [github.com/vimeo/dials/sourcewrap.Blank]. This should only be used
+// in similar cases.
+//
+// The difference between this method and BlockingReportNewValue is that this
+// method instructs dials to skip verification after stacking the new config.
+// This is useful in some cases where one has multiple blank sources, and one
+// knows that there will be invalid states before all values are complete.
+func (w *watchArgs) BlockingReportNewValueSkipVerify(ctx context.Context, val reflect.Value) error {
+	return w.blockingReportNewValue(ctx, true, val)
 }
 
 // Done indicates that this watcher has stopped and will not send any
@@ -292,6 +315,20 @@ type WatchArgs interface {
 	// support [github.com/vimeo/dials/sourcewrap.Blank]. This should only be used
 	// in similar cases.
 	BlockingReportNewValue(ctx context.Context, val reflect.Value) error
+
+	// BlockingReportNewValueSkipVerify reports a new value. Returns an error if the internal
+	// reporting channel is full and the context expires/is-canceled.
+	// Blocks until the new value has been or returns an error.
+	//
+	// Most Source implementations should use ReportNewValue(). This was added to
+	// support [github.com/vimeo/dials/sourcewrap.Blank]. This should only be used
+	// in similar cases.
+	//
+	// The difference between this method and BlockingReportNewValue is that this
+	// method instructs dials to skip verification after stacking the new config.
+	// This is useful in some cases where one has multiple blank sources, and one
+	// knows that there will be invalid states before all values are complete.
+	BlockingReportNewValueSkipVerify(ctx context.Context, val reflect.Value) error
 }
 
 // Watcher should be implemented by Sources that allow their configuration to be
@@ -426,7 +463,8 @@ func (d *Dials[T]) updateSourceValue(
 	}
 
 	// Verify that the configuration is valid if a Verify() method is present.
-	if vf, ok := newInterface.(VerifiedConfig); ok {
+	// Skip verification if the reporter requested it.
+	if vf, ok := newInterface.(VerifiedConfig); ok && !watchTab.skipVerify {
 		if vfErr := vf.Verify(); vfErr != nil {
 			oldVal := d.View()
 
