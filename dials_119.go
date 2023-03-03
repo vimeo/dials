@@ -12,6 +12,7 @@ type Dials[T any] struct {
 	updatesChan chan *T
 	params      Params[T]
 	cbch        chan<- userCallbackEvent
+	monCtl      chan<- verifyEnable[T]
 }
 
 // View returns the configuration struct populated.
