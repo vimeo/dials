@@ -151,38 +151,17 @@ func ConfigFileEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 		defer blank.Done(ctx)
 	}
 
-	watchErrCB := dials.WatchedErrorHandler[T](nil)
-	if params.OnWatchedError != nil {
-		// if there's an error-callback set, it'll only be used if the config is invalid
-		// however, we don't really want to force callers to handle
-		// error-callbacks before this function has returned.
-		// defer a close on this channel so upon exit, all calls to the
-		// watch callback pas through to the wrapped callback.
-		passError := make(chan struct{})
-		defer close(passError)
-		watchErrCB = func(ctx context.Context, err error, oldConfig, newConfig *T) {
-			select {
-			case <-passError:
-				// passError closed, so ConfigFileEnvFlag has exited, and we can now deliver new config errors.
-			default:
-				return
-			}
-			if params.OnWatchedError != nil {
-				params.OnWatchedError(ctx, err, oldConfig, newConfig)
-			}
-		}
-	}
-
 	dp := dials.Params[T]{
-		OnWatchedError: watchErrCB,
-		// We'll set the OnNewConfig callback after we've inserted the
-		// blank source (or decided that the config is otherwise
-		// valid).
-		OnNewConfig: nil,
+		// Set the OnNewConfig callback. It'll be suppressed by the
+		// CallGlobalCallbacksAfterVerificationEnabled until just before we return.
+		OnNewConfig: params.OnNewConfig,
+		// Similarly, set the OnWatchedError callback.
+		OnWatchedError: params.OnWatchedError,
 		// Skip the initial verification to allow files to provide values that
 		// will be considered during verification.  If a file source isn't
 		// provided we'll appropriately call Verify before returning.
-		SkipInitialVerification: true,
+		DelayInitialVerification:                    true,
+		CallGlobalCallbacksAfterVerificationEnabled: true,
 	}
 
 	d, err := dp.Config(ctx, (*T)(cfg), &blank, &env.Source{}, flagSrc)
@@ -190,22 +169,16 @@ func ConfigFileEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 		return nil, err
 	}
 
-	basecfg, tok := d.ViewVersion()
+	basecfg := d.View()
 	cfgPath, filepathSet := (TP)(basecfg).ConfigPath()
 	if !filepathSet {
 		// Since we disabled initial verification earlier verify the config explicitly.
 		// Without a config file, the sources never get re-stacked, so the `Verify()`
 		// method is never run by `dials.Config`.
-		if vf, ok := any(basecfg).(dials.VerifiedConfig); ok {
-			if vfErr := vf.Verify(); vfErr != nil {
-				return nil, fmt.Errorf("initial configuration verification failed: %w", vfErr)
-			}
-		}
-		if params.OnNewConfig != nil {
-			// new config callback set; register it just before returning.
-			d.RegisterCallback(ctx, tok, params.OnNewConfig)
-		}
 
+		if _, _, vfErr := d.EnableVerification(ctx); vfErr != nil {
+			return nil, fmt.Errorf("initial configuration verification failed: %w", vfErr)
+		}
 		// The callback indicated that we shouldn't read any config
 		// file after all.
 		return d, nil
@@ -249,22 +222,20 @@ func ConfigFileEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 	}
 
 	// SetSource blocks until the new config is re-stacked. It will fail if
-	// either the file source fails, or the config fails validation.
+	// the file source fails.
 	blankErr := blank.SetSource(ctx, fileSrc)
 	if blankErr != nil {
-		return d, fmt.Errorf("failed to integrate file source: %w", blankErr)
+		return nil, fmt.Errorf("failed to integrate file source: %w", blankErr)
+	}
+
+	// Enable configuration verification and enable global callbacks.
+	if _, _, vfErr := d.EnableVerification(ctx); vfErr != nil {
+		return nil, fmt.Errorf("initial configuration verification failed: %w", vfErr)
 	}
 
 	// Drain the event from the events channel so users of that interface
 	// don't see the intermediate config.
 	<-d.Events()
-
-	// If there's a callback to register; register it.
-	if params.OnNewConfig != nil {
-		// Use a zero-valued token so we ignore any intermediate config values.
-		// note: this throws away the unregistration handle.
-		d.RegisterCallback(ctx, dials.CfgSerial[T]{}, params.OnNewConfig)
-	}
 
 	return d, nil
 }
