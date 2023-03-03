@@ -18,6 +18,7 @@ type userCallbackEvent interface {
 type newConfigEvent[T any] struct {
 	oldConfig, newConfig *T
 	serial               uint64
+	globalCBsSuppressed  bool
 }
 
 func (*newConfigEvent[T]) isUserCallbackEvent() {}
@@ -75,7 +76,7 @@ func (cbm *callbackMgr[T]) runCBs(ctx context.Context) {
 		case *newConfigEvent[T]:
 			lastSerial = e.serial
 			lastVersion = e.newConfig
-			if cbm.p.OnNewConfig != nil {
+			if cbm.p.OnNewConfig != nil && !e.globalCBsSuppressed {
 				cbm.p.OnNewConfig(ctx, e.oldConfig, e.newConfig)
 			}
 			for _, cbh := range newCfgCBs {

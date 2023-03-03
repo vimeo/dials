@@ -32,6 +32,11 @@ func TestFill(t *testing.T) {
 	filledConfig := &testConfig{}
 	d.Fill(filledConfig)
 	assert.Equal(t, "foo", filledConfig.Foo)
+
+	// this should be a noop, just make sure it doesn't fail/block
+	if _, _, verifyErr := d.EnableVerification(context.Background()); verifyErr != nil {
+		t.Errorf("unexpectedly failing config %+v: %s", d.View(), verifyErr)
+	}
 }
 
 type fakeSource struct {
@@ -189,6 +194,205 @@ func TestConfigWithSkippedInitialVerify(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestConfigWithDelayInitialVerifyFailNoWatch(t *testing.T) {
+	t.Parallel()
+	type testConfig struct {
+		failVerifier
+		Foo string
+	}
+
+	type ptrifiedConfig struct {
+		Foo *string
+	}
+
+	base := testConfig{
+		Foo: "foo",
+	}
+	emptyConf := ptrifiedConfig{
+		Foo: nil,
+	}
+	// Push a new value, that should overlay on top of the base
+	foozleStr := "foozle"
+	foozleConfig := ptrifiedConfig{
+		Foo: &foozleStr,
+	}
+
+	// setup a cancelable context so the monitor goroutine gets shutdown.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	s := fakeSource{outVal: foozleConfig}
+	d, err := Params[testConfig]{
+		DelayInitialVerification: true,
+	}.Config(ctx, &base, &fakeSource{outVal: emptyConf}, &s)
+	assert.NoError(t, err)
+
+	c, tok, verifyErr := d.EnableVerification(ctx)
+	if verifyErr == nil {
+		// we have the failVerifier embedded, this should never pass
+		t.Errorf("unexpectedly passing config %+v with token %v", c, tok)
+	}
+}
+
+func TestConfigWithDelayInitialVerifyFailWatchNoGlobalCBSuppress(t *testing.T) {
+	t.Parallel()
+
+	type ptrifiedConfig struct {
+		Valid *bool
+		Foo   *string
+	}
+
+	base := configurableVerifier{
+		Valid: false,
+		Foo:   "foo",
+	}
+	emptyConf := ptrifiedConfig{
+		Valid: nil,
+		Foo:   nil,
+	}
+	// Push a new value, that should overlay on top of the base
+	foozleStr := "foozle"
+	foozleConfig := ptrifiedConfig{
+		Foo: &foozleStr,
+	}
+
+	// setup a cancelable context so the monitor goroutine gets shutdown.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	globalCfgCh := make(chan *configurableVerifier, 1)
+	w := fakeWatchingSource{fakeSource: fakeSource{outVal: foozleConfig}}
+	d, err := Params[configurableVerifier]{
+		OnNewConfig:              func(ctx context.Context, oc, nc *configurableVerifier) { globalCfgCh <- nc },
+		DelayInitialVerification: true,
+	}.Config(ctx, &base, &fakeSource{outVal: emptyConf}, &w)
+	assert.NoError(t, err)
+
+	if c, tok, verifyErr := d.EnableVerification(ctx); verifyErr == nil {
+		t.Errorf("unexpectedly passing config %+v with token %v", c, tok)
+	}
+
+	newCfg := make(chan *configurableVerifier)
+	_, initSerial := d.ViewVersion()
+	d.RegisterCallback(ctx, initSerial, func(ctx context.Context, oc, nc *configurableVerifier) { newCfg <- nc })
+
+	// make it valid
+	trueVar := true
+	w.send(ctx, reflect.ValueOf(ptrifiedConfig{
+		Valid: &trueVar,
+	},
+	))
+	// wait for the new config callbacks to complete
+	<-globalCfgCh
+	nc := <-newCfg
+	if _, _, verifyErr := d.EnableVerification(ctx); verifyErr != nil {
+		t.Errorf("unexpectedly failing config %+v: %s", nc, verifyErr)
+	}
+}
+
+func TestConfigWithDelayInitialVerifyFailWatchlobalCBSuppress(t *testing.T) {
+	t.Parallel()
+
+	type ptrifiedConfig struct {
+		Valid *bool
+		Foo   *string
+	}
+
+	base := configurableVerifier{
+		Valid: false,
+		Foo:   "foo",
+	}
+	emptyConf := ptrifiedConfig{
+		Valid: nil,
+		Foo:   nil,
+	}
+	// Push a new value, that should overlay on top of the base
+	foozleStr := "foozle"
+	foozleConfig := ptrifiedConfig{
+		Foo: &foozleStr,
+	}
+
+	// setup a cancelable context so the monitor goroutine gets shutdown.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCBCh := make(chan error, 1)
+	expglobalCBCall := make(chan struct{})
+	w := fakeWatchingSource{fakeSource: fakeSource{outVal: foozleConfig}}
+	d, err := Params[configurableVerifier]{
+		OnNewConfig: func(ctx context.Context, oc, nc *configurableVerifier) {
+			select {
+			case <-expglobalCBCall:
+			default:
+				t.Errorf("global new config callback executed before VerifyEnable success; cfg: %+v", nc)
+			}
+		},
+		OnWatchedError: func(ctx context.Context, err error, oc, nc *configurableVerifier) {
+			select {
+			case <-expglobalCBCall:
+				errCBCh <- err
+			default:
+				t.Errorf("global error callback executed before VerifyEnable success; cfg: %+v", nc)
+			}
+		},
+		DelayInitialVerification:                    true,
+		CallGlobalCallbacksAfterVerificationEnabled: true,
+	}.Config(ctx, &base, &fakeSource{outVal: emptyConf}, &w)
+	assert.NoError(t, err)
+
+	if c, tok, verifyErr := d.EnableVerification(ctx); verifyErr == nil {
+		t.Errorf("unexpectedly passing config %+v with token %v", c, tok)
+	}
+
+	newCfg := make(chan *configurableVerifier, 1)
+	_, initSerial := d.ViewVersion()
+	d.RegisterCallback(ctx, initSerial, func(ctx context.Context, oc, nc *configurableVerifier) { newCfg <- nc })
+
+	// make it valid
+	trueVar := true
+	w.send(ctx, reflect.ValueOf(ptrifiedConfig{
+		Valid: &trueVar,
+	},
+	))
+	// wait for the new config callbacks to complete
+	nc := <-newCfg
+	if _, _, verifyErr := d.EnableVerification(ctx); verifyErr != nil {
+		t.Errorf("unexpectedly failing config %+v: %s", nc, verifyErr)
+		return
+	}
+	close(expglobalCBCall)
+
+	// send an "invalid" config:
+	itsybitsy := "itsybitsy"
+	falseVar := false
+	w.send(ctx, reflect.ValueOf(ptrifiedConfig{
+		Valid: &falseVar,
+		Foo:   &itsybitsy,
+	},
+	))
+	select {
+	case e := <-errCBCh:
+		if e != errFailVerifier {
+			t.Errorf("unexpected error on invalid config: %s", e)
+		}
+	case c := <-newCfg:
+		t.Errorf("unexpected new config callback (with supposedly invalid config): %+v", c)
+	}
+
+	ittybitty := "ittybitty"
+	w.send(ctx, reflect.ValueOf(ptrifiedConfig{
+		Valid: &trueVar,
+		Foo:   &ittybitty,
+	},
+	))
+	finalCfg := <-newCfg
+
+	if finalCfg.Foo != ittybitty {
+		t.Errorf("unexpected value for Foo: %q; expected %q", finalCfg.Foo, ittybitty)
+	}
+
+}
+
 // successVerifier is a struct with a Verify() method that never fails with an error
 type successVerifier struct{}
 
@@ -249,6 +453,11 @@ func TestConfigWithSuccessVerifier(t *testing.T) {
 	finalConf := <-d.Events()
 	assert.Equal(t, "foo", finalConf.Foo)
 	assert.Equal(t, "foo", d.View().Foo)
+
+	// this should be a noop, just make sure it doesn't fail/block
+	if _, _, verifyErr := d.EnableVerification(ctx); verifyErr != nil {
+		t.Errorf("unexpectedly failing config %+v: %s", finalConf, verifyErr)
+	}
 }
 
 // configurableVerifier is a struct with a Verify() method that fails depending
@@ -346,6 +555,11 @@ func TestConfigWithConfigureVerifier(t *testing.T) {
 	case finalConf := <-d.Events():
 		assert.Equal(t, "foo", finalConf.Foo)
 		assert.Equal(t, "foo", d.View().Foo)
+
+		// this should be a noop, just make sure it doesn't fail/block
+		if _, _, verifyErr := d.EnableVerification(ctx); verifyErr != nil {
+			t.Errorf("unexpectedly failing config %+v: %s", finalConf, verifyErr)
+		}
 	case err := <-errCh:
 		t.Errorf("unexpected error from monitor: %s", err)
 	}
@@ -540,6 +754,11 @@ func TestConfigWithNewConfigCallbacks(t *testing.T) {
 	ocFinal := <-oldConf
 	assert.Equal(t, "fim", ocFinal.Foo)
 	assert.Equal(t, "foo", d.View().Foo)
+
+	// this should be a noop, just make sure it doesn't fail/block
+	if _, _, verifyErr := d.EnableVerification(ctx); verifyErr != nil {
+		t.Errorf("unexpectedly failing config %+v: %s", finalConf, verifyErr)
+	}
 }
 
 func TestConfigWithNewConfigCallbacksSaturate(t *testing.T) {
