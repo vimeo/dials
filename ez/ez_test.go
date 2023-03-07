@@ -136,8 +136,8 @@ func TestYAMLConfigEnvFlagWithValidatingConfig(t *testing.T) {
 
 	c := &validatingConfig{Path: path}
 	d, dialsErr := YAMLConfigEnvFlag(ctx, c, Params[validatingConfig]{})
-	assert.NotNil(t, d)
-	require.EqualError(t, dialsErr, "failed to integrate file source: failed to propagate change: stacking failed: val1 789 > 200")
+	assert.Nil(t, d)
+	require.EqualError(t, dialsErr, "initial configuration verification failed: val1 789 > 200")
 }
 
 func TestYAMLConfigEnvFlagWithValidatingConfigInitiallyValid(t *testing.T) {
