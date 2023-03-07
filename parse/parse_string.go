@@ -6,24 +6,6 @@ import (
 	"strconv"
 )
 
-var (
-	stringSliceType     = reflect.TypeOf([]string{})
-	boolSliceType       = reflect.TypeOf([]bool{})
-	intSliceType        = reflect.TypeOf([]int{})
-	int8SliceType       = reflect.TypeOf([]int8{})
-	int16SliceType      = reflect.TypeOf([]int16{})
-	int32SliceType      = reflect.TypeOf([]int32{})
-	int64SliceType      = reflect.TypeOf([]int64{})
-	uintSliceType       = reflect.TypeOf([]uint{})
-	uint8SliceType      = reflect.TypeOf([]uint8{})
-	uint16SliceType     = reflect.TypeOf([]uint16{})
-	uint32SliceType     = reflect.TypeOf([]uint32{})
-	float32SliceType    = reflect.TypeOf([]float32{})
-	float64SliceType    = reflect.TypeOf([]float64{})
-	complex64SliceType  = reflect.TypeOf([]complex64{})
-	complex128SliceType = reflect.TypeOf([]complex128{})
-)
-
 // String casts the provided string into the provided type, returning the
 // result in a reflect.Value.
 func String(str string, t reflect.Type) (reflect.Value, error) {
@@ -79,7 +61,7 @@ func String(str string, t reflect.Type) (reflect.Value, error) {
 			valKind := t.Elem().Kind()
 			err := checkKindsSupported(keyKind, valKind)
 			if err != nil {
-				return reflect.Value{}, fmt.Errorf("Unsupported map type: %v", t)
+				return reflect.Value{}, fmt.Errorf("unsupported map type: %v", t)
 			}
 			converted, err := Map(str, t)
 			if err != nil {
@@ -89,7 +71,7 @@ func String(str string, t reflect.Type) (reflect.Value, error) {
 		}
 	default:
 		// If the type of the original StructField is unsupported, return an error.
-		return reflect.Value{}, fmt.Errorf("Value %q cannot be translated to kind %q", str, t.Kind())
+		return reflect.Value{}, fmt.Errorf("value %q cannot be translated to kind %q", str, t.Kind())
 	}
 }
 
@@ -103,7 +85,7 @@ func checkKindsSupported(kinds ...reflect.Kind) error {
 			reflect.Complex128:
 			// no-op
 		default:
-			return fmt.Errorf("Kind %v not supported", k)
+			return fmt.Errorf("kind %v not supported", k)
 		}
 	}
 	return nil

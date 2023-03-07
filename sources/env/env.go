@@ -53,7 +53,7 @@ func (e *Source) Value(_ context.Context, t *dials.Type) (reflect.Value, error) 
 		if envTagVal == "" {
 			// dialsenv tag should be populated because dials tag is populated
 			// after flatten mangler and we copy from dials to dialsenv tag
-			panic(fmt.Errorf("Empty %s tag for field name %s", envTagName, sf.Name))
+			panic(fmt.Errorf("empty %s tag for field name %s", envTagName, sf.Name))
 		}
 
 		if e.Prefix != "" {

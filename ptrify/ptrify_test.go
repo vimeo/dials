@@ -10,9 +10,7 @@ import (
 
 func TestPointerify(t *testing.T) {
 	type sInt struct{ J int }
-	type sBool struct{ J bool }
 	type sIntPtr struct{ J *int }
-	type sBoolPtr struct{ J *bool }
 
 	for name, inst := range map[string]struct {
 		i        interface{}

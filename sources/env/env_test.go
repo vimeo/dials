@@ -100,7 +100,7 @@ func TestEnv(t *testing.T) {
 			EnvVarName:  "ENV_VAR",
 			EnvVarValue: "999999",
 			Expected:    nil,
-			ExpectedErr: "Overflow of int8 type: 999999",
+			ExpectedErr: "overflow of int8 type: 999999",
 		},
 		"bool": {
 			Run: func(ctx context.Context, src *Source) (any, error) {

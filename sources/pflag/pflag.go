@@ -138,7 +138,7 @@ func NewDefaultSetWithFlagSet(template interface{}, flagset *pflag.FlagSet) (*Se
 //	var flagset = pflag.Must(pflag.NewCmdLineSet(pflag.DefaultFlagNameConfig(), config))
 func Must(s *Set, err error) *Set {
 	if err != nil {
-		panic(fmt.Errorf("Error registering flags: %w", err))
+		panic(fmt.Errorf("error registering flags: %w", err))
 	}
 	return s
 }
@@ -405,7 +405,7 @@ func (s *Set) Value(_ context.Context, t *dials.Type) (reflect.Value, error) {
 		if !ffield.IsNil() {
 			// there's a 1:1 mapping between flags and field names so panic if
 			// this happens
-			panic(fmt.Errorf("Field name %s with flag %s is nil", fieldName, f.Name))
+			panic(fmt.Errorf("field name %s with flag %s is nil", fieldName, f.Name))
 		}
 
 		// We'll assume we're in a pointerified struct that matches
@@ -438,7 +438,6 @@ func (s *Set) Value(_ context.Context, t *dials.Type) (reflect.Value, error) {
 		default:
 			ffield.Set(cfval)
 		}
-		return
 	})
 	if setErr != nil {
 		return val.Elem(), setErr
@@ -471,6 +470,6 @@ func (s *Set) mkname(sf reflect.StructField) string {
 
 	// panic because flatten mangler should set the dials tag so panic if that
 	// wasn't set
-	panic(fmt.Errorf("Expected dials tag name for struct field %q", sf.Name))
+	panic(fmt.Errorf("expected dials tag name for struct field %q", sf.Name))
 
 }
