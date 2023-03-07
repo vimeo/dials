@@ -34,6 +34,9 @@ func (v *Complex128Var) Get() interface{} {
 
 // String implements flag.Value and pflag.Value
 func (v *Complex128Var) String() string {
+	if v.c == nil {
+		return ""
+	}
 	return fmt.Sprintf("%g", *v.c)
 }
 
@@ -70,6 +73,9 @@ func (v *Complex64Var) Get() interface{} {
 
 // String implements flag.Value and pflag.Value
 func (v *Complex64Var) String() string {
+	if v.c == nil {
+		return ""
+	}
 	return fmt.Sprintf("%g", *v.c)
 }
 

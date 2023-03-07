@@ -29,6 +29,28 @@ var (
 	mapStringString      = reflect.MapOf(reflect.TypeOf(""), reflect.TypeOf(""))
 	stringSet            = reflect.MapOf(reflect.TypeOf(""), reflect.TypeOf(struct{}{}))
 
+	stringType = reflect.TypeOf("")
+
+	boolType = reflect.TypeOf(false)
+
+	float32Type = reflect.TypeOf(float32(0))
+	float64Type = reflect.TypeOf(float64(0))
+
+	intType   = reflect.TypeOf(int(0))
+	int8Type  = reflect.TypeOf(int8(0))
+	int16Type = reflect.TypeOf(int16(0))
+	int32Type = reflect.TypeOf(int32(0))
+	int64Type = reflect.TypeOf(int64(0))
+
+	uintType   = reflect.TypeOf(uint(0))
+	uint8Type  = reflect.TypeOf(uint8(0))
+	uint16Type = reflect.TypeOf(uint16(0))
+	uint32Type = reflect.TypeOf(uint32(0))
+	uint64Type = reflect.TypeOf(uint64(0))
+
+	complex64Type  = reflect.TypeOf((*complex64)(nil))
+	complex128Type = reflect.TypeOf((*complex128)(nil))
+
 	// Verify that Set implements the dials.Source interface
 	_ dials.Source = (*Set)(nil)
 )
@@ -258,39 +280,39 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 
 		switch k {
 		case reflect.String:
-			f = s.Flags.StringP(name, shorthand, fieldVal.Interface().(string), help)
+			f = s.Flags.StringP(name, shorthand, fieldVal.Convert(stringType).Interface().(string), help)
 		case reflect.Bool:
-			f = s.Flags.BoolP(name, shorthand, fieldVal.Interface().(bool), help)
+			f = s.Flags.BoolP(name, shorthand, fieldVal.Convert(boolType).Interface().(bool), help)
 		case reflect.Float64:
-			f = s.Flags.Float64P(name, shorthand, fieldVal.Interface().(float64), help)
+			f = s.Flags.Float64P(name, shorthand, fieldVal.Convert(float64Type).Interface().(float64), help)
 		case reflect.Float32:
-			f = s.Flags.Float32P(name, shorthand, fieldVal.Interface().(float32), help)
+			f = s.Flags.Float32P(name, shorthand, fieldVal.Convert(float32Type).Interface().(float32), help)
 		case reflect.Complex64:
 			f = fieldVal.Addr().Interface()
-			s.Flags.VarP(flaghelper.NewComplex64Var(fieldVal.Addr().Interface().(*complex64)), name, shorthand, help)
+			s.Flags.VarP(flaghelper.NewComplex64Var(fieldVal.Addr().Convert(complex64Type).Interface().(*complex64)), name, shorthand, help)
 		case reflect.Complex128:
 			f = fieldVal.Addr().Interface()
-			s.Flags.VarP(flaghelper.NewComplex128Var(fieldVal.Addr().Interface().(*complex128)), name, shorthand, help)
+			s.Flags.VarP(flaghelper.NewComplex128Var(fieldVal.Addr().Convert(complex128Type).Interface().(*complex128)), name, shorthand, help)
 		case reflect.Int:
-			f = s.Flags.IntP(name, shorthand, fieldVal.Interface().(int), help)
+			f = s.Flags.IntP(name, shorthand, fieldVal.Convert(intType).Interface().(int), help)
 		case reflect.Int8:
-			f = s.Flags.Int8P(name, shorthand, fieldVal.Interface().(int8), help)
+			f = s.Flags.Int8P(name, shorthand, fieldVal.Convert(int8Type).Interface().(int8), help)
 		case reflect.Int16:
-			f = s.Flags.Int16P(name, shorthand, fieldVal.Interface().(int16), help)
+			f = s.Flags.Int16P(name, shorthand, fieldVal.Convert(int16Type).Interface().(int16), help)
 		case reflect.Int32:
-			f = s.Flags.Int32P(name, shorthand, fieldVal.Interface().(int32), help)
+			f = s.Flags.Int32P(name, shorthand, fieldVal.Convert(int32Type).Interface().(int32), help)
 		case reflect.Int64:
-			f = s.Flags.Int64P(name, shorthand, fieldVal.Int(), help)
+			f = s.Flags.Int64P(name, shorthand, fieldVal.Convert(int64Type).Int(), help)
 		case reflect.Uint:
-			f = s.Flags.UintP(name, shorthand, fieldVal.Interface().(uint), help)
+			f = s.Flags.UintP(name, shorthand, fieldVal.Convert(uintType).Interface().(uint), help)
 		case reflect.Uint8:
-			f = s.Flags.Uint8P(name, shorthand, fieldVal.Interface().(uint8), help)
+			f = s.Flags.Uint8P(name, shorthand, fieldVal.Convert(uint8Type).Interface().(uint8), help)
 		case reflect.Uint16:
-			f = s.Flags.Uint16P(name, shorthand, fieldVal.Interface().(uint16), help)
+			f = s.Flags.Uint16P(name, shorthand, fieldVal.Convert(uint16Type).Interface().(uint16), help)
 		case reflect.Uint32:
-			f = s.Flags.Uint32P(name, shorthand, fieldVal.Interface().(uint32), help)
+			f = s.Flags.Uint32P(name, shorthand, fieldVal.Convert(uint32Type).Interface().(uint32), help)
 		case reflect.Uint64:
-			f = s.Flags.Uint64P(name, shorthand, fieldVal.Interface().(uint64), help)
+			f = s.Flags.Uint64P(name, shorthand, fieldVal.Convert(uint64Type).Interface().(uint64), help)
 		case reflect.Slice, reflect.Map:
 			switch ft {
 			case stringSlice:

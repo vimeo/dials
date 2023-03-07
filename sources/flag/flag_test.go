@@ -36,7 +36,7 @@ func TestDirectBasic(t *testing.T) {
 	buf := &bytes.Buffer{}
 	src.Flags.SetOutput(buf)
 
-	d, err := dials.Config(ctx, &Config{}, src)
+	d, err := dials.Config(ctx, &Config{Hello: "nothing"}, src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,6 +62,91 @@ func TestDirectBasic(t *testing.T) {
 
 	if got.SomeTime != 2*time.Second {
 		t.Errorf("expected SomeTime to be 2s, got %s", got.SomeTime)
+	}
+}
+
+func TestDefaultVals(t *testing.T) {
+	type otherString string
+	type otherBool bool
+	type otherInt int
+	type otherInt8 int8
+	type otherInt16 int16
+	type otherInt32 int32
+	type otherInt64 int64
+	type otherUint uint
+	type otherUint8 uint8
+	type otherUint16 uint16
+	type otherUint32 uint32
+	type otherUint64 uint64
+	type otherFloat32 float32
+	type otherFloat64 float64
+	type otherComplex64 complex64
+	type otherComplex128 complex128
+
+	type config struct {
+		OString     otherString
+		OBool       otherBool
+		OInt        otherInt
+		OInt8       otherInt8
+		OInt16      otherInt16
+		OInt32      otherInt32
+		OInt64      otherInt64
+		OUint       otherUint
+		OUint8      otherUint8
+		OUint16     otherUint16
+		OUint32     otherUint32
+		OUint64     otherUint64
+		OFloat32    otherFloat32
+		OFloat64    otherFloat64
+		OComplex64  otherComplex64
+		OComplex128 otherComplex128
+	}
+
+	c := config{
+		OString:     "a-string",
+		OBool:       true,
+		OInt:        -1,
+		OInt8:       -2,
+		OInt16:      -3,
+		OInt32:      -4,
+		OInt64:      -5,
+		OUint:       1,
+		OUint8:      2,
+		OUint16:     3,
+		OUint32:     4,
+		OUint64:     5,
+		OFloat32:    6.0,
+		OFloat64:    7.0,
+		OComplex64:  8 + 2i,
+		OComplex128: 9 + 3i,
+	}
+
+	expected := c
+	t.Logf("expected: %+v", expected)
+
+	fs := flag.NewFlagSet("test flags", flag.ContinueOnError)
+	src := &Set{
+		Flags: fs,
+		ParseFunc: func() error {
+			// don't need to parse any flags because we're only interested in
+			// checking the default setting with these custom types.
+			return fs.Parse([]string{})
+		},
+	}
+	buf := &bytes.Buffer{}
+	src.Flags.SetOutput(buf)
+
+	d, err := dials.Config(context.Background(), &c, src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src.Flags.Usage()
+	t.Log(buf.String())
+
+	got := d.View()
+	t.Logf("got: %+v", got)
+	if *got != expected {
+		t.Errorf("wanted %+v got %+v", expected, got)
 	}
 }
 
