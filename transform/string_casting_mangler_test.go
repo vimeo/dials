@@ -306,7 +306,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"invalid_map": {
 			StructFieldType: reflect.TypeOf(map[string][]int{}),
 			StringValue:     `"asdf": 1, "asdf": 2, "zxcv": 3`,
-			ExpectedErr:     "Unsupported map type",
+			ExpectedErr:     "unsupported map type",
 		},
 		"string_set": {
 			StructFieldType: reflect.TypeOf(map[string]struct{}{}),

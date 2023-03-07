@@ -156,7 +156,7 @@ type tu struct {
 
 // need a concrete type that implements TextUnmarshaler
 func (u tu) UnmarshalText(data []byte) error {
-	u.Text = string(data)
+	u.Text = string(data) //lint:ignore SA4005 we purposely don't want this to work
 	return nil
 }
 

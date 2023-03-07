@@ -6,6 +6,9 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // DecodeCasingFunc takes in an identifier in a case such as camelCase or
@@ -27,13 +30,13 @@ func decodeCamelCase(typeName, s string) (DecodedIdentifier, error) {
 	// ignore the size of the rune
 	r, _ := utf8.DecodeRuneInString(s)
 	if r == utf8.RuneError || unicode.IsDigit(r) {
-		return nil, fmt.Errorf("Converting case of %q: %s strings can't start with characters of the Decimal Digit category", s, typeName)
+		return nil, fmt.Errorf("converting case of %q: %s strings can't start with characters of the Decimal Digit category", s, typeName)
 	}
 	words := []string{}
 	lastBoundary := 0
 	for z, char := range s {
 		if !unicode.IsLetter(char) && !unicode.IsDigit(char) {
-			return nil, fmt.Errorf("Converting case of %q: Only characters of the Letter and Decimal Digit categories can appear in %s strings: %c at byte offset %d",
+			return nil, fmt.Errorf("converting case of %q: Only characters of the Letter and Decimal Digit categories can appear in %s strings: %c at byte offset %d",
 				s, typeName, char, z)
 		}
 		if unicode.IsUpper(char) {
@@ -54,7 +57,7 @@ func DecodeUpperCamelCase(s string) (DecodedIdentifier, error) {
 	// ignore the size of the rune
 	r, _ := utf8.DecodeRuneInString(s)
 	if !unicode.IsLetter(r) || !unicode.IsUpper(r) {
-		return nil, fmt.Errorf("Converting case of %q: First character of upperCamelCase string must be an uppercase character of the Letter category", s)
+		return nil, fmt.Errorf("converting case of %q: First character of upperCamelCase string must be an uppercase character of the Letter category", s)
 	}
 	return decodeCamelCase("UpperCamelCase", s)
 }
@@ -64,7 +67,7 @@ func DecodeLowerCamelCase(s string) (DecodedIdentifier, error) {
 	// ignore the size of the rune
 	r, _ := utf8.DecodeRuneInString(s)
 	if !unicode.IsLetter(r) || !unicode.IsLower(r) {
-		return nil, fmt.Errorf("Converting case of %q: First character of lowerCamelCase string must be a lowercase character of the Letter category", s)
+		return nil, fmt.Errorf("converting case of %q: First character of lowerCamelCase string must be a lowercase character of the Letter category", s)
 	}
 	return decodeCamelCase("lowerCamelCase", s)
 }
@@ -155,7 +158,7 @@ func decodeGoCamelCase(s string, isWordBoundary func(rune) bool) (DecodedIdentif
 // sub-strings.
 func DecodeGoCamelCase(s string) (DecodedIdentifier, error) {
 	if !token.IsIdentifier(s) {
-		return nil, fmt.Errorf("Only characters of the Letter category or '_' can appear in strings")
+		return nil, fmt.Errorf("only characters of the Letter category or '_' can appear in strings")
 	}
 	return decodeGoCamelCase(s, func(r rune) bool {
 		return r == '_'
@@ -202,7 +205,7 @@ func decodeLowerCaseWithSplitChar(splitChar rune, typeName, s string) (DecodedId
 	// ignore the size of the rune
 	r, _ := utf8.DecodeRuneInString(s)
 	if r == utf8.RuneError || unicode.IsDigit(r) {
-		return nil, fmt.Errorf("Converting case of %q: %s strings can't start with characters of the Decimal Digit category", s, typeName)
+		return nil, fmt.Errorf("converting case of %q: %s strings can't start with characters of the Decimal Digit category", s, typeName)
 	}
 
 	words := []string{}
@@ -215,7 +218,7 @@ func decodeLowerCaseWithSplitChar(splitChar rune, typeName, s string) (DecodedId
 			}
 			lastBoundary = z + utf8.RuneLen(splitChar)
 		} else if (!unicode.IsLetter(char) && !unicode.IsDigit(char)) || (!unicode.IsLower(char) && !unicode.IsDigit(char)) {
-			return nil, fmt.Errorf("Converting case of %q: Only lower-case letter-category characters, digits, and '%c' can appear in `%s` strings: %c at byte-offset %d does not comply", s, splitChar, typeName, char, z)
+			return nil, fmt.Errorf("converting case of %q: Only lower-case letter-category characters, digits, and '%c' can appear in `%s` strings: %c at byte-offset %d does not comply", s, splitChar, typeName, char, z)
 		}
 	}
 	// flush one last time to get the remainder of the string
@@ -241,7 +244,7 @@ func DecodeUpperSnakeCase(s string) (DecodedIdentifier, error) {
 	// ignore the size of the rune
 	r, _ := utf8.DecodeRuneInString(s)
 	if r == utf8.RuneError || unicode.IsDigit(r) {
-		return nil, fmt.Errorf("Converting case of %q: UPPER_SNAKE_CASE strings can't start with characters of the Decimal Digit category", s)
+		return nil, fmt.Errorf("converting case of %q: UPPER_SNAKE_CASE strings can't start with characters of the Decimal Digit category", s)
 	}
 
 	words := []string{}
@@ -254,7 +257,7 @@ func DecodeUpperSnakeCase(s string) (DecodedIdentifier, error) {
 			}
 			lastBoundary = z + 1
 		} else if (!unicode.IsLetter(char) && !unicode.IsDigit(char)) || (!unicode.IsUpper(char) && !unicode.IsDigit(char)) {
-			return nil, fmt.Errorf("Converting case of %q: Only uppercase characters of the Letter category and '_' can appear in UPPER_SNAKE_CASE strings: %c in at byte-offset %d does not comply", s, char, z)
+			return nil, fmt.Errorf("converting case of %q: Only uppercase characters of the Letter category and '_' can appear in UPPER_SNAKE_CASE strings: %c in at byte-offset %d does not comply", s, char, z)
 		}
 	}
 	// flush one last time to get the remainder of the string
@@ -270,7 +273,7 @@ func DecodeCasePreservingSnakeCase(s string) (DecodedIdentifier, error) {
 	// ignore the size of the rune
 	r, _ := utf8.DecodeRuneInString(s)
 	if r == utf8.RuneError || unicode.IsDigit(r) {
-		return nil, fmt.Errorf("Converting case of %q: Case_Preserving_Snake_Case strings can't start with characters of the Decimal Digit category", s)
+		return nil, fmt.Errorf("converting case of %q: Case_Preserving_Snake_Case strings can't start with characters of the Decimal Digit category", s)
 
 	}
 	words := []string{}
@@ -284,7 +287,7 @@ func DecodeCasePreservingSnakeCase(s string) (DecodedIdentifier, error) {
 			}
 			lastBoundary = z + 1
 		} else if !unicode.IsLetter(char) && !unicode.IsDigit(char) {
-			return nil, fmt.Errorf("Converting case of %q: Only characters of the Letter category and '_' can appear in Preserving_Snake_Case strings: %c at byte-offset %d does not comply", s, char, z)
+			return nil, fmt.Errorf("converting case of %q: Only characters of the Letter category and '_' can appear in Preserving_Snake_Case strings: %c at byte-offset %d does not comply", s, char, z)
 		}
 	}
 	words = append(words, strings.ToLower(s[lastBoundary:]))
@@ -304,7 +307,7 @@ func EncodeUpperCamelCase(words DecodedIdentifier) string {
 	b := strings.Builder{}
 	b.Grow(aggregateStringLen(words))
 	for _, w := range words {
-		b.WriteString(strings.Title(w))
+		b.WriteString(cases.Title(language.English, cases.NoLower).String(w))
 	}
 	return b.String()
 }
@@ -318,7 +321,7 @@ func EncodeLowerCamelCase(words DecodedIdentifier) string {
 	b.Grow(aggregateStringLen(words))
 	b.WriteString(words[0])
 	for _, w := range words[1:] {
-		b.WriteString(strings.Title(w))
+		b.WriteString(cases.Title(language.English, cases.NoLower).String(w))
 	}
 	return b.String()
 }

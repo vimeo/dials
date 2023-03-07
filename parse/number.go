@@ -30,7 +30,7 @@ func parseNumber(strVal string, numberType reflect.Type) (reflect.Value, error) 
 		// Check for overflow
 		convertTo := reflect.Zero(numberType)
 		if convertTo.OverflowInt(converted) {
-			return reflect.Value{}, &OverflowError{err: fmt.Errorf("Overflow of %v type: %v", numberType, converted)}
+			return reflect.Value{}, &OverflowError{err: fmt.Errorf("overflow of %v type: %v", numberType, converted)}
 		}
 
 		switch numberType.Kind() {
@@ -59,7 +59,7 @@ func parseNumber(strVal string, numberType reflect.Type) (reflect.Value, error) 
 		// Check for overflow
 		convertTo := reflect.Zero(numberType)
 		if convertTo.OverflowUint(converted) {
-			return reflect.Value{}, &OverflowError{err: fmt.Errorf("Overflow of %v type: %v", numberType, converted)}
+			return reflect.Value{}, &OverflowError{err: fmt.Errorf("overflow of %v type: %v", numberType, converted)}
 		}
 
 		switch numberType.Kind() {
@@ -88,7 +88,7 @@ func parseNumber(strVal string, numberType reflect.Type) (reflect.Value, error) 
 		// Check for overflow
 		convertTo := reflect.Zero(numberType)
 		if convertTo.OverflowFloat(converted) {
-			return reflect.Value{}, &OverflowError{err: fmt.Errorf("Overflow of %v type: %v", numberType, converted)}
+			return reflect.Value{}, &OverflowError{err: fmt.Errorf("overflow of %v type: %v", numberType, converted)}
 		}
 
 		fl32 := float32(converted)
@@ -102,7 +102,7 @@ func parseNumber(strVal string, numberType reflect.Type) (reflect.Value, error) 
 		// Check for overflow
 		convertTo := reflect.Zero(numberType)
 		if convertTo.OverflowFloat(converted) {
-			return reflect.Value{}, &OverflowError{err: fmt.Errorf("Overflow of %v type: %v", numberType, converted)}
+			return reflect.Value{}, &OverflowError{err: fmt.Errorf("overflow of %v type: %v", numberType, converted)}
 		}
 
 		castVal = reflect.ValueOf(&converted)
@@ -115,7 +115,7 @@ func parseNumber(strVal string, numberType reflect.Type) (reflect.Value, error) 
 		// Check for overflow
 		convertTo := reflect.Zero(numberType)
 		if convertTo.OverflowComplex(complex128(converted)) {
-			return reflect.Value{}, &OverflowError{err: fmt.Errorf("Overflow of %v type: %v", numberType, converted)}
+			return reflect.Value{}, &OverflowError{err: fmt.Errorf("overflow of %v type: %v", numberType, converted)}
 		}
 
 		castVal = reflect.ValueOf(&converted)
@@ -128,7 +128,7 @@ func parseNumber(strVal string, numberType reflect.Type) (reflect.Value, error) 
 		// Check for overflow
 		convertTo := reflect.Zero(numberType)
 		if convertTo.OverflowComplex(converted) {
-			return reflect.Value{}, &OverflowError{err: fmt.Errorf("Overflow of %v type: %v", numberType, converted)}
+			return reflect.Value{}, &OverflowError{err: fmt.Errorf("overflow of %v type: %v", numberType, converted)}
 		}
 
 		castVal = reflect.ValueOf(&converted)

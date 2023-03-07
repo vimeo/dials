@@ -53,7 +53,7 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 	switch sf.Type.Kind() {
 	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Interface:
 	default:
-		return []reflect.StructField{}, fmt.Errorf("FlattenMangler: programmer error: expected pointerized fields, got %s",
+		return []reflect.StructField{}, fmt.Errorf("flattenMangler: programmer error: expected pointerized fields, got %s",
 			sf.Type)
 	}
 
@@ -174,7 +174,7 @@ func (f *FlattenMangler) getTag(sf *reflect.StructField, tags, flattenedPath []s
 		// decode the field name assuming it's camel case before appending it
 		decodedField, err := caseconversion.DecodeGoCamelCase(sf.Name)
 		if err != nil {
-			return sf.Tag, nil, fmt.Errorf("Error decoding field name %s: %w", sf.Name, err)
+			return sf.Tag, nil, fmt.Errorf("error decoding field name %s: %w", sf.Name, err)
 		}
 		tags = append(tags[:len(tags):len(tags)], decodedField...)
 
@@ -212,7 +212,7 @@ func (f *FlattenMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) 
 	}
 
 	if output != len(vs) {
-		return val, fmt.Errorf("Error unmangling %v. Number of input values %d not equal to number of struct fields that need values %d", sf, len(vs), output)
+		return val, fmt.Errorf("error unmangling %v. Number of input values %d not equal to number of struct fields that need values %d", sf, len(vs), output)
 	}
 
 	return val, nil
@@ -221,7 +221,7 @@ func (f *FlattenMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) 
 // populateStruct populates the original value with values from the flattend values
 func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex int) (int, error) {
 	if !originalVal.CanSet() {
-		return inputIndex, fmt.Errorf("Error unmangling %s. Need addressable type, actual %q", originalVal, originalVal.Type().Kind())
+		return inputIndex, fmt.Errorf("error unmangling %s. Need addressable type, actual %q", originalVal, originalVal.Type().Kind())
 	}
 
 	kind, vt := getUnderlyingKindType(originalVal.Type())
@@ -259,11 +259,11 @@ func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex 
 			default:
 			}
 			if !nestedVal.CanSet() {
-				return inputIndex, fmt.Errorf("Nested value %s under %s cannot be set", nestedVal, originalVal)
+				return inputIndex, fmt.Errorf("nested value %s under %s cannot be set", nestedVal, originalVal)
 			}
 
 			if !vs[inputIndex].Value.Type().AssignableTo(nestedVal.Type()) {
-				return inputIndex, fmt.Errorf("Error unmangling. Expected type %s. Actual type %s", vs[inputIndex].Value.Type(), nestedVal.Type())
+				return inputIndex, fmt.Errorf("error unmangling. Expected type %s. Actual type %s", vs[inputIndex].Value.Type(), nestedVal.Type())
 			}
 			nestedVal.Set(vs[inputIndex].Value)
 			inputIndex++
