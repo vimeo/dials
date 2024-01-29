@@ -40,14 +40,28 @@ var (
 	int32Type = reflect.TypeOf(int32(0))
 	int64Type = reflect.TypeOf(int64(0))
 
-	uintType   = reflect.TypeOf(uint(0))
-	uint8Type  = reflect.TypeOf(uint8(0))
-	uint16Type = reflect.TypeOf(uint16(0))
-	uint32Type = reflect.TypeOf(uint32(0))
-	uint64Type = reflect.TypeOf(uint64(0))
+	uintType    = reflect.TypeOf(uint(0))
+	uint8Type   = reflect.TypeOf(uint8(0))
+	uint16Type  = reflect.TypeOf(uint16(0))
+	uint32Type  = reflect.TypeOf(uint32(0))
+	uint64Type  = reflect.TypeOf(uint64(0))
+	uintptrType = reflect.TypeOf(uintptr(0))
 
 	complex64Type  = reflect.TypeOf((*complex64)(nil))
 	complex128Type = reflect.TypeOf((*complex128)(nil))
+
+	intSliceType   = reflect.SliceOf(intType)
+	int8SliceType  = reflect.SliceOf(int8Type)
+	int16SliceType = reflect.SliceOf(int16Type)
+	int32SliceType = reflect.SliceOf(int32Type)
+	int64SliceType = reflect.SliceOf(int64Type)
+
+	uintSliceType    = reflect.SliceOf(uintType)
+	uint8SliceType   = reflect.SliceOf(uint8Type)
+	uint16SliceType  = reflect.SliceOf(uint16Type)
+	uint32SliceType  = reflect.SliceOf(uint32Type)
+	uint64SliceType  = reflect.SliceOf(uint64Type)
+	uintptrSliceType = reflect.SliceOf(uintptrType)
 
 	// Verify that Set implements the dials.Source interface
 	_ dials.Source = (*Set)(nil)
@@ -304,6 +318,8 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 			s.Flags.Uint(name, uint(fieldVal.Convert(uint32Type).Interface().(uint32)), help)
 		case reflect.Uint64:
 			s.Flags.Uint64(name, fieldVal.Convert(uint64Type).Interface().(uint64), help)
+		case reflect.Uintptr:
+			s.Flags.Uint64(name, uint64(fieldVal.Convert(uintptrType).Interface().(uintptr)), help)
 		case reflect.Slice, reflect.Map:
 			switch ft {
 			case stringSlice:
@@ -314,6 +330,31 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 				s.Flags.Var(flaghelper.NewMapStringStringFlag(fieldVal.Addr().Interface().(*map[string]string)), name, help)
 			case stringSet:
 				s.Flags.Var(flaghelper.NewStringSetFlag(fieldVal.Addr().Interface().(*map[string]struct{})), name, help)
+
+			case intSliceType:
+				s.Flags.Var(flaghelper.NewSignedIntegralSlice(fieldVal.Addr().Interface().(*[]int)), name, help)
+			case int8SliceType:
+				s.Flags.Var(flaghelper.NewSignedIntegralSlice(fieldVal.Addr().Interface().(*[]int8)), name, help)
+			case int16SliceType:
+				s.Flags.Var(flaghelper.NewSignedIntegralSlice(fieldVal.Addr().Interface().(*[]int16)), name, help)
+			case int32SliceType:
+				s.Flags.Var(flaghelper.NewSignedIntegralSlice(fieldVal.Addr().Interface().(*[]int32)), name, help)
+			case int64SliceType:
+				s.Flags.Var(flaghelper.NewSignedIntegralSlice(fieldVal.Addr().Interface().(*[]int64)), name, help)
+
+			case uintSliceType:
+				s.Flags.Var(flaghelper.NewUnsignedIntegralSlice(fieldVal.Addr().Interface().(*[]uint)), name, help)
+			case uint8SliceType:
+				s.Flags.Var(flaghelper.NewUnsignedIntegralSlice(fieldVal.Addr().Interface().(*[]uint8)), name, help)
+			case uint16SliceType:
+				s.Flags.Var(flaghelper.NewUnsignedIntegralSlice(fieldVal.Addr().Interface().(*[]uint16)), name, help)
+			case uint32SliceType:
+				s.Flags.Var(flaghelper.NewUnsignedIntegralSlice(fieldVal.Addr().Interface().(*[]uint32)), name, help)
+			case uint64SliceType:
+				s.Flags.Var(flaghelper.NewUnsignedIntegralSlice(fieldVal.Addr().Interface().(*[]uint64)), name, help)
+			case uintptrSliceType:
+				s.Flags.Var(flaghelper.NewUnsignedIntegralSlice(fieldVal.Addr().Interface().(*[]uintptr)), name, help)
+
 			default:
 				// Unhandled type. Just keep going.
 				continue
