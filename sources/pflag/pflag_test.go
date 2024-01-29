@@ -81,6 +81,7 @@ func TestDefaultVals(t *testing.T) {
 	type otherUint16 uint16
 	type otherUint32 uint32
 	type otherUint64 uint64
+	type otherUintptr uintptr
 	type otherFloat32 float32
 	type otherFloat64 float64
 	type otherComplex64 complex64
@@ -99,6 +100,7 @@ func TestDefaultVals(t *testing.T) {
 		OUint16     otherUint16
 		OUint32     otherUint32
 		OUint64     otherUint64
+		OUintptr    otherUintptr
 		OFloat32    otherFloat32
 		OFloat64    otherFloat64
 		OComplex64  otherComplex64
@@ -118,6 +120,7 @@ func TestDefaultVals(t *testing.T) {
 		OUint16:     3,
 		OUint32:     4,
 		OUint64:     5,
+		OUintptr:    0xffff_f333_7777,
 		OFloat32:    6.0,
 		OFloat64:    7.0,
 		OComplex64:  8 + 2i,
@@ -199,6 +202,24 @@ func TestPFlags(t *testing.T) {
 			},
 			args:     []string{"--a=42"},
 			expected: &struct{ A int }{A: 42},
+		},
+		{
+			name: "basic_int_slice_set",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []int }{A: []int{4}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=42,33"},
+			expected: &struct{ A []int }{A: []int{42, 33}},
+		},
+		{
+			name: "basic_uint_slice_set",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uint }{A: []uint{4}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=42,33"},
+			expected: &struct{ A []uint }{A: []uint{42, 33}},
 		},
 		{
 			name: "basic_float32_set",
@@ -295,6 +316,202 @@ func TestPFlags(t *testing.T) {
 			expErr:   "failed to parse pflags: invalid argument \"1000000\" for \"--a\" flag: strconv.ParseInt: parsing \"1000000\": value out of range",
 		},
 		{
+			name: "basic_uint16_slice_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uint16 }{A: []uint16{10}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{},
+			expected: &struct{ A []uint16 }{A: []uint16{10}},
+		},
+		{
+			name: "basic_uint16_slice_set_nooverflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uint16 }{A: []uint16{10}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=128,32"},
+			expected: &struct{ A []uint16 }{A: []uint16{128, 32}},
+		},
+		{
+			name: "basic_uint16_slice_set_overflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uint16 }{A: []uint16{10}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=1000000"},
+			expected: nil,
+			expErr:   "failed to parse pflags: invalid argument \"1000000\" for \"--a\" flag: failed to parse integer index 0: strconv.ParseUint: parsing \"1000000\": value out of range",
+		},
+		{
+			name: "basic_uint32_set_nooverflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A uint32 }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=128"},
+			expected: &struct{ A uint32 }{A: 128},
+		},
+		{
+			name: "basic_uint32_set_overflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A uint32 }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=100_000_000_000"},
+			expected: nil,
+			expErr:   "failed to parse pflags: invalid argument \"100_000_000_000\" for \"--a\" flag: strconv.ParseUint: parsing \"100_000_000_000\": value out of range",
+		},
+		{
+			name: "basic_uint32_slice_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uint32 }{A: []uint32{10}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{},
+			expected: &struct{ A []uint32 }{A: []uint32{10}},
+		},
+		{
+			name: "basic_uint32_slice_set_nooverflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uint32 }{A: []uint32{10}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=128,32"},
+			expected: &struct{ A []uint32 }{A: []uint32{128, 32}},
+		},
+		{
+			name: "basic_uint8_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A uint8 }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{},
+			expected: &struct{ A uint8 }{A: 10},
+		},
+		{
+			name: "basic_uint8_slice_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uint8 }{A: []uint8{10}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{},
+			expected: &struct{ A []uint8 }{A: []uint8{10}},
+		},
+		{
+			name: "basic_uint8_set_nooverflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A uint8 }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=125"},
+			expected: &struct{ A uint8 }{A: 125},
+		},
+		{
+			name: "basic_uint8_slice_set_nooverflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uint8 }{A: []uint8{10}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=125"},
+			expected: &struct{ A []uint8 }{A: []uint8{125}},
+		},
+		{
+			name: "basic_uint8_set_overflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A uint8 }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=1000000"},
+			expected: nil,
+			expErr:   "failed to parse pflags: invalid argument \"1000000\" for \"--a\" flag: strconv.ParseUint: parsing \"1000000\": value out of range",
+		},
+		{
+			name: "basic_uint8_slice_set_overflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uint8 }{A: []uint8{10}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=1000000"},
+			expected: nil,
+			expErr:   "failed to parse pflags: invalid argument \"1000000\" for \"--a\" flag: failed to parse integer index 0: strconv.ParseUint: parsing \"1000000\": value out of range",
+		},
+		{
+			name: "basic_uint64_set_nooverflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A uint64 }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=128"},
+			expected: &struct{ A uint64 }{A: 128},
+		},
+		{
+			name: "basic_uint64_set_overflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A uint64 }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=100_000_000_000_000_000_000"},
+			expected: nil,
+			expErr:   "failed to parse pflags: invalid argument \"100_000_000_000_000_000_000\" for \"--a\" flag: strconv.ParseUint: parsing \"100_000_000_000_000_000_000\": value out of range",
+		},
+		{
+			name: "basic_uint64_slice_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uint64 }{A: []uint64{10}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{},
+			expected: &struct{ A []uint64 }{A: []uint64{10}},
+		},
+		{
+			name: "basic_uint64_slice_set_nooverflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uint64 }{A: []uint64{10}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=128,32"},
+			expected: &struct{ A []uint64 }{A: []uint64{128, 32}},
+		},
+		{
+			name: "basic_uintptr_set_nooverflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A uintptr }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=128"},
+			expected: &struct{ A uintptr }{A: 128},
+		},
+		{
+			name: "basic_uintptr_set_overflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A uintptr }{A: 10}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=100_000_000_000_000_000_000"},
+			expected: nil,
+			expErr:   "failed to parse pflags: invalid argument \"100_000_000_000_000_000_000\" for \"--a\" flag: strconv.ParseUint: parsing \"100_000_000_000_000_000_000\": value out of range",
+		},
+		{
+			name: "basic_uintptr_slice_default",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uintptr }{A: []uintptr{10}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{},
+			expected: &struct{ A []uintptr }{A: []uintptr{10}},
+		},
+		{
+			name: "basic_uintptr_slice_set_nooverflow",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uintptr }{A: []uintptr{10}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=128,32"},
+			expected: &struct{ A []uintptr }{A: []uintptr{128, 32}},
+		},
+
+		{
 			name: "map_string_string_set",
 			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
 				cfg := struct{ A map[string]string }{A: map[string]string{"z": "i"}}
@@ -347,6 +564,24 @@ func TestPFlags(t *testing.T) {
 			},
 			args:     []string{},
 			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
+		},
+		{
+			name: "int_slice_default_val",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []int }{A: []int{33, 22}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{},
+			expected: &struct{ A []int }{A: []int{33, 22}},
+		},
+		{
+			name: "int_slice_default_nil",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []int }{A: []int(nil)}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{},
+			expected: &struct{ A []int }{A: nil},
 		},
 		{
 			name: "complex128_default",
