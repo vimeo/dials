@@ -315,10 +315,12 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 			case stringSet:
 				s.Flags.Var(flaghelper.NewStringSetFlag(fieldVal.Addr().Interface().(*map[string]struct{})), name, help)
 			default:
-				return fmt.Errorf("unhandled type %s", ft)
+				// Unhandled type. Just keep going.
+				continue
 			}
 		default:
-			return fmt.Errorf("unhandled type %s", ft)
+			// Unhandled type. Just keep going.
+			continue
 		}
 	}
 	return nil
