@@ -42,14 +42,28 @@ var (
 	int32Type = reflect.TypeOf(int32(0))
 	int64Type = reflect.TypeOf(int64(0))
 
-	uintType   = reflect.TypeOf(uint(0))
-	uint8Type  = reflect.TypeOf(uint8(0))
-	uint16Type = reflect.TypeOf(uint16(0))
-	uint32Type = reflect.TypeOf(uint32(0))
-	uint64Type = reflect.TypeOf(uint64(0))
+	uintType    = reflect.TypeOf(uint(0))
+	uint8Type   = reflect.TypeOf(uint8(0))
+	uint16Type  = reflect.TypeOf(uint16(0))
+	uint32Type  = reflect.TypeOf(uint32(0))
+	uint64Type  = reflect.TypeOf(uint64(0))
+	uintptrType = reflect.TypeOf(uintptr(0))
 
 	complex64Type  = reflect.TypeOf((*complex64)(nil))
 	complex128Type = reflect.TypeOf((*complex128)(nil))
+
+	intSliceType   = reflect.SliceOf(intType)
+	int8SliceType  = reflect.SliceOf(int8Type)
+	int16SliceType = reflect.SliceOf(int16Type)
+	int32SliceType = reflect.SliceOf(int32Type)
+	int64SliceType = reflect.SliceOf(int64Type)
+
+	uintSliceType    = reflect.SliceOf(uintType)
+	uint8SliceType   = reflect.SliceOf(uint8Type)
+	uint16SliceType  = reflect.SliceOf(uint16Type)
+	uint32SliceType  = reflect.SliceOf(uint32Type)
+	uint64SliceType  = reflect.SliceOf(uint64Type)
+	uintptrSliceType = reflect.SliceOf(uintptrType)
 
 	// Verify that Set implements the dials.Source interface
 	_ dials.Source = (*Set)(nil)
@@ -313,6 +327,8 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 			f = s.Flags.Uint32P(name, shorthand, fieldVal.Convert(uint32Type).Interface().(uint32), help)
 		case reflect.Uint64:
 			f = s.Flags.Uint64P(name, shorthand, fieldVal.Convert(uint64Type).Interface().(uint64), help)
+		case reflect.Uintptr:
+			f = s.Flags.Uint64P(name, shorthand, uint64(fieldVal.Convert(uintptrType).Interface().(uintptr)), help)
 		case reflect.Slice, reflect.Map:
 			switch ft {
 			case stringSlice:
@@ -326,6 +342,44 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 			case stringSet:
 				f = fieldVal.Addr().Interface()
 				s.Flags.VarP(flaghelper.NewStringSetFlag(fieldVal.Addr().Interface().(*map[string]struct{})), name, shorthand, help)
+
+				// signed integral slices
+			case intSliceType:
+				f = fieldVal.Addr().Interface()
+				s.Flags.VarP(flaghelper.NewSignedIntegralSlice(f.(*[]int)), name, shorthand, help)
+			case int8SliceType:
+				f = fieldVal.Addr().Interface()
+				s.Flags.VarP(flaghelper.NewSignedIntegralSlice(f.(*[]int8)), name, shorthand, help)
+			case int16SliceType:
+				f = fieldVal.Addr().Interface()
+				s.Flags.VarP(flaghelper.NewSignedIntegralSlice(f.(*[]int16)), name, shorthand, help)
+			case int32SliceType:
+				f = fieldVal.Addr().Interface()
+				s.Flags.VarP(flaghelper.NewSignedIntegralSlice(f.(*[]int32)), name, shorthand, help)
+			case int64SliceType:
+				f = fieldVal.Addr().Interface()
+				s.Flags.VarP(flaghelper.NewSignedIntegralSlice(f.(*[]int64)), name, shorthand, help)
+
+				// unsigned integral slices
+			case uintSliceType:
+				f = fieldVal.Addr().Interface()
+				s.Flags.VarP(flaghelper.NewUnsignedIntegralSlice(f.(*[]uint)), name, shorthand, help)
+			case uint8SliceType:
+				f = fieldVal.Addr().Interface()
+				s.Flags.VarP(flaghelper.NewUnsignedIntegralSlice(f.(*[]uint8)), name, shorthand, help)
+			case uint16SliceType:
+				f = fieldVal.Addr().Interface()
+				s.Flags.VarP(flaghelper.NewUnsignedIntegralSlice(f.(*[]uint16)), name, shorthand, help)
+			case uint32SliceType:
+				f = fieldVal.Addr().Interface()
+				s.Flags.VarP(flaghelper.NewUnsignedIntegralSlice(f.(*[]uint32)), name, shorthand, help)
+			case uint64SliceType:
+				f = fieldVal.Addr().Interface()
+				s.Flags.VarP(flaghelper.NewUnsignedIntegralSlice(f.(*[]uint64)), name, shorthand, help)
+			case uintptrSliceType:
+				f = fieldVal.Addr().Interface()
+				s.Flags.VarP(flaghelper.NewUnsignedIntegralSlice(f.(*[]uintptr)), name, shorthand, help)
+
 			default:
 				// Unhandled type. Just keep going.
 				continue
@@ -431,7 +485,8 @@ func (s *Set) Value(_ context.Context, t *dials.Type) (reflect.Value, error) {
 			return
 		}
 
-		cfval := fval.Convert(stripTypePtr(ffield.Type()))
+		// fval is always a pointer, so dereference it before converting to the final type
+		cfval := fval.Elem().Convert(stripTypePtr(ffield.Type()))
 		switch ffield.Kind() {
 		case reflect.Ptr:
 			// common case
