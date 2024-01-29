@@ -327,11 +327,13 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 				f = fieldVal.Addr().Interface()
 				s.Flags.VarP(flaghelper.NewStringSetFlag(fieldVal.Addr().Interface().(*map[string]struct{})), name, shorthand, help)
 			default:
-				return fmt.Errorf("unhandled type %s", ft)
+				// Unhandled type. Just keep going.
+				continue
 			}
 
 		default:
-			return fmt.Errorf("unhandled type %s", ft)
+			// Unhandled type. Just keep going.
+			continue
 		}
 
 		v := reflect.ValueOf(f)
