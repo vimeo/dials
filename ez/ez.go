@@ -94,6 +94,11 @@ type Params[T any] struct {
 // path that is passed as the string argument to DecoderFactory
 type DecoderFactory func(string) dials.Decoder
 
+// DecoderFactoryWithParams should return the appropriate decoder based on the config file
+// path that is passed as the string argument to DecoderFactory
+// Params may provide useful context/arguments
+type DecoderFactoryWithParams[T any] func(string, Params[T]) dials.Decoder
+
 // ConfigWithConfigPath is an interface config struct that supplies a
 // ConfigPath() method to indicate which file to read as the config file once
 // populated.
@@ -131,6 +136,25 @@ func fileSource(cfgPath string, decoder dials.Decoder, watch bool) (dials.Source
 // The contents of cfg for the defaults
 // cfg.ConfigPath() is evaluated on the stacked config with the file-contents omitted (using a "blank" source)
 func ConfigFileEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, df DecoderFactory, params Params[T]) (*dials.Dials[T], error) {
+	dfp := func(path string, _ Params[T]) dials.Decoder {
+		return df(path)
+	}
+	return ConfigFileEnvFlagDecoderFactoryParams(ctx, cfg, dfp, params)
+
+}
+
+// ConfigFileEnvFlagDecoderFactoryParams takes advantage of the ConfigWithConfigPath cfg to indicate
+// what file to read and uses the passed decoder.
+// Configuration values provided by the returned Dials are the result of
+// stacking the sources in the following order:
+//   - configuration file
+//   - environment variables
+//   - flags it registers with the standard library flags package
+//
+// The contents of cfg for the defaults
+// cfg.ConfigPath() is evaluated on the stacked config with the file-contents omitted (using a "blank" source)
+// It differs from ConfigFileEnvFlag by the signature of the decoder factory, (which requires a params struct in this function)
+func ConfigFileEnvFlagDecoderFactoryParams[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, df DecoderFactoryWithParams[T], params Params[T]) (*dials.Dials[T], error) {
 	blank := sourcewrap.Blank{}
 
 	flagSrc := params.FlagSource
@@ -190,7 +214,7 @@ func ConfigFileEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 		return d, nil
 	}
 
-	decoder := df(cfgPath)
+	decoder := df(cfgPath, params)
 	if decoder == nil {
 		return nil, fmt.Errorf("decoderFactory provided a nil decoder for path: %s", cfgPath)
 	}
@@ -274,10 +298,17 @@ func TOMLConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 // based on the extension of the filename or nil if there is not an appropriate
 // mapping.
 func DecoderFromExtension(path string) dials.Decoder {
+	return DecoderFromExtensionWithParams(path, Params[struct{}]{})
+}
+
+// DecoderFromExtension is a DecoderFactory that returns an appropriate decoder
+// based on the extension of the filename or nil if there is not an appropriate
+// mapping.
+func DecoderFromExtensionWithParams[T any](path string, p Params[T]) dials.Decoder {
 	ext := filepath.Ext(path)
 	switch strings.ToLower(ext) {
 	case ".yaml", ".yml":
-		return &yaml.Decoder{}
+		return &yaml.Decoder{FlattenAnonymous: p.FlattenAnonymousFields}
 	case ".json":
 		return &json.Decoder{}
 	case ".toml":
@@ -295,5 +326,5 @@ func DecoderFromExtension(path string) dials.Decoder {
 // file contents based on the file extension (from the limited set of JSON,
 // Cue, YAML and TOML).
 func FileExtensionDecoderConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, params Params[T]) (*dials.Dials[T], error) {
-	return ConfigFileEnvFlag(ctx, cfg, DecoderFromExtension, params)
+	return ConfigFileEnvFlagDecoderFactoryParams(ctx, cfg, DecoderFromExtensionWithParams[T], params)
 }
