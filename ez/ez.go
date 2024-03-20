@@ -82,6 +82,12 @@ type Params[T any] struct {
 	// Note that this does not affect the flags or environment variable
 	// naming.  To manipulate flag naming, see [Params.FlagConfig].
 	FileFieldNameEncoder caseconversion.EncodeCasingFunc
+
+	// FlattenAnonymousFields inserts the AnonymousFlattenMangler into the
+	// chain so decoders that do not handle anonymous fields never see such
+	// things.
+	// (Currently only affects the yaml decoder)
+	FlattenAnonymousFields bool
 }
 
 // DecoderFactory should return the appropriate decoder based on the config file
@@ -243,7 +249,7 @@ func ConfigFileEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 // YAMLConfigEnvFlag takes advantage of the ConfigWithConfigPath cfg, thinly
 // wraping ConfigFileEnvFlag with the decoder statically set to YAML.
 func YAMLConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, params Params[T]) (*dials.Dials[T], error) {
-	return ConfigFileEnvFlag(ctx, cfg, func(string) dials.Decoder { return &yaml.Decoder{} }, params)
+	return ConfigFileEnvFlag(ctx, cfg, func(string) dials.Decoder { return &yaml.Decoder{FlattenAnonymous: params.FlattenAnonymousFields} }, params)
 }
 
 // JSONConfigEnvFlag takes advantage of the ConfigWithConfigPath cfg, thinly
