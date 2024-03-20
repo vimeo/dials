@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/vimeo/dials"
 	"github.com/vimeo/dials/sources/static"
 )
@@ -143,6 +144,54 @@ func TestMoreDeeplyNestedYAML(t *testing.T) {
 	require.Len(t, c.DatabaseUser.SliceThing, 2)
 	assert.Equal(t, c.DatabaseUser.SliceThing[0].Zizzle, "foobar")
 	assert.Equal(t, c.DatabaseUser.SliceThing[1].Zizzle, "fizzlebat")
+}
+
+func TestAnonymousNestedYAML(t *testing.T) {
+	type OtherStuff struct {
+		Something string        `dials:"something"`
+		IPAddress net.IP        `dials:"ip_address"`
+		Timeout   time.Duration `dials:"timeout"`
+	}
+	type testConfig struct {
+		DatabaseName    string `dials:"database_name"`
+		DatabaseAddress string `dials:"database_address"`
+		DatabaseUser    struct {
+			Username string `dials:"username"`
+			Password string `dials:"password"`
+			OtherStuff
+		} `dials:"database_user"`
+	}
+
+	yamlData := `{
+	    "database_name": "something",
+		"database_address": "127.0.0.1",
+		"database_user": {
+			"username": "test",
+			"password": "password",
+			"something": "asdf",
+			"ip_address": "123.10.11.121",
+			"timeout": "10s",
+		}
+	}`
+
+	myConfig := &testConfig{}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	d, err := dials.Config(
+		ctx,
+		myConfig,
+		&static.StringSource{Data: yamlData, Decoder: &Decoder{FlattenAnonymous: true}},
+	)
+
+	require.NoError(t, err)
+	c := d.View()
+
+	assert.Equal(t, "something", c.DatabaseName)
+	assert.Equal(t, "test", c.DatabaseUser.Username)
+	assert.Equal(t, "password", c.DatabaseUser.Password)
+	assert.Equal(t, "asdf", c.DatabaseUser.Something)
+	assert.Equal(t, net.IPv4(123, 10, 11, 121), c.DatabaseUser.IPAddress)
+	assert.Equal(t, time.Duration(10*time.Second), c.DatabaseUser.Timeout)
 }
 
 func TestDecoderBadMarkup(t *testing.T) {

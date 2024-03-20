@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/vimeo/dials/common"
 	"github.com/vimeo/dials/ptrify"
 )

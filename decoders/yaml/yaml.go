@@ -19,6 +19,8 @@ const YAMLTagName = "yaml"
 
 // Decoder is a decoder that knows how to work with text encoded in YAML.
 type Decoder struct {
+	// Flatten any anonymous struct fields into the parent
+	FlattenAnonymous bool
 }
 
 // Decode reads from `r` and decodes what is read as YAML depositing the
@@ -29,9 +31,13 @@ func (d *Decoder) Decode(r io.Reader, t *dials.Type) (reflect.Value, error) {
 		return reflect.Value{}, fmt.Errorf("error reading YAML: %s", err)
 	}
 
+	manglers := []transform.Mangler{&tagformat.TagCopyingMangler{
+		SrcTag: common.DialsTagName, NewTag: YAMLTagName}}
+	if d.FlattenAnonymous {
+		manglers = append(manglers, transform.AnonymousFlattenMangler{})
+	}
 	tfmr := transform.NewTransformer(t.Type(),
-		&tagformat.TagCopyingMangler{
-			SrcTag: common.DialsTagName, NewTag: YAMLTagName},
+		manglers...,
 	)
 	val, tfmErr := tfmr.Translate()
 	if tfmErr != nil {
