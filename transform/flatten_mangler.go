@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/fatih/structtag"
+
 	"github.com/vimeo/dials/common"
 	"github.com/vimeo/dials/tagformat/caseconversion"
 )
@@ -206,7 +207,8 @@ func (f *FlattenMangler) getTag(sf *reflect.StructField, tags, flattenedPath []s
 func (f *FlattenMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) (reflect.Value, error) {
 
 	val := reflect.New(sf.Type).Elem()
-	output, err := populateStruct(val, vs, 0)
+
+	output, _, err := populateStruct(val, vs, 0)
 	if err != nil {
 		return val, err
 	}
@@ -218,18 +220,29 @@ func (f *FlattenMangler) Unmangle(sf reflect.StructField, vs []FieldValueTuple) 
 	return val, nil
 }
 
+func isNil(val reflect.Value) bool {
+	switch val.Kind() {
+	case reflect.Pointer, reflect.Chan, reflect.Slice, reflect.Map, reflect.Func, reflect.Interface:
+		return val.IsNil()
+	default:
+		return false
+	}
+}
+
 // populateStruct populates the original value with values from the flattend values
-func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex int) (int, error) {
+// bool return value indicates whether any inner fields were non-nil (ignore if error-set)
+func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex int) (int, bool, error) {
 	if !originalVal.CanSet() {
-		return inputIndex, fmt.Errorf("error unmangling %s. Need addressable type, actual %q", originalVal, originalVal.Type().Kind())
+		return inputIndex, false, fmt.Errorf("error unmangling %s. Need addressable type, actual %q", originalVal, originalVal.Type().Kind())
 	}
 
 	kind, vt := getUnderlyingKindType(originalVal.Type())
 
+	anyChildSet := false
 	switch kind {
 	case reflect.Struct:
 		// go through each field if the struct doesn't implement TextUnmarshaler
-		if vt.Implements(textMReflectType) || reflect.PtrTo(vt).Implements(textMReflectType) {
+		if vt.Implements(textMReflectType) || reflect.PointerTo(vt).Implements(textMReflectType) {
 			break
 		}
 		// the originalVal is a pointer and to go through the fields, we need
@@ -247,36 +260,45 @@ func populateStruct(originalVal reflect.Value, vs []FieldValueTuple, inputIndex 
 			switch kind {
 			case reflect.Struct:
 				// don't flatten if the struct implements TextUnmarshaler
-				if t.Implements(textMReflectType) || reflect.PtrTo(t).Implements(textMReflectType) {
+				if t.Implements(textMReflectType) || reflect.PointerTo(t).Implements(textMReflectType) {
 					break // break out of the case, still stays within the for loop
 				}
 				var err error
-				inputIndex, err = populateStruct(nestedVal, vs, inputIndex)
+				var nestedAnySet bool
+				inputIndex, nestedAnySet, err = populateStruct(nestedVal, vs, inputIndex)
 				if err != nil {
-					return inputIndex, err
+					return inputIndex, false, err
 				}
+				anyChildSet = anyChildSet || nestedAnySet
 				continue
 			default:
 			}
 			if !nestedVal.CanSet() {
-				return inputIndex, fmt.Errorf("nested value %s under %s cannot be set", nestedVal, originalVal)
+				return inputIndex, false, fmt.Errorf("nested value %s under %s cannot be set", nestedVal, originalVal)
 			}
 
 			if !vs[inputIndex].Value.Type().AssignableTo(nestedVal.Type()) {
-				return inputIndex, fmt.Errorf("error unmangling. Expected type %s. Actual type %s", vs[inputIndex].Value.Type(), nestedVal.Type())
+				return inputIndex, false, fmt.Errorf("error unmangling. Expected type %s. Actual type %s", vs[inputIndex].Value.Type(), nestedVal.Type())
 			}
-			nestedVal.Set(vs[inputIndex].Value)
+			if !isNil(vs[inputIndex].Value) {
+				nestedVal.Set(vs[inputIndex].Value)
+				anyChildSet = true
+			}
 			inputIndex++
 		}
-		setVal.Elem().Set(val)
-		originalVal.Set(setVal)
-		return inputIndex, nil
-	default:
+		if anyChildSet {
+			setVal.Elem().Set(val)
+			originalVal.Set(setVal)
+		}
+		return inputIndex, anyChildSet, nil
 	}
-	originalVal.Set(vs[inputIndex].Value)
+	val := vs[inputIndex].Value
+	if !isNil(val) {
+		originalVal.Set(val)
+		anyChildSet = true
+	}
 	inputIndex++
-
-	return inputIndex, nil
+	return inputIndex, anyChildSet, nil
 }
 
 // ShouldRecurse returns false because Mangle walks through nested structs and doesn't need Transform's recursion
