@@ -148,8 +148,17 @@ func TestFlattenMangler(t *testing.T) {
 			},
 			modify: func(t testing.TB, val reflect.Value) {},
 			assertion: func(t testing.TB, i interface{}) {
-				// should be empty struct since none of the fields are exposed
-				assert.Equal(t, struct{}{}, *i.(*struct{}))
+				if i == nil {
+					t.Error("nil Unmangle output")
+				}
+				s, ok := i.(*struct{})
+				if !ok {
+					t.Errorf("unexpected type %T; expected *struct{}", i)
+					return
+				}
+				if s != nil {
+					t.Errorf("non-nil Unmangle output for empty struct (with type %T) %+[1]v", s)
+				}
 			},
 		},
 		{
@@ -205,6 +214,66 @@ func TestFlattenMangler(t *testing.T) {
 					TestBool:   &b,
 				}
 				assert.Equal(t, st, i)
+			},
+		},
+		{
+			name:       "nil nested struct",
+			testStruct: b,
+			modify: func(t testing.TB, val reflect.Value) {
+
+				expectedDialsTags := []string{
+					"config_field_Name",
+					"config_field_Foobar_Location",
+					"config_field_Foobar_Coordinates",
+					"config_field_Foobar_some_time",
+					"config_field_AnotherField",
+				}
+
+				expectedFieldTags := []string{
+					"ConfigField,Name",
+					"ConfigField,Foobar,Location",
+					"ConfigField,Foobar,Coordinates",
+					"ConfigField,Foobar,SomeTime",
+					"ConfigField,AnotherField",
+				}
+
+				for i := 0; i < val.Type().NumField(); i++ {
+					f := val.Type().Field(i)
+					assert.EqualValues(t, expectedDialsTags[i], f.Tag.Get(common.DialsTagName))
+					assert.EqualValues(t, expectedFieldTags[i], f.Tag.Get(dialsFieldPathTag))
+					if f.Type.Kind() != reflect.Pointer {
+						t.Errorf("field %d has kind %s, not %s", i, f.Type.Kind(), reflect.Pointer)
+					}
+				}
+
+				s1 := "test"
+				i2 := 42
+
+				val.Field(0).Set(reflect.ValueOf(&s1))
+				val.Field(1).Set(reflect.Zero(reflect.TypeOf((*string)(nil))))
+				val.Field(2).Set(reflect.Zero(reflect.TypeOf((*int)(nil))))
+				val.Field(3).Set(reflect.Zero(reflect.TypeOf((*time.Duration)(nil))))
+				val.Field(4).Set(reflect.ValueOf(&i2))
+			},
+			assertion: func(t testing.TB, i interface{}) {
+				// all the fields are pointerified because of call to Pointerify
+				s1 := "test"
+				i2 := 42
+				b := struct {
+					Name   *string `dials:"Name"`
+					Foobar *struct {
+						Location    *string `dials:"Location"`
+						Coordinates *int    `dials:"Coordinates"`
+						SomeTime    *time.Duration
+					} `dials:"Foobar"`
+					AnotherField *int `dials:"AnotherField"`
+				}{
+					Name:         &s1,
+					Foobar:       nil,
+					AnotherField: &i2,
+				}
+
+				assert.EqualValues(t, &b, i)
 			},
 		},
 		{
