@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"reflect"
 
 	"github.com/vimeo/dials"
@@ -17,13 +16,12 @@ import (
 const JSONTagName = "json"
 
 // Decoder is a decoder that knows how to work with text encoded in JSON
-type Decoder struct {
-}
+type Decoder struct{}
 
 // Decode is a decoder that decodes the JSON from an io.Reader into the
 // appropriate struct.
 func (d *Decoder) Decode(r io.Reader, t *dials.Type) (reflect.Value, error) {
-	jsonBytes, err := ioutil.ReadAll(r)
+	jsonBytes, err := io.ReadAll(r)
 	if err != nil {
 		return reflect.Value{}, fmt.Errorf("error reading JSON: %s", err)
 	}
