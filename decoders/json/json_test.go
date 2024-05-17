@@ -4,9 +4,11 @@ import (
 	"context"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/vimeo/dials"
 	"github.com/vimeo/dials/sources/static"
 )
@@ -81,8 +83,9 @@ func TestDeeplyNestedJSON(t *testing.T) {
 			Username   string `dials:"username"`
 			Password   string `dials:"password"`
 			OtherStuff struct {
-				Something string `dials:"something"`
-				IPAddress net.IP `dials:"ip_address"`
+				Something   string        `dials:"something"`
+				IPAddress   net.IP        `dials:"ip_address"`
+				SomeTimeout time.Duration `dials:"some_timeout"`
 			} `dials:"other_stuff"`
 		} `dials:"database_user"`
 	}
@@ -95,7 +98,8 @@ func TestDeeplyNestedJSON(t *testing.T) {
 			"password": "password",
 			"other_stuff": {
 				"something": "asdf",
-				"ip_address": "123.10.11.121"
+				"ip_address": "123.10.11.121",
+				"some_timeout": "13s"
 			}
 		}
 	}`
@@ -114,6 +118,7 @@ func TestDeeplyNestedJSON(t *testing.T) {
 	assert.Equal(t, "test", c.DatabaseUser.Username)
 	assert.Equal(t, "password", c.DatabaseUser.Password)
 	assert.Equal(t, "asdf", c.DatabaseUser.OtherStuff.Something)
+	assert.Equal(t, time.Second*13, c.DatabaseUser.OtherStuff.SomeTimeout)
 	assert.Equal(t, net.IPv4(123, 10, 11, 121), c.DatabaseUser.OtherStuff.IPAddress)
 
 }
