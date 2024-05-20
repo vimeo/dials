@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -82,13 +83,17 @@ func TestDeeplyNestedCueJSON(t *testing.T) {
 			Username   string `dials:"username"`
 			Password   string `dials:"password"`
 			OtherStuff struct {
-				Something string `dials:"something"`
-				IPAddress net.IP `dials:"ip_address"`
+				Something        string        `dials:"something"`
+				IPAddress        net.IP        `dials:"ip_address"`
+				SomeTimeout      time.Duration `dials:"some_timeout"`
+				SomeOtherTimeout time.Duration `dials:"some_other_timeout"`
+				SomeLifetime     time.Duration `dials:"some_lifetime_ns"`
 			} `dials:"other_stuff"`
 		} `dials:"database_user"`
 	}
 
-	jsonData := `{
+	cueData := `
+	    import "time"
 	    "database_name": "something",
 		"database_address": "127.0.0.1",
 		"database_user": {
@@ -97,15 +102,18 @@ func TestDeeplyNestedCueJSON(t *testing.T) {
 			"other_stuff": {
 				"something": "asdf",
 				"ip_address": "123.10.11.121"
+				"some_timeout": "13s"
+				"some_other_timeout": 87 * time.Second,
+				"some_lifetime_ns": 378,
 			}
 		}
-	}`
+	`
 
 	myConfig := &testConfig{}
 	d, err := dials.Config(
 		context.Background(),
 		myConfig,
-		&static.StringSource{Data: jsonData, Decoder: &Decoder{}},
+		&static.StringSource{Data: cueData, Decoder: &Decoder{}},
 	)
 	require.NoError(t, err)
 
@@ -115,6 +123,9 @@ func TestDeeplyNestedCueJSON(t *testing.T) {
 	assert.Equal(t, "test", c.DatabaseUser.Username)
 	assert.Equal(t, "password", c.DatabaseUser.Password)
 	assert.Equal(t, "asdf", c.DatabaseUser.OtherStuff.Something)
+	assert.Equal(t, time.Second*13, c.DatabaseUser.OtherStuff.SomeTimeout)
+	assert.Equal(t, time.Second*87, c.DatabaseUser.OtherStuff.SomeOtherTimeout)
+	assert.Equal(t, time.Nanosecond*378, c.DatabaseUser.OtherStuff.SomeLifetime)
 	assert.Equal(t, net.IPv4(123, 10, 11, 121), c.DatabaseUser.OtherStuff.IPAddress)
 
 }
