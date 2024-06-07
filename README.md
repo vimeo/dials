@@ -276,6 +276,25 @@ If you wish to watch the config file and make updates to your configuration, use
 	}
 ```
 
+### Flags
+When setting commandline flags using either the pflag or flag sources, additional flag-types become available for simple slices and maps.
+
+#### Slices
+
+Slices of integer-types get parsed as comma-separated values using Go's parsing rules (with whitespace stripped off each component)
+e.g. `--a=1,2,3` parses as `[]int{1,2,3}`
+
+Slices of strings get parsed as comma-separated values if the individual values are alphanumeric, and must be quoted in conformance with Go's [`strconv.Unquote`](https://pkg.go.dev/strconv#Unquote) for more complicated values
+e.g. `--a=abc` parses as `[]string{"abc"}`, `--a=a,b,c` parses as `[]string{"a", "b", "c"}`, while `--a="bbbb,ffff"` has additional quoting (ignoring any shell), so it becomes `[]string{"bbbb,ffff"}`
+
+Slice-typed flags may be specified multiple times, and the values will be concatenated.
+As a result, a commandline with `"--a=b", "--a=c"` may be parsed as `[]string{b,c}`.
+
+#### Maps
+Maps are parsed like Slices, with the addition of `:` separators between keys and values. ([`strconv.Unquote`](https://pkg.go.dev/strconv#Unquote)-compatible quoting is mandatory for more complicated strings as well)
+
+e.g. `--a=b:c` parses as `map[string]string{"b": "c"}`
+
 ### Source
 The Source interface is implemented by different configuration sources that populate the configuration struct. Dials currently supports environment variables, command line flags, and config file sources. When the `dials.Config` method is going through the different `Source`s to extract the values, it calls the `Value` method on each of these sources. This allows for the logic of the Source to be encapsulated while giving the application access to the values populated by each Source. Please note that the Value method on the Source interface and the Watcher interface are likely to change in the near future.
 

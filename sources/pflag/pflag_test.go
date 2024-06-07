@@ -334,6 +334,15 @@ func TestPFlags(t *testing.T) {
 			expected: &struct{ A []uint16 }{A: []uint16{128, 32}},
 		},
 		{
+			name: "basic_uint16_slice_set_nooverflow_multiple_flag",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uint16 }{A: []uint16{10}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=128", "--a=32"},
+			expected: &struct{ A []uint16 }{A: []uint16{128, 32}},
+		},
+		{
 			name: "basic_uint16_slice_set_overflow",
 			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
 				cfg := struct{ A []uint16 }{A: []uint16{10}}
@@ -510,7 +519,15 @@ func TestPFlags(t *testing.T) {
 			args:     []string{"--a=128,32"},
 			expected: &struct{ A []uintptr }{A: []uintptr{128, 32}},
 		},
-
+		{
+			name: "basic_uintptr_slice_set_nooverflow_multiple_flag",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []uintptr }{A: []uintptr{10}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=128", "--a=32"},
+			expected: &struct{ A []uintptr }{A: []uintptr{128, 32}},
+		},
 		{
 			name: "map_string_string_set",
 			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
@@ -519,6 +536,15 @@ func TestPFlags(t *testing.T) {
 			},
 			args:     []string{"--a=l:v"},
 			expected: &struct{ A map[string]string }{A: map[string]string{"l": "v"}},
+		},
+		{
+			name: "map_string_string_set_multiple_flags",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A map[string]string }{A: map[string]string{"z": "i"}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=l:v", "--a=z:sss"},
+			expected: &struct{ A map[string]string }{A: map[string]string{"l": "v", "z": "sss"}},
 		},
 		{
 			name: "map_string_string_default",
@@ -536,6 +562,15 @@ func TestPFlags(t *testing.T) {
 				return &cfg, testWrapDials(&cfg)
 			},
 			args:     []string{"--a=l:v,l:z"},
+			expected: &struct{ A map[string][]string }{A: map[string][]string{"l": {"v", "z"}}},
+		},
+		{
+			name: "map_string_string_slice_set_multiple_flag",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A map[string][]string }{A: map[string][]string{"z": {"i"}}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=l:v", "--a=l:z"},
 			expected: &struct{ A map[string][]string }{A: map[string][]string{"l": {"v", "z"}}},
 		},
 		{
@@ -557,6 +592,15 @@ func TestPFlags(t *testing.T) {
 			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"v": {}}},
 		},
 		{
+			name: "string_slice_set_multiple_flag",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A []string }{A: []string{"i"}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=v", "--a=zzz"},
+			expected: &struct{ A []string }{A: []string{"v", "zzz"}},
+		},
+		{
 			name: "string_set_default",
 			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
 				cfg := struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}}
@@ -564,6 +608,15 @@ func TestPFlags(t *testing.T) {
 			},
 			args:     []string{},
 			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}},
+		},
+		{
+			name: "string_set_set_multiple_flag",
+			tmplCB: func() (any, func(ctx context.Context, src *Set) (any, error)) {
+				cfg := struct{ A map[string]struct{} }{A: map[string]struct{}{"i": {}}}
+				return &cfg, testWrapDials(&cfg)
+			},
+			args:     []string{"--a=v", "--a=a"},
+			expected: &struct{ A map[string]struct{} }{A: map[string]struct{}{"v": {}, "a": {}}},
 		},
 		{
 			name: "int_slice_default_val",
