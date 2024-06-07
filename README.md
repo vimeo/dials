@@ -10,17 +10,17 @@ Dials is an extensible configuration package for Go.
 ## Installation
 
 ```
-go get github.com/vimeo/dials
+go get github.com/vimeo/dials@latest
 ```
 
 ## Prerequisites
 
-Dials requires Go 1.13 or later.
+Dials requires Go 1.18 or later.
 
 ## What is Dials?
 
 Dials is a configuration package for Go applications. It supports several different configuration sources including:
- * JSON, YAML, and TOML config files
+ * [Cue](https://cuelang.org), JSON, YAML, and TOML config files
  * environment variables
  * command line flags (for both Go's [flag](https://golang.org/pkg/flag) package and [pflag](https://pkg.go.dev/github.com/spf13/pflag) package)
  * watched config files and re-reading when there are changes to the watched files
@@ -29,7 +29,7 @@ Dials is a configuration package for Go applications. It supports several differ
 ## Why choose Dials?
 Dials is a configuration solution that supports several configuration sources so you only have to focus on the business logic.
 Define the configuration struct and select the configuration sources and Dials will do the rest. Dials is designed to be extensible so if the built-in sources don't meet your needs, you can write your own and still get all the other benefits. Moreover, setting defaults doesn't require additional function calls.
-Just populate the config struct with the default values and pass the struct to Dials. 
+Just populate the config struct with the default values and pass the struct to Dials.
 Dials also allows the flexibility to choose the precedence order to determine which sources can overwrite the configuration values. Additionally, Dials has special handling of structs that implement [`encoding.TextUnmarshaler`](https://golang.org/pkg/encoding/#TextUnmarshaler) so structs (like [`IP`](https://pkg.go.dev/net?tab=doc#IP) and [`time`](https://pkg.go.dev/time?tab=doc#Time)) can be properly parsed.
 
 ## Using Dials
@@ -89,7 +89,7 @@ func (c *Config) ConfigPath() (string, bool) {
 }
 
 func main() {
-	c := &Config{}
+	defCfg := Config{}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -102,17 +102,16 @@ func main() {
 	// passed in as well to indicate whether the file will be watched and updates
 	// to the file should update the config struct and if the flags name component
 	// separation should use different encoding than lower-kebab-case
-	d, dialsErr := ez.YAMLConfigEnvFlag(ctx, c, ez.WithWatchingConfigFile(true))
+	d, dialsErr := ez.YAMLConfigEnvFlag(ctx, &defCfg, ez.Params[Config]{WatchConfigFile: true})
 	if dialsErr != nil {
 		// error handling
 	}
 
-	// Fill will deep copy the fully-stacked configuration into its argument.
+	// View returns a pointer to the fully stacked configuration file
 	// The stacked configuration is populated from the config file, environment
-	// variables and commandline flags. Can alternatively use
-	// c = d.View().(*Config) for a cheaper operation
-	d.Fill(c)
-	fmt.Printf("Config: %+v\n", c)
+	// variables and commandline flags.
+	cfg := d.View()
+	fmt.Printf("Config: %+v\n", cfg)
 }
 ```
 
@@ -135,16 +134,16 @@ export VAL_2=5
 go run main.go --some-val
 ```
 
-the output will be 
+the output will be
 `Config: &{Val1:valueb Val2:5 Val3:true}`
 
-Note that even though val_2 has a value of 2 in the yaml file, the config value 
-output for Val2 is 5 because environment variables take precedence.
+Note that even though `val_2` has a value of 2 in the yaml file, the config value
+output for `Val2` is 5 because environment variables take precedence.
 
 ### Configure your configuration settings
-If the predefined functions in the ez package don't meet your needs, you can specify the 
-sources you would like in the order of precedence you prefer. Not much setup is needed 
-to configure this. Choose the predefined sources and add the appropriate `dials` tags to the config struct. 
+If the predefined functions in the ez package don't meet your needs, you can specify the
+sources you would like in the order of precedence you prefer. Not much setup is needed
+to configure this. Choose the predefined sources and add the appropriate `dials` tags to the config struct.
 
 ``` go
 package main
@@ -157,7 +156,7 @@ import (
 	"github.com/vimeo/dials/sources/env"
 	"github.com/vimeo/dials/sources/file"
 	"github.com/vimeo/dials/sources/flag"
-	"github.com/vimeo/dials/sources/yaml"
+	"github.com/vimeo/dials/decoders/yaml"
 )
 
 type Config struct {
@@ -172,15 +171,15 @@ type Config struct {
 }
 
 func main() {
-	config := &Config{
+	defaultConfig := &Config{
 		// Val1 has a default value of "hello" and will be overwritten by the
 		// sources if there is a corresponding field for Val1
 		Val1: "hello",
 	}
 
 	// Define a file source if you want to read from a config file. To read
-	// from other source files such as JSON, and TOML, use "&json.Decoder{}"
-	// or "&toml.Decoder{}"
+	// from other source files such as Cue, JSON, and TOML, use "&cue.Decoder{}",
+    // "&json.Decoder{}" or "&toml.Decoder{}"
 	fileSrc, fileErr := file.NewSource("path/to/config", &yaml.Decoder{})
 	if fileErr != nil {
 		// error handling
@@ -188,7 +187,7 @@ func main() {
 
 	// Define a `dials.Source` for command line flags. Consider using the dials
 	// pflag library if the application uses the github.com/spf13/pflag package
-	flagSet, flagErr := flag.NewCmdLineSet(flag.DefaultFlagNameConfig(), config)
+	flagSet, flagErr := flag.NewCmdLineSet(flag.DefaultFlagNameConfig(), defaultConfig)
 	if flagErr != nil {
 		// error handling
 	}
@@ -200,17 +199,16 @@ func main() {
 	// passed in the Config function with increasing precedence. So the fileSrc
 	// value will overwrite the flagSet value if they both were to set the
 	// same field
-	d, err := dials.Config(context.Background(), config, envSrc, flagSet, fileSrc)
+	d, err := dials.Config(context.Background(), defaultConfig, envSrc, flagSet, fileSrc)
 	if err != nil {
 		// error handling
 	}
 
-	// Fill will deep copy the fully-stacked configuration into its argument.
+	// View returns a pointer to the fully stacked configuration.
 	// The stacked configuration is populated from the config file, environment
 	// variables and commandline flags. Can alternatively use
-	// c = d.View().(*Config) for a cheaper operation
-	d.Fill(config)
-	fmt.Printf("Config: %+v\n", config)
+	cfg := d.View()
+	fmt.Printf("Config: %+v\n", cfg)
 }
 ```
 
@@ -221,13 +219,13 @@ b: valueb
 val-3: false
 ```
 
-and the following commands 
+and the following commands
 
 ``` 
 export VAL_2=5
 go run main.go --val-3
 ```
- 
+
 the output will be `Config: &{Val1:valueb Val2:5 Val3:true}`.
 
 Note that even when val-3 is defined in the yaml file and the file source takes precedence,
@@ -256,27 +254,46 @@ If you wish to watch the config file and make updates to your configuration, use
 	// additional sources can be passed along with the watching file source and the
 	// precedence order will still be dictated by the order in which the sources are
 	// defined in the Config function.
-	d, err := dials.Config(ctx, config, watchingFileSource)
+	d, err := dials.Config(ctx, defCfg, watchingFileSource)
 	if err != nil {
 		// error handling
 	}
 
-	conf := d.View().(*Config)
+	conf, serial := d.ViewVersion()
 
-	// you can get notified whenever the config changes through the channel
-	// returned by the Events method. Wait on that channel if you need to take
-	// any steps when the config changes
-	go func(ctx context.Context){
-		for{
-			select{
-			case <-ctx.Done():
-				return
-			case c := <-d.Events():
-				// increment metrics and log
-			}
-		}
-	}(ctx)
+	// You can get notified whenever the config changes by registering a callback.
+	// If a new version has become available since the serial argument was
+	// returned by ViewVersion(), it will be called immediately to bring
+	// the callback up to date.
+	// You can call the returned unregister function to unregister at a later point.
+	unreg := d.RegisterCallback(ctx, serial, func(ctx context.Context, oldCfg, newCfg *Config) {
+		// log, increment metrics, re-index a map, etc.
+	})
+	// If the passed context expires before registration succeeds, a nil
+	// unregister callback will be returned.
+	if unreg != nil {
+		defer unreg()
+	}
 ```
+
+### Flags
+When setting commandline flags using either the pflag or flag sources, additional flag-types become available for simple slices and maps.
+
+#### Slices
+
+Slices of integer-types get parsed as comma-separated values using Go's parsing rules (with whitespace stripped off each component)
+e.g. `--a=1,2,3` parses as `[]int{1,2,3}`
+
+Slices of strings get parsed as comma-separated values if the individual values are alphanumeric, and must be quoted in conformance with Go's [`strconv.Unquote`](https://pkg.go.dev/strconv#Unquote) for more complicated values
+e.g. `--a=abc` parses as `[]string{"abc"}`, `--a=a,b,c` parses as `[]string{"a", "b", "c"}`, while `--a="bbbb,ffff"` has additional quoting (ignoring any shell), so it becomes `[]string{"bbbb,ffff"}`
+
+Slice-typed flags may be specified multiple times, and the values will be concatenated.
+As a result, a commandline with `"--a=b", "--a=c"` may be parsed as `[]string{b,c}`.
+
+#### Maps
+Maps are parsed like Slices, with the addition of `:` separators between keys and values. ([`strconv.Unquote`](https://pkg.go.dev/strconv#Unquote)-compatible quoting is mandatory for more complicated strings as well)
+
+e.g. `--a=b:c` parses as `map[string]string{"b": "c"}`
 
 ### Source
 The Source interface is implemented by different configuration sources that populate the configuration struct. Dials currently supports environment variables, command line flags, and config file sources. When the `dials.Config` method is going through the different `Source`s to extract the values, it calls the `Value` method on each of these sources. This allows for the logic of the Source to be encapsulated while giving the application access to the values populated by each Source. Please note that the Value method on the Source interface and the Watcher interface are likely to change in the near future.

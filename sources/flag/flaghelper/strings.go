@@ -12,12 +12,13 @@ import (
 
 // StringSliceFlag is a wrapper around a string slice
 type StringSliceFlag struct {
-	s *[]string
+	s         *[]string
+	defaulted bool
 }
 
 // NewStringSliceFlag is a constructor for StringSliceFlag
 func NewStringSliceFlag(s *[]string) *StringSliceFlag {
-	return &StringSliceFlag{s: s}
+	return &StringSliceFlag{s: s, defaulted: true}
 }
 
 // Set implement pflag.Value and flag.Value
@@ -26,7 +27,13 @@ func (v *StringSliceFlag) Set(s string) error {
 	if err != nil {
 		return err
 	}
-	v.s = &parsed
+	if v.defaulted {
+		v.s = &parsed
+		v.defaulted = false
+		return nil
+	}
+	newSlice := append(*v.s, parsed...)
+	v.s = &newSlice
 	return nil
 }
 
@@ -55,12 +62,13 @@ func (v *StringSliceFlag) String() string {
 
 // StringSetFlag is a wrapper around map[string]struct used for implementing sets
 type StringSetFlag struct {
-	s *map[string]struct{}
+	s         *map[string]struct{}
+	defaulted bool
 }
 
 // NewStringSetFlag is the constructor for StringSetFlags
 func NewStringSetFlag(m *map[string]struct{}) *StringSetFlag {
-	return &StringSetFlag{s: m}
+	return &StringSetFlag{s: m, defaulted: true}
 }
 
 // Set implement pflag.Value and flag.Value
@@ -69,7 +77,14 @@ func (v *StringSetFlag) Set(s string) error {
 	if err != nil {
 		return err
 	}
-	*v.s = parsed
+	if *v.s == nil || v.defaulted {
+		*v.s = parsed
+		v.defaulted = false
+		return nil
+	}
+	for s := range parsed {
+		(*v.s)[s] = struct{}{}
+	}
 	return nil
 }
 
@@ -111,12 +126,13 @@ func (v *StringSetFlag) Type() string {
 
 // MapStringStringSliceFlag is a wrapper around map[string][]string
 type MapStringStringSliceFlag struct {
-	s *map[string][]string
+	s         *map[string][]string
+	defaulted bool
 }
 
 // NewMapStringStringSliceFlag is the constructor for MapStringStringSliceFlag
 func NewMapStringStringSliceFlag(m *map[string][]string) *MapStringStringSliceFlag {
-	return &MapStringStringSliceFlag{s: m}
+	return &MapStringStringSliceFlag{s: m, defaulted: true}
 }
 
 // Set implement pflag.Value and flag.Value
@@ -125,7 +141,14 @@ func (v *MapStringStringSliceFlag) Set(s string) error {
 	if err != nil {
 		return err
 	}
-	*v.s = parsed
+	if *v.s == nil || v.defaulted {
+		*v.s = parsed
+		v.defaulted = false
+		return nil
+	}
+	for k, innerSlice := range parsed {
+		(*v.s)[k] = append((*v.s)[k], innerSlice...)
+	}
 	return nil
 }
 
@@ -171,12 +194,13 @@ func (v *MapStringStringSliceFlag) Type() string {
 
 // MapStringStringFlag is a wrapper around *map[string]string
 type MapStringStringFlag struct {
-	s *map[string]string
+	s         *map[string]string
+	defaulted bool
 }
 
 // NewMapStringStringFlag is the constructor for MapStringStringFlag
 func NewMapStringStringFlag(m *map[string]string) *MapStringStringFlag {
-	return &MapStringStringFlag{s: m}
+	return &MapStringStringFlag{s: m, defaulted: true}
 }
 
 // Set implement pflag.Value and flag.Value
@@ -186,7 +210,14 @@ func (v *MapStringStringFlag) Set(s string) error {
 		return err
 	}
 	castParsed := parsed.Interface().(map[string]string)
-	*v.s = castParsed
+	if v.s == nil || v.defaulted {
+		*v.s = castParsed
+		v.defaulted = false
+		return nil
+	}
+	for k, val := range castParsed {
+		(*v.s)[k] = val
+	}
 	return nil
 }
 

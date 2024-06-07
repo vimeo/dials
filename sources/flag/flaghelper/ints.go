@@ -15,12 +15,13 @@ type SignedInt interface {
 
 // SignedIntegralSliceFlag is a wrapper around an integral-typed slice
 type SignedIntegralSliceFlag[I SignedInt] struct {
-	s *[]I
+	s         *[]I
+	defaulted bool
 }
 
 // NewSignedIntegralSlice is a constructor for NewSignedIntegralSliceFlag
 func NewSignedIntegralSlice[I SignedInt](s *[]I) *SignedIntegralSliceFlag[I] {
-	return &SignedIntegralSliceFlag[I]{s: s}
+	return &SignedIntegralSliceFlag[I]{s: s, defaulted: true}
 }
 
 // Set implements pflag.Value and flag.Value
@@ -29,7 +30,12 @@ func (v *SignedIntegralSliceFlag[I]) Set(s string) error {
 	if err != nil {
 		return err
 	}
-	*v.s = parsed
+	if v.defaulted {
+		*v.s = parsed
+		v.defaulted = false
+		return nil
+	}
+	*v.s = append(*v.s, parsed...)
 	return nil
 }
 

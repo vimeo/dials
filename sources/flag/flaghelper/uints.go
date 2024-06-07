@@ -15,12 +15,13 @@ type UnsignedInt interface {
 
 // UnsignedIntegralSliceFlag is a wrapper around an unsigned integral-typed slice
 type UnsignedIntegralSliceFlag[I UnsignedInt] struct {
-	s *[]I
+	s         *[]I
+	defaulted bool
 }
 
 // NewUnsignedIntegralSlice is a constructor for StringSliceFlag
 func NewUnsignedIntegralSlice[I UnsignedInt](s *[]I) *UnsignedIntegralSliceFlag[I] {
-	return &UnsignedIntegralSliceFlag[I]{s: s}
+	return &UnsignedIntegralSliceFlag[I]{s: s, defaulted: true}
 }
 
 // Set implements pflag.Value and flag.Value
@@ -29,7 +30,12 @@ func (v *UnsignedIntegralSliceFlag[I]) Set(s string) error {
 	if err != nil {
 		return err
 	}
-	*v.s = parsed
+	if v.defaulted {
+		*v.s = parsed
+		v.defaulted = false
+		return nil
+	}
+	*v.s = append(*v.s, parsed...)
 	return nil
 }
 
