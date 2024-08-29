@@ -70,13 +70,9 @@ var (
 )
 
 const (
-	dialsPFlagTag      = "dialspflag"
-	dialsPFlagShortTag = "dialspflagshort"
-	// HelpTextTag is the name of the struct tag for flag descriptions
-	HelpTextTag = "dialsdesc"
 	// DefaultFlagHelpText is the default help-text for fields with an
 	// unset dialsdesc tag.
-	DefaultFlagHelpText = "unset description (`" + HelpTextTag + "` struct tag)"
+	DefaultFlagHelpText = "unset description (`" + common.DialsHelpTextTag + "` struct tag)"
 )
 
 // NameConfig defines the parameters for separating components of a flag-name
@@ -214,7 +210,7 @@ func (s *Set) parse() error {
 
 func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 	fm := transform.NewFlattenMangler(common.DialsTagName, s.NameCfg.FieldNameEncodeCasing, s.NameCfg.TagEncodeCasing)
-	tfmr := transform.NewTransformer(ptyp, fm)
+	tfmr := transform.NewTransformer(ptyp, transform.NewAliasMangler(common.DialsTagName, common.DialsPFlagTag, common.DialsPFlagShortTag), fm)
 	val, TrnslErr := tfmr.Translate()
 	if TrnslErr != nil {
 		return TrnslErr
@@ -235,7 +231,7 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 	for i := 0; i < t.NumField(); i++ {
 		sf := t.Field(i)
 		help := DefaultFlagHelpText
-		if x, ok := sf.Tag.Lookup(HelpTextTag); ok {
+		if x, ok := sf.Tag.Lookup(common.DialsHelpTextTag); ok {
 			help = x
 		}
 
@@ -251,7 +247,7 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 		// If the field's dialspflag tag is a hyphen (ex: `dialspflag:"-"`),
 		// don't register the flag. Currently nested fields with "-" tag will
 		// still be registered
-		if dpt, ok := sf.Tag.Lookup(dialsPFlagTag); ok && (dpt == "-") {
+		if dpt, ok := sf.Tag.Lookup(common.DialsPFlagTag); ok && (dpt == "-") {
 			continue
 		}
 
@@ -267,7 +263,7 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 
 		// get the concrete value of the field from the template
 		fieldVal := transform.GetField(sf, tmpl)
-		shorthand, _ := sf.Tag.Lookup(dialsPFlagShortTag)
+		shorthand, _ := sf.Tag.Lookup(common.DialsPFlagShortTag)
 		var f interface{}
 
 		switch {
@@ -516,7 +512,7 @@ func stripTypePtr(t reflect.Type) reflect.Type {
 // decoded field name and converting it into kebab case
 func (s *Set) mkname(sf reflect.StructField) string {
 	// use the name from the dialspflag tag for the flag name
-	if name, ok := sf.Tag.Lookup(dialsPFlagTag); ok {
+	if name, ok := sf.Tag.Lookup(common.DialsPFlagTag); ok {
 		return name
 	}
 	// check if the dials tag is populated (it should be once it goes through

@@ -219,7 +219,8 @@ func ConfigFileEnvFlagDecoderFactoryParams[T any, TP ConfigWithConfigPath[T]](ct
 		return nil, fmt.Errorf("decoderFactory provided a nil decoder for path: %s", cfgPath)
 	}
 
-	manglers := make([]transform.Mangler, 0, 2)
+	manglers := make([]transform.Mangler, 0, 3)
+	manglers = append(manglers, transform.NewAliasMangler(common.DialsTagName))
 
 	if params.FileFieldNameEncoder != nil {
 		tagDecoder := params.DialsTagNameDecoder

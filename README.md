@@ -276,6 +276,23 @@ If you wish to watch the config file and make updates to your configuration, use
 	}
 ```
 
+### Aliased Configuration Values
+Dials supports aliases for fields where you want to change the name and support
+an orderly transition from an old name to a new name.  Just as there is a
+`dials` struct tag there is also a `dialsalias` struct tag that you can use as
+an alternate name.  Any other casing or transformation rules on the original
+tags also applies to the aliases.  Only one of the original or alias versions of
+the field may be set at any time.  Setting both results in an error.  Aliases
+are supported in the other source-specific tags like `dialsenv`, `dialsflag`,
+and `dialspflag` as well by appending "alias" to the flag name.  The `ez`
+package also wraps the appropriate file source's decoder so config files can
+also make use of aliases.
+
+Aliases are implemented using the
+[Mangler](https://github.com/vimeo/dials/blob/402b4821e3f191d96580b9933583f1651325381d/transform/transformer.go#L17-L32)
+interface.  The `env`, `flag`, and `pflag` sources support aliasing without any
+additional options.
+
 ### Flags
 When setting commandline flags using either the pflag or flag sources, additional flag-types become available for simple slices and maps.
 
