@@ -445,8 +445,7 @@ func (s *Set) Value(_ context.Context, t *dials.Type) (reflect.Value, error) {
 			return reflect.Value{}, err
 		}
 	}
-	var setErr error
-	val := reflect.New(t.Type())
+
 	s.Flags.Visit(func(f *pflag.Flag) {
 		fieldName, ok := s.flagFieldName[f.Name]
 		if !ok {
@@ -492,9 +491,6 @@ func (s *Set) Value(_ context.Context, t *dials.Type) (reflect.Value, error) {
 			ffield.Set(cfval)
 		}
 	})
-	if setErr != nil {
-		return val.Elem(), setErr
-	}
 
 	return s.tfmr.ReverseTranslate(s.trnslVal)
 }
