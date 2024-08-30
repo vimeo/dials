@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest]
-        goversion: [1.19, "1.20", "1.21", "1.22"]
+        goversion: ["1.19", "1.20", "1.21", "1.22", "1.23"]
     steps:
       - name: Set up Go ${{matrix.goversion}} on ${{matrix.os}}
         uses: actions/setup-go@v5
@@ -23,21 +23,13 @@ jobs:
           [[ -z  $(gofmt -l $(find . -name '*.go') ) ]]
 
       - name: Get dependencies
-        env:
-          GO111MODULE: on
         run: go mod download
 
       - name: Vet
-        env:
-          GO111MODULE: on
         run: go vet -mod=readonly ./...
 
       - name: Test
-        env:
-          GO111MODULE: on
         run: go test -mod=readonly -v -count 2 ./...
 
       - name: Race Test
-        env:
-          GO111MODULE: on
         run: go test -race -mod=readonly -v -count 2 ./...
