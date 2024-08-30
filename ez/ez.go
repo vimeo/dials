@@ -171,16 +171,6 @@ func ConfigFileEnvFlagDecoderFactoryParams[T any, TP ConfigWithConfigPath[T]](ct
 		flagSrc = fset
 	}
 
-	// If file-watching is not enabled, we should shutdown the monitor
-	// goroutine when exiting this function.
-	// Usually `dials.Config` is smart enough not to start a monitor when
-	// there are no `Watcher` implementations in the source-list, but the
-	// `Blank` source uses `Watcher` for its core functionality, so we need
-	// to shutdown the blank source to actually clean up resources.
-	if !params.WatchConfigFile {
-		defer blank.Done(ctx)
-	}
-
 	dp := dials.Params[T]{
 		// Set the OnNewConfig callback. It'll be suppressed by the
 		// CallGlobalCallbacksAfterVerificationEnabled until just before we return.
@@ -197,6 +187,16 @@ func ConfigFileEnvFlagDecoderFactoryParams[T any, TP ConfigWithConfigPath[T]](ct
 	d, err := dp.Config(ctx, (*T)(cfg), &blank, &env.Source{}, flagSrc)
 	if err != nil {
 		return nil, err
+	}
+
+	// If file-watching is not enabled, we should shutdown the monitor
+	// goroutine when exiting this function.
+	// Usually `dials.Config` is smart enough not to start a monitor when
+	// there are no `Watcher` implementations in the source-list, but the
+	// `Blank` source uses `Watcher` for its core functionality, so we need
+	// to shutdown the blank source to actually clean up resources.
+	if !params.WatchConfigFile {
+		defer blank.Done(ctx)
 	}
 
 	basecfg := d.View()
@@ -219,7 +219,8 @@ func ConfigFileEnvFlagDecoderFactoryParams[T any, TP ConfigWithConfigPath[T]](ct
 		return nil, fmt.Errorf("decoderFactory provided a nil decoder for path: %s", cfgPath)
 	}
 
-	manglers := make([]transform.Mangler, 0, 2)
+	manglers := make([]transform.Mangler, 0, 3)
+	manglers = append(manglers, transform.NewAliasMangler(common.DialsTagName))
 
 	if params.FileFieldNameEncoder != nil {
 		tagDecoder := params.DialsTagNameDecoder

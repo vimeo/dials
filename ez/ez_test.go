@@ -18,7 +18,7 @@ import (
 type config struct {
 	// Path will contain the path to the config file and will be set by
 	// environment variable
-	Path string              `dials:"CONFIGPATH"`
+	Path string              `dials:"CONFIGPATH" dialsalias:"ALTCONFIGPATH"`
 	Val1 int                 `dials:"Val1"`
 	Val2 string              `dials:"Val2"`
 	Set  map[string]struct{} `dials:"Set"`
@@ -36,9 +36,32 @@ func TestYAMLConfigEnvFlagWithValidConfig(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	envErr := os.Setenv("CONFIGPATH", "../testhelper/testconfig.yaml")
-	require.NoError(t, envErr)
-	defer os.Unsetenv("CONFIGPATH")
+	t.Setenv("CONFIGPATH", "../testhelper/testconfig.yaml")
+
+	c := &config{}
+	view, dialsErr := YAMLConfigEnvFlag(ctx, c, Params[config]{})
+	require.NoError(t, dialsErr)
+
+	// Val1 and Val2 come from the config file and Path will be populated from env variable
+	expectedConfig := config{
+		Path: "../testhelper/testconfig.yaml",
+		Val1: 456,
+		Val2: "hello-world",
+		Set: map[string]struct{}{
+			"Keith": {},
+			"Gary":  {},
+			"Jack":  {},
+		},
+	}
+	populatedConf := view.View()
+	assert.EqualValues(t, expectedConfig, *populatedConf)
+}
+
+func TestYAMLConfigEnvFlagWithValidConfigAndAlias(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	t.Setenv("ALTCONFIGPATH", "../testhelper/testconfig.yaml")
 
 	c := &config{}
 	view, dialsErr := YAMLConfigEnvFlag(ctx, c, Params[config]{})

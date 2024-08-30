@@ -67,8 +67,6 @@ var (
 	_ dials.Source = (*Set)(nil)
 )
 
-const dialsFlagTag = "dialsflag"
-
 // NameConfig defines the parameters for separating components of a flag-name
 type NameConfig struct {
 	// FieldNameEncodeCasing is for the field names used by the flatten mangler
@@ -204,7 +202,7 @@ func (s *Set) parse() error {
 
 func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 	fm := transform.NewFlattenMangler(common.DialsTagName, s.NameCfg.FieldNameEncodeCasing, s.NameCfg.TagEncodeCasing)
-	tfmr := transform.NewTransformer(ptyp, fm)
+	tfmr := transform.NewTransformer(ptyp, transform.NewAliasMangler(common.DialsTagName, common.DialsFlagTagName), fm)
 	val, TrnslErr := tfmr.Translate()
 	if TrnslErr != nil {
 		return TrnslErr
@@ -241,7 +239,7 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 		// If the field's dialsflag tag is a hyphen (ex: `dialsflag:"-"`),
 		// don't register the flag. Currently nested fields with "-" tag will
 		// still be registered
-		if dft, ok := sf.Tag.Lookup(dialsFlagTag); ok && (dft == "-") {
+		if dft, ok := sf.Tag.Lookup(common.DialsFlagTagName); ok && (dft == "-") {
 			continue
 		}
 
@@ -506,7 +504,7 @@ func willOverflow(val, target reflect.Value) bool {
 // decoded field name and converting it into kebab case
 func (s *Set) mkname(sf reflect.StructField) string {
 	// use the name from the dialsflag tag for the flag name
-	if name, ok := sf.Tag.Lookup(dialsFlagTag); ok {
+	if name, ok := sf.Tag.Lookup(common.DialsFlagTagName); ok {
 		return name
 	}
 	// check if the dials tag is populated (it should be once it goes through

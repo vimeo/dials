@@ -13,8 +13,6 @@ import (
 	"github.com/vimeo/dials/transform"
 )
 
-const envTagName = "dialsenv"
-
 // Source implements the dials.Source interface to set configuration from
 // environment variables.
 type Source struct {
@@ -36,10 +34,12 @@ func (e *Source) Value(_ context.Context, t *dials.Type) (reflect.Value, error) 
 	// reformat the tags so they are SCREAMING_SNAKE_CASE
 	reformatTagMangler := tagformat.NewTagReformattingMangler(common.DialsTagName, caseconversion.DecodeGoTags, caseconversion.EncodeUpperSnakeCase)
 	// copy tags from "dials" to "dialsenv" tag
-	tagCopyingMangler := &tagformat.TagCopyingMangler{SrcTag: common.DialsTagName, NewTag: envTagName}
+	tagCopyingMangler := &tagformat.TagCopyingMangler{SrcTag: common.DialsTagName, NewTag: common.DialsEnvTagName}
 	// convert all the fields in the flattened struct to string type so the environment variables can be set
 	stringCastingMangler := &transform.StringCastingMangler{}
-	tfmr := transform.NewTransformer(t.Type(), flattenMangler, reformatTagMangler, tagCopyingMangler, stringCastingMangler)
+	// allow aliasing to migrate from one name to another
+	aliasMangler := transform.NewAliasMangler(common.DialsTagName, common.DialsEnvTagName)
+	tfmr := transform.NewTransformer(t.Type(), aliasMangler, flattenMangler, reformatTagMangler, tagCopyingMangler, stringCastingMangler)
 
 	val, err := tfmr.Translate()
 	if err != nil {
@@ -49,11 +49,11 @@ func (e *Source) Value(_ context.Context, t *dials.Type) (reflect.Value, error) 
 	valType := val.Type()
 	for i := 0; i < val.NumField(); i++ {
 		sf := valType.Field(i)
-		envTagVal := sf.Tag.Get(envTagName)
+		envTagVal := sf.Tag.Get(common.DialsEnvTagName)
 		if envTagVal == "" {
 			// dialsenv tag should be populated because dials tag is populated
 			// after flatten mangler and we copy from dials to dialsenv tag
-			panic(fmt.Errorf("empty %s tag for field name %s", envTagName, sf.Name))
+			panic(fmt.Errorf("empty %s tag for field name %s", common.DialsEnvTagName, sf.Name))
 		}
 
 		if e.Prefix != "" {
