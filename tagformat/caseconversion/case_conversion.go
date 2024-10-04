@@ -3,6 +3,7 @@ package caseconversion
 import (
 	"fmt"
 	"go/token"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -25,6 +26,239 @@ type EncodeCasingFunc func(DecodedIdentifier) string
 // EncodeCasingFunc into a string in the specified case (e.g., with
 // EncodeLowerCamelCase, "testString").
 type DecodedIdentifier []string
+
+// GoCaseConverter is a case converter that can decode and encode Go-style
+// identifiers.
+type GoCaseConverter struct {
+	initialisms  []string
+	atoms        []string
+	loweredAtoms []string
+}
+
+// NewGoCaseConverter creates a new GoCaseConverter.  Please see the
+// `AddInitialism`, `SetInitialisms`, and `SetAtoms` methods for details on how
+// to customize the encoding and decoding behavior.
+func NewGoCaseConverter() *GoCaseConverter {
+	return &GoCaseConverter{
+		initialisms: commonInitialisms,
+	}
+}
+
+var defaultGoCaseConverter = NewGoCaseConverter()
+
+// SetInitialisms replaces the set of initialisms used by the GoCaseConverter
+// with the argument.  Attempting to set an initialism less than two characters
+// long will cause a panic.  Also, any duplicates in the list of initialisms
+// will be silently discarded.
+func (g *GoCaseConverter) SetInitialisms(initialisms []string) {
+	g.initialisms = uniqueSortedStrings(initialisms)
+	for _, initialism := range g.initialisms {
+		if len(initialism) < 2 {
+			panic(fmt.Sprintf("initialisms must be at least two characters long; %q is not valid", initialism))
+		}
+	}
+}
+
+// returns a sorted list of unique strings
+func uniqueSortedStrings(s []string) []string {
+	seen := make(map[string]struct{}, len(s))
+	unique := make([]string, 0, len(s))
+	for _, str := range s {
+		if _, ok := seen[str]; !ok {
+			seen[str] = struct{}{}
+			unique = append(unique, str)
+		}
+	}
+	sort.Strings(unique)
+	return unique
+}
+
+// AddInitialisms adds the passed initialisms to the set of initialisms.
+// Attempting to add an initialism less than two characters long will cause a
+// panic.  If any of the added initialisms duplicate any existing initialism,
+// the duplicates will be silently ignored.
+func (g *GoCaseConverter) AddInitialism(initialism ...string) {
+	g.SetInitialisms(append(g.initialisms, initialism...))
+}
+
+// SetAtoms replaces the set of atoms used by the GoCaseConverter with the
+// argument.  Atoms will specifically not be split at word boundaries and should
+// be provided in the exported-name format as in "ABTest".  Attemping to add an
+// atom less than two characters in length will cause a panic.  Also, any
+// duplicates in the list of atoms will be removed.
+func (g *GoCaseConverter) SetAtoms(atoms []string) {
+	g.atoms = uniqueSortedStrings(atoms)
+
+	g.loweredAtoms = make([]string, len(g.atoms))
+	for i, atom := range g.atoms {
+		if len(atom) < 2 {
+			panic(fmt.Sprintf("atoms must be at least two characters long; %q is not valid", atom))
+		}
+		g.loweredAtoms[i] = strings.ToLower(atom)
+	}
+}
+
+// Decode implements DecodeCasingFunc for Go-style identifiers.  It consults the
+// internal list of initialisms and atoms to determine how to split the string.
+func (g *GoCaseConverter) Decode(s string) (DecodedIdentifier, error) {
+	if !token.IsIdentifier(s) {
+		return nil, fmt.Errorf("only characters of the Letter category or '_' can appear in strings")
+	}
+	return g.decodeGoCamelCase(s, func(r rune) bool {
+		return r == '_'
+	})
+}
+
+// DecodeGoTags decodes CamelCase, snake_case, and kebab-case strings with fully
+// capitalized acronyms into a slice of lower cased strings.
+func (g *GoCaseConverter) DecodeGoTags(s string) (DecodedIdentifier, error) {
+	return g.decodeGoCamelCase(s, func(r rune) bool {
+		return r == '_' || r == '-'
+	})
+}
+
+// decodeGoCamelCase splits up a string in a slice of lower cased sub-string by
+// splitting after fully capitalized acronyms and after the characters that
+// signal word boundaries as specified in the passed isWordBoundary function
+func (g *GoCaseConverter) decodeGoCamelCase(s string, isWordBoundary func(rune) bool) (DecodedIdentifier, error) {
+	words := []string{}
+
+	buf := strings.Builder{}
+
+	sRunes := []rune(s)
+	for i := 0; i < len(sRunes); i++ {
+		char := sRunes[i]
+		if buf.Len() > 0 && (firstCharOfInitialism(s, i) || firstCharAfterInitialism(s, i) || isWordBoundary(char)) {
+			// We think we're at a word boundary, but we need to check if this is a prefix for an atom.
+			// We're looking for the longest matching atom, so this requires some iteration.
+			offset := sort.SearchStrings(g.atoms, buf.String())
+			bestMatch := -1
+			bestMatchLenDiff := 0
+			for ; offset < len(g.atoms) && strings.HasPrefix(g.atoms[offset], buf.String()); offset++ {
+				str := buf.String()
+				candidate := g.atoms[offset]
+
+				lenDiff := len(candidate) - len(str)
+				if lenDiff > 0 && len(str) < (i+lenDiff) {
+					// pull off more characters to match the length of the atom
+					str += string(sRunes[i : i+lenDiff])
+				}
+
+				if strings.EqualFold(candidate, str) {
+					// we found an atom that matches exactly, so we should hold
+					// on to that before we look for something potentially
+					// better
+					bestMatch = offset
+					bestMatchLenDiff = lenDiff
+				}
+			}
+
+			if bestMatch >= 0 {
+				// we found a match with an atom, so advance the pointer
+				words = append(words, g.atoms[bestMatch])
+				buf.Reset()
+				i += bestMatchLenDiff - 1
+				continue
+			}
+
+			words = append(words, buf.String())
+			buf.Reset()
+
+			if isWordBoundary(char) {
+				// if we're on a word boundary, just advance past it
+				continue
+			}
+		}
+		buf.WriteRune(char)
+	}
+
+	if buf.Len() > 0 {
+		// write whatever is left over in the buffer
+		words = append(words, buf.String())
+	}
+
+	lowerCased := make([]string, 0, len(words))
+
+	// see if any of the initialisms are actually a combination of two ("JSONAPI" or something...)
+	for _, word := range words {
+		if strings.ToUpper(word) != word {
+			// it's not an initialism because it's not all uppercase
+			lowerCased = append(lowerCased, strings.ToLower(word))
+			continue
+		}
+
+		offset := sort.SearchStrings(g.initialisms, word)
+		// offset is the position where we would insert this new word, so we
+		// should check the word before it to see if it's a prefix (or possibly
+		// an exact match)
+		for offset > 0 && strings.HasPrefix(word, g.initialisms[offset-1]) {
+			lowerCased = append(lowerCased, strings.ToLower(word[:len(g.initialisms[offset-1])]))
+			word = word[len(g.initialisms[offset-1]):]
+			offset = sort.SearchStrings(g.initialisms, word)
+		}
+
+		// if there's anything left to the word, add it
+		if len(word) > 0 {
+			lowerCased = append(lowerCased, strings.ToLower(word))
+		}
+	}
+	return lowerCased, nil
+}
+
+// Encode implements a EncodeCasingFunc for Go-style identifiers and returns an
+// exported-style name (with an initial uppercase character).
+func (g *GoCaseConverter) Encode(words DecodedIdentifier) string {
+	b := strings.Builder{}
+	b.Grow(aggregateStringLen(words))
+	for _, w := range words {
+		maybeInitialism := strings.ToUpper(w)
+		initialismOffset := sort.SearchStrings(g.initialisms, maybeInitialism)
+
+		atomOffset := sort.SearchStrings(g.loweredAtoms, w)
+
+		// check first if it's an atom, then if it's an initialism, and then
+		// assume it's just a normal name.
+		if atomOffset < len(g.atoms) && g.loweredAtoms[atomOffset] == w {
+			b.WriteString(g.atoms[atomOffset])
+		} else if initialismOffset < len(g.initialisms) && g.initialisms[initialismOffset] == maybeInitialism {
+			b.WriteString(maybeInitialism)
+		} else {
+			b.WriteString(cases.Title(language.English, cases.NoLower).String(w))
+		}
+	}
+	return b.String()
+}
+
+// EncodeUnexported is like Encode, but returns an unexported name (with an
+// initial lowercase character) still adhering to the rules of initialisms and
+// atoms.
+func (g *GoCaseConverter) EncodeUnexported(words DecodedIdentifier) string {
+	b := strings.Builder{}
+	b.Grow(aggregateStringLen(words))
+	for i, w := range words {
+		maybeInitialism := strings.ToUpper(w)
+		initialismOffset := sort.SearchStrings(g.initialisms, maybeInitialism)
+
+		atomOffset := sort.SearchStrings(g.loweredAtoms, w)
+
+		if atomOffset < len(g.atoms) && g.loweredAtoms[atomOffset] == w {
+			if i == 0 {
+				b.WriteString(g.loweredAtoms[atomOffset])
+			} else {
+				b.WriteString(g.atoms[atomOffset])
+			}
+		} else {
+			if i == 0 {
+				b.WriteString(w)
+			} else if initialismOffset < len(g.initialisms) && g.initialisms[initialismOffset] == maybeInitialism {
+				b.WriteString(maybeInitialism)
+			} else {
+				b.WriteString(cases.Title(language.English, cases.NoLower).String(w))
+			}
+		}
+	}
+	return b.String()
+}
 
 func decodeCamelCase(typeName, s string) (DecodedIdentifier, error) {
 	// ignore the size of the rune
@@ -98,61 +332,6 @@ func firstCharAfterInitialism(s string, i int) bool {
 	return i+rl1+rl2 < len(s) && unicode.IsUpper(r1) && unicode.IsLower(r2)
 }
 
-// lastCharOfInitialismAtEOS, as used in DecodeGoCamelCase, attempts to
-// detect when the indexed rune is the last character of an initialism at the
-// end of a string (e.g., jsonAP*I*).
-func lastCharOfInitialismAtEOS(s string, i int) bool {
-	s1 := s[i:]
-	r, rl := utf8.DecodeRuneInString(s1)
-
-	return i+rl == len(s) && unicode.IsUpper(r)
-}
-
-// decodeGoCamelCase splits up a string in a slice of lower cased sub-string by
-// splitting after fully capitalized acronyms and after the characters that
-// signal word boundaries as specified in the passed isWordBoundary function
-func decodeGoCamelCase(s string, isWordBoundary func(rune) bool) (DecodedIdentifier, error) {
-	words := []string{}
-	lastBoundary := 0
-	for i, char := range s {
-		if firstCharOfInitialism(s, i) || firstCharAfterInitialism(s, i) || isWordBoundary(char) {
-			if lastBoundary < i {
-				word := s[lastBoundary:i]
-				if word == strings.ToUpper(word) {
-					words = append(words, extractInitialisms(word)...)
-				} else {
-					words = append(words, strings.ToLower(word))
-				}
-			}
-			switch {
-			case isWordBoundary(char):
-				lastBoundary = i + 1
-			default:
-				lastBoundary = i
-			}
-
-		} else if lastCharOfInitialismAtEOS(s, i) {
-			if lastBoundary < i {
-				word := s[lastBoundary:]
-				if word == strings.ToUpper(word) {
-					words = append(words, extractInitialisms(word)...)
-					return words, nil
-				}
-			}
-			lastBoundary = i
-		}
-	}
-
-	if last := strings.ToLower(s[lastBoundary:]); len(last) > 0 {
-		words = append(words, strings.ToLower(s[lastBoundary:]))
-	}
-
-	return words, nil
-}
-
-// TODO: Add EncodeGoCamelCase function and set as default name encoder in
-// FlattenMangler
-
 // DecodeGoCamelCase decodes UpperCamelCase and lowerCamelCase strings with
 // fully capitalized acronyms (e.g., "jsonAPIDocs") into a slice of lower-cased
 // sub-strings.
@@ -160,46 +339,17 @@ func DecodeGoCamelCase(s string) (DecodedIdentifier, error) {
 	if !token.IsIdentifier(s) {
 		return nil, fmt.Errorf("only characters of the Letter category or '_' can appear in strings")
 	}
-	return decodeGoCamelCase(s, func(r rune) bool {
-		return r == '_'
-	})
+	return defaultGoCaseConverter.Decode(s)
 }
 
 // DecodeGoTags decodes CamelCase, snake_case, and kebab-case strings with fully
 // capitalized acronyms into a slice of lower cased strings.
 func DecodeGoTags(s string) (DecodedIdentifier, error) {
-	return decodeGoCamelCase(s, func(r rune) bool {
-		return r == '_' || r == '-'
-	})
+	return defaultGoCaseConverter.DecodeGoTags(s)
 }
 
 // List from https://github.com/golang/lint/blob/master/lint.go
 var commonInitialisms = []string{"ACL", "API", "ASCII", "CPU", "CSS", "DNS", "EOF", "GUID", "HTML", "HTTP", "HTTPS", "ID", "IP", "JSON", "LHS", "QPS", "RAM", "RHS", "RPC", "SLA", "SMTP", "SQL", "SSH", "TCP", "TLS", "TTL", "UDP", "UI", "UID", "UUID", "URI", "URL", "UTF8", "VM", "XML", "XMPP", "XSRF", "XSS"}
-
-// Given an entirely uppercase string, extract any initialisms sequentially from the start of the string and return them with the remainder of the string
-func extractInitialisms(s string) []string {
-	words := []string{}
-
-	for {
-		initialismFound := false
-		for _, initialism := range commonInitialisms {
-			if len(s) >= len(initialism) && initialism == s[:len(initialism)] {
-				initialismFound = true
-				words = append(words, strings.ToLower(initialism))
-				s = s[len(initialism):]
-			}
-		}
-		if !initialismFound {
-			break
-		}
-	}
-
-	if len(s) > 0 {
-		words = append(words, strings.ToLower(s))
-	}
-
-	return words
-}
 
 func decodeLowerCaseWithSplitChar(splitChar rune, typeName, s string) (DecodedIdentifier, error) {
 	// ignore the size of the rune
