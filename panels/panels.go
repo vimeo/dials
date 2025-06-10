@@ -1,3 +1,7 @@
+// Package panels provides a type [Panel] along with its [Register] function
+// for constructing a subcommand.
+//
+// Panels is still experimental and some details of its interface may change.
 package panels
 
 import (
@@ -70,6 +74,8 @@ type Handle[RT, T any] struct {
 // Panel is the top-level type for the panels package. It represents the top-level
 // command on which subcommands are registered.
 // Subcommands are registered using the [Register] function within this package.
+//
+// Panels is still experimental and some details of its interface may change.
 type Panel[T any] struct {
 	schMap map[string]subCmdRunner[T]
 	sp     SetupParams[T]
@@ -107,6 +113,8 @@ type PanelHelp interface {
 }
 
 // NewPanel constructs a Panel object.
+//
+// Panels is still experimental and some details of its interface may change.
 func NewPanel[T any](defaultConfig *T, ph PanelHelp, sp SetupParams[T]) *Panel[T] {
 	return &Panel[T]{
 		dCfg:   defaultConfig,
