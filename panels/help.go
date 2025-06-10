@@ -3,6 +3,8 @@ package panels
 import (
 	"bytes"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"text/tabwriter"
 )
@@ -25,11 +27,13 @@ func (p *Panel[T]) helpString(binaryName string) []byte {
 	// command: description
 	// \t short usage
 	// \n
-	for command, sch := range p.schMap {
+	for _, command := range slices.Sorted(maps.Keys(p.schMap)) {
+		sch := p.schMap[command]
 		scPath := []string{binaryName, command}
+		sph := sch.spHelp()
 		fmt.Fprintf(tw, "%s: %s\n%s\n\n", command,
-			indentString(sch.spHelp().Description(scPath)),
-			indentString(sch.spHelp().ShortUsage(scPath)))
+			indentString(sph.Description(scPath)),
+			indentString(sph.ShortUsage(scPath)))
 	}
 
 	tw.Flush()
