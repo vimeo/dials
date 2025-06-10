@@ -104,8 +104,8 @@ func TestPanels(t *testing.T) {
 			Artist: "The Beatles",
 		},
 		sp: SetupParams[yellowSub]{
-			NewDials: func(ctx context.Context, defaultCfg *yellowSub, flagsSource dials.Source) (*dials.Dials[yellowSub], error) {
-				return dials.Config(ctx, defaultCfg, flagsSource, &static.StringSource{
+			NewDials: func(ctx context.Context, defaultCfg *yellowSub, do DialsOpts) (*dials.Dials[yellowSub], error) {
+				return dials.Config(ctx, defaultCfg, do.FlagSource, &static.StringSource{
 					Decoder: &json.Decoder{},
 					Data:    `{"Song":"Hello Goodbye"}`,
 				})
@@ -140,8 +140,8 @@ func TestPanels(t *testing.T) {
 			Fabble: "foo",
 		},
 		sp: SetupParams[fibbleFabble]{
-			NewDials: func(ctx context.Context, defaultCfg *fibbleFabble, flagsSource dials.Source) (*dials.Dials[fibbleFabble], error) {
-				return dials.Config(ctx, defaultCfg, flagsSource, &static.StringSource{
+			NewDials: func(ctx context.Context, defaultCfg *fibbleFabble, do DialsOpts) (*dials.Dials[fibbleFabble], error) {
+				return dials.Config(ctx, defaultCfg, do.FlagSource, &static.StringSource{
 					Decoder: &json.Decoder{},
 					Data:    `{"Fabble":"foo"}`,
 				})

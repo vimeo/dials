@@ -16,15 +16,21 @@ import (
 
 const helpCmdName = "help"
 
+// DialsOpts provides arguments for the Dials constructor.
+// Additional fields may be added at any time if new sources are included by default.
+type DialsOpts struct {
+	FlagSource dials.Source
+}
+
 // SetupParams provides ways to configure dials and/or its sources (and possibly other things)
 type SetupParams[T any] struct {
 	// NewDials lets one override the construction of the dials object.
 	// By default, Dials is configured with only a flag source, and no callback registrations.
 	// Use of the [dials.Params] type, registering callbacks after construction, using the
 	// [github.com/vimeo/dials/ez] package, etc. can all be done from this callback.
-	// note: if using the ez package, one must override [ez.Params.FlagSource] with the flagSource argument to this
+	// note: if using the ez package, one must override [ez.Params.FlagSource] with the do.FlagSource argument to this
 	// callback.
-	NewDials func(ctx context.Context, defaultCfg *T, flagsSource dials.Source) (*dials.Dials[T], error)
+	NewDials func(ctx context.Context, defaultCfg *T, do DialsOpts) (*dials.Dials[T], error)
 	// FlagNameCfg lets one use a non-default flag.NameConfig
 	// Defaults to the return value of [flag.DefaultFlagNameConfig]
 	FlagNameCfg *flag.NameConfig
@@ -37,19 +43,19 @@ func (s SetupParams[T]) flagNameCfg() *flag.NameConfig {
 	return s.FlagNameCfg
 }
 
-func (s SetupParams[T]) newDials(ctx context.Context, defaultCfg *T, flagsSource dials.Source) (*dials.Dials[T], error) {
+func (s SetupParams[T]) newDials(ctx context.Context, defaultCfg *T, dOpts DialsOpts) (*dials.Dials[T], error) {
 	if s.NewDials == nil {
-		return dials.Config(ctx, defaultCfg, flagsSource)
+		return dials.Config(ctx, defaultCfg, dOpts.FlagSource)
 	}
 
-	return s.NewDials(ctx, defaultCfg, flagsSource)
+	return s.NewDials(ctx, defaultCfg, dOpts)
 }
 
 // BaseHandle is the core portion of Handle, which can be (partially) set by the root command (Panel)
 type BaseHandle[RT any] struct {
 	Args        []string         // everything after the current subcommand (no-flags)
-	CommandArgs []string         // will include flags (os.Args()). CA[0] = binary name
-	SCPath      []string         // everything until current subcommand, including current SC, no flags
+	CommandArgs []string         // will include flags (os.Args()). CommandArgs[0] = binary name
+	SCPath      []string         // everything until current subcommand, including current Subcommand, no flags
 	RootDials   *dials.Dials[RT] // root command
 
 	W io.Writer
@@ -160,7 +166,7 @@ func (p *Panel[T]) Run(ctx context.Context, args []string) error {
 	// If the flagset outlives this function, set it back to using the w writer, so it doesn't pin a random buffer.
 	defer fs.Flags.SetOutput(w)
 
-	d, dErr := p.sp.newDials(ctx, dCfg, fs)
+	d, dErr := p.sp.newDials(ctx, dCfg, DialsOpts{FlagSource: fs})
 	if dErr != nil {
 		if errors.Is(dErr, stdflag.ErrHelp) {
 			// if one passed `-help` that's not an error, and we want to print the help, just the same as if

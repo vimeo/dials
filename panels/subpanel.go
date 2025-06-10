@@ -65,7 +65,7 @@ func (sch *SubCmdHandle[RT, T]) run(ctx context.Context, args []string, bs *Base
 
 	fs.Flags.SetOutput(io.Discard)
 
-	d, dErr := sp.newDials(ctx, sch.sp.DefaultConfig(), fs)
+	d, dErr := sp.newDials(ctx, sch.sp.DefaultConfig(), DialsOpts{FlagSource: fs})
 	if dErr != nil {
 		return fmt.Errorf("error parsing flags: %w", dErr)
 	}
