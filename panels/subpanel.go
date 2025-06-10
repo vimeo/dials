@@ -24,6 +24,7 @@ type subCmdRunner[RT any] interface {
 	helpString(scPath []string) []byte
 	spHelp() PanelHelp
 
+	// helper to construct the flagset for this subcommand
 	fs(args []string) (*flag.Set, error)
 }
 

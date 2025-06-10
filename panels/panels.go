@@ -67,7 +67,7 @@ type Handle[RT, T any] struct {
 	Dials *dials.Dials[T]
 }
 
-// Panel is the basic type for the panels package. It represents the top-level
+// Panel is the top-level type for the panels package. It represents the top-level
 // command on which subcommands are registered.
 // Subcommands are registered using the [Register] function within this package.
 type Panel[T any] struct {
@@ -79,24 +79,34 @@ type Panel[T any] struct {
 }
 
 // PanelHelp provides help for this (sub)command of various kinds
+// In simple cases [StaticHelp] can be used/embedded.
 type PanelHelp interface {
-	// Description is an explanation of this (sub)command
+	// Description is an explanation of this (sub)command's functionality,
+	// it will be printed with either ShortUsage or LongUsage, so it
+	// shouldn't duplicate information that's present in both of those.
 	// scPath is the subcommand-path, including the binary-name (args up to
 	// this subcommand with flags stripped out)
 	Description(scPath []string) string
 	// ShortUsage provides information about the usage of this (sub)command
 	// in one-ish line.
+	// This is printed right after the output of Description, so it should
+	// only include commandline args, config, etc. (but be much terser than LongUsage)
 	// scPath is the subcommand-path, including the binary-name (args up to
 	// this subcommand with flags stripped out)
 	ShortUsage(scPath []string) string
 	// LongUsage provides detailed information about the usage of this
 	// (sub)command. (flags will be listed as derived from the flag-set)
+	// This is printed right after the output of Description, so it should
+	// only include commandline args, config, etc. Unlike ShortUsage this
+	// should go into as much detail as possible.
+	// All flags for this subcommand will be printed, leveraging
+	// `dialsdesc` and dialsflag` tags.
 	// scPath is the subcommand-path, including the binary-name (args up to
 	// this subcommand with flags stripped out)
 	LongUsage(scPath []string) string
 }
 
-// NewPanel constructs a Panel object
+// NewPanel constructs a Panel object.
 func NewPanel[T any](defaultConfig *T, ph PanelHelp, sp SetupParams[T]) *Panel[T] {
 	return &Panel[T]{
 		dCfg:   defaultConfig,
@@ -138,7 +148,7 @@ var ErrPrintHelpSuccess = errors.New("help requested: success")
 // return the full error (note: [errors.Is] just nees to return true)
 var ErrPrintHelpFailure = errors.New("help requested: failure")
 
-// Run assumes subcommands are registered before Run is called
+// Run assumes that subcommands have been registered before Run it is called.
 func (p *Panel[T]) Run(ctx context.Context, args []string) error {
 	fCfg := p.sp.flagNameCfg()
 
@@ -179,25 +189,27 @@ func (p *Panel[T]) Run(ctx context.Context, args []string) error {
 	}
 
 	s.RootDials = d
-	argsCopy := fs.Flags.Args()
+	flaglessArgs := fs.Flags.Args()
 
-	if len(argsCopy) < 1 {
+	if len(flaglessArgs) < 1 {
 		w.Write(p.helpString(args[0]))
 		rootFlagOutBuf.WriteTo(w)
 		return ErrNoSubcommand
 	}
 
-	scmdName := argsCopy[0]
+	scmdName := flaglessArgs[0]
 	sch, ok := p.schMap[scmdName]
 	if !ok {
-
-		// since we were able to actually run a subcommand, we know that the root args never dumped the
-		// commandline help to the rootFlagOutBuf from an error.
+		// since we were able to get far enough to lookup a subcommand,
+		// we know that the root args never dumped the commandline help
+		// to the rootFlagOutBuf from an error.
 		// call it explicitly
 		fs.Flags.PrintDefaults()
 
+		// note: we don't seed the subcommands map with helpCmdName so
+		// users can override that if they want.
 		if scmdName == helpCmdName {
-			return p.help(rootFlagOutBuf.Bytes(), args[0], argsCopy)
+			return p.help(rootFlagOutBuf.Bytes(), args[0], flaglessArgs)
 		}
 
 		w.Write(p.helpString(args[0]))
@@ -205,7 +217,7 @@ func (p *Panel[T]) Run(ctx context.Context, args []string) error {
 		return fmt.Errorf("%q subcommand not registered", scmdName)
 	}
 
-	runErr := sch.run(ctx, argsCopy, &s, fCfg)
+	runErr := sch.run(ctx, flaglessArgs, &s, fCfg)
 	if runErr == nil {
 		return nil
 	}
@@ -222,7 +234,6 @@ func (p *Panel[T]) Run(ctx context.Context, args []string) error {
 		if errors.Is(runErr, stdflag.ErrHelp) || errors.Is(runErr, ErrPrintHelpSuccess) {
 			return nil
 		}
-
 	}
 	return runErr
 }
@@ -230,7 +241,7 @@ func (p *Panel[T]) Run(ctx context.Context, args []string) error {
 func (p *Panel[T]) help(flagHelp []byte, binaryName string, scmdPath []string) error {
 	w := p.writer()
 	if len(scmdPath) < 1 {
-		//
+		// print the top-level help
 		w.Write(p.helpString(binaryName))
 		w.Write(flagHelp)
 		return nil
@@ -297,6 +308,8 @@ func Register[RT, T any, SP Subpanel[RT, T]](p *Panel[RT], scName string, s SP) 
 	return sch, nil
 }
 
+// Process is a convenience wrapper around [Panel.Run] that grabs the
+// process-level [os.Args] as the argument-list.
 func (p *Panel[T]) Process(ctx context.Context) error {
 	return p.Run(ctx, os.Args)
 }
