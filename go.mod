@@ -1,6 +1,6 @@
 module github.com/vimeo/dials
 
-go 1.18
+go 1.23.0
 
 require (
 	cuelang.org/go v0.6.0
