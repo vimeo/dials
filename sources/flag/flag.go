@@ -195,7 +195,7 @@ func (s *Set) parse() error {
 		return fmt.Errorf("unparsed flagset with no ParseFunc set")
 	}
 	if err := s.ParseFunc(); err != nil {
-		return fmt.Errorf("failed to parse flags: %s", err)
+		return fmt.Errorf("failed to parse flags: %w", err)
 	}
 	return nil
 }
@@ -411,7 +411,7 @@ func (s *Set) Value(_ context.Context, t *dials.Type) (reflect.Value, error) {
 	}
 	if !s.Flags.Parsed() {
 		if err := s.parse(); err != nil {
-			return reflect.Value{}, fmt.Errorf("failed to parse: %s", err)
+			return reflect.Value{}, fmt.Errorf("failed to parse: %w", err)
 		}
 	}
 	var setErr error

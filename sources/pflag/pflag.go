@@ -203,7 +203,7 @@ func (s *Set) parse() error {
 		return nil
 	}
 	if err := s.ParseFunc(); err != nil {
-		return fmt.Errorf("failed to parse pflags: %s", err)
+		return fmt.Errorf("failed to parse pflags: %w", err)
 	}
 	return nil
 }
