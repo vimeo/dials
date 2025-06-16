@@ -120,21 +120,111 @@ func TestEncode(t *testing.T) {
 	}
 }
 
-var initialismCases = []struct {
-	original string
-	returned []string
-}{
-	{"JSONAPI", []string{"json", "api"}},
-	{"JSONAPIA", []string{"json", "api", "a"}},
-	{"XMLJSONAPI", []string{"xml", "json", "api"}},
-}
+func TestGoCaseConverter(t *testing.T) {
+	g := NewGoCaseConverter()
+	g.SetAtoms([]string{"RaNsoMNoTe", "ZZTop", "ABTests", "ABTest"})
+	g.AddInitialism("XSL", "XSLFO")
 
-func TestExtractInitialisms(t *testing.T) {
-	for _, initialismCase := range initialismCases {
-		t.Run(initialismCase.original, func(t *testing.T) {
-			is := extractInitialisms(initialismCase.original)
-			ought := initialismCase.returned
-			assert.Equal(t, ought, is)
+	for testName, tbl := range map[string]struct {
+		original   string
+		exported   string
+		unexported string
+		expected   []string
+	}{
+		"InitialismWithSubstring": {
+			original:   "XSLFormatter",
+			unexported: "xslFormatter",
+			expected:   []string{"xsl", "formatter"},
+		},
+		"TwoInitialisms": {
+			original:   "JSONAPI",
+			unexported: "jsonAPI",
+			expected:   []string{"json", "api"},
+		},
+		"SingleInitialism": {
+			original:   "API",
+			unexported: "api",
+			expected:   []string{"api"},
+		},
+		"NotKnownInitialism": {
+			original:   "XSDFile",
+			exported:   "XsdFile",
+			unexported: "xsdFile",
+			expected:   []string{"xsd", "file"},
+		},
+		"TwoInitialismsWithSuffix": {
+			original:   "JSONAPIA",
+			unexported: "jsonAPIA",
+			expected:   []string{"json", "api", "a"},
+		},
+		"ThreeInitialisms": {
+			original:   "XMLJSONAPI",
+			unexported: "xmlJSONAPI",
+			expected:   []string{"xml", "json", "api"},
+		},
+		"TestLongConcatted": {
+			original:   "TestJSONAPI",
+			unexported: "testJSONAPI",
+			expected:   []string{"test", "json", "api"},
+		},
+		"TestLongConcattedWithSuffix": {
+			original:   "TestJSONAPIAddress",
+			unexported: "testJSONAPIAddress",
+			expected:   []string{"test", "json", "api", "address"},
+		},
+		"TestAtomAlone": {
+			original:   "ABTest",
+			unexported: "abtest",
+			expected:   []string{"abtest"},
+		},
+		"TestAtomLongerString": {
+			original:   "ABTestsGroup",
+			unexported: "abtestsGroup",
+			expected:   []string{"abtests", "group"},
+		},
+		"TestAtomWithInitialismSuffix": {
+			original:   "ABTestID",
+			unexported: "abtestID",
+			expected:   []string{"abtest", "id"},
+		},
+		"TestAtomWithPrefix": {
+			original:   "TheRaNsoMNoTe",
+			unexported: "theRaNsoMNoTe",
+			expected:   []string{"the", "ransomnote"},
+		},
+		"TwoAtoms": {
+			original:   "ABTestZZTop",
+			unexported: "abtestZZTop",
+			expected:   []string{"abtest", "zztop"},
+		},
+	} {
+		t.Run(testName, func(t *testing.T) {
+			words, err := g.Decode(tbl.original)
+			require.NoError(t, err)
+			assert.Equal(t, DecodedIdentifier(tbl.expected), words)
+
+			if tbl.exported == "" {
+				tbl.exported = tbl.original
+			}
+			encoded := g.Encode(DecodedIdentifier(tbl.expected))
+			assert.Equal(t, tbl.exported, encoded)
+
+			encodedUnexported := g.EncodeUnexported(DecodedIdentifier(tbl.expected))
+			assert.Equal(t, tbl.unexported, encodedUnexported)
 		})
 	}
+
+	t.Run("TestInitialismPanic", func(t *testing.T) {
+		assert.Panics(t, func() {
+			g := NewGoCaseConverter()
+			g.SetInitialisms([]string{"A"})
+		})
+	})
+
+	t.Run("TestAtomPanic", func(t *testing.T) {
+		assert.Panics(t, func() {
+			g := NewGoCaseConverter()
+			g.SetAtoms([]string{"A"})
+		})
+	})
 }
