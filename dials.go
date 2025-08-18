@@ -12,7 +12,7 @@ import (
 // WatchedErrorHandler is a callback that's called when something fails when
 // dials is operating in a watching mode.  If non-nil, both oldConfig and
 // newConfig are guaranteed to be populated with the same pointer-type that was
-// passed to `Config()`.
+// passed to [Config]().
 // newConfig will be nil for errors that prevent stacking.
 type WatchedErrorHandler[T any] func(ctx context.Context, err error, oldConfig, newConfig *T)
 
@@ -395,16 +395,21 @@ type UnregisterCBFunc func(ctx context.Context) bool
 
 // RegisterCallback registers the callback cb to receive notifications whenever
 // a new configuration is installed. If the "current" version is later than the
-// one represented by the value of CfgSerial, a notification will be delivered immediately.
+// one represented by the value of [CfgSerial], a notification will be delivered immediately.
 // This call is only blocking if the callback handling has filled up an
 // internal channel. (likely because an already-registered callback is slow or
 // blocking)
-// serial must be obtained from [Dials.ViewVersion()]. Catch-up callbacks are
+// serial must be obtained from [Dials.ViewVersion](). Catch-up callbacks are
 // suppressed if passed passed an invalid CfgSerial (including the zero-value)
+//
+// Just like global callbacks, [NewConfigHandler] implementations execute serially on a single goroutine. As a result:
+//   - callbacks will see config versions in the order they're installed
+//   - the callbacks _may_ block, but only for time intervals that are short compared to the
+//     interval between updates.
 //
 // May return a nil [UnregisterCBFunc] if the context expires
 //
-// The returned UnregisterCBFunc will block until the relevant callback has
+// The returned [UnregisterCBFunc] will block until the relevant callback has
 // been removed from the set of callbacks.
 func (d *Dials[T]) RegisterCallback(ctx context.Context, serial CfgSerial[T], cb NewConfigHandler[T]) UnregisterCBFunc {
 	handle := userCallbackHandle[T]{
