@@ -76,8 +76,8 @@ type Params[T any] struct {
 	// field named `SecretValues` in your configuration to map to a value
 	// in your config named "secret-values" you can set:
 	//   Params {
-	//	DialsTagNameDecoder: caseconversion.DecodeGoCamelCase,
-	//	FileFieldNameEncoder: caseconversion.EncodeKebabCase,
+	//      DialsTagNameDecoder: caseconversion.DecodeGoCamelCase,
+	//      FileFieldNameEncoder: caseconversion.EncodeKebabCase,
 	//   }
 	// Note that this does not affect the flags or environment variable
 	// naming.  To manipulate flag naming, see [Params.FlagConfig].
@@ -90,13 +90,13 @@ type Params[T any] struct {
 	FlattenAnonymousFields bool
 }
 
-// DecoderFactory should return the appropriate decoder based on the config file
+// DecoderFactory should return the appropriate [dials.Decoder] based on the config file
 // path that is passed as the string argument to DecoderFactory
 type DecoderFactory func(string) dials.Decoder
 
-// DecoderFactoryWithParams should return the appropriate decoder based on the config file
-// path that is passed as the string argument to DecoderFactory
-// Params may provide useful context/arguments
+// DecoderFactoryWithParams should return the appropriate [dials.Decoder] based on the config file
+// path that is passed as the string argument to DecoderFactoryWIthParams
+// [Params] may provide useful context/arguments
 type DecoderFactoryWithParams[T any] func(string, Params[T]) dials.Decoder
 
 // ConfigWithConfigPath is an interface config struct that supplies a
@@ -104,9 +104,9 @@ type DecoderFactoryWithParams[T any] func(string, Params[T]) dials.Decoder
 // populated.
 type ConfigWithConfigPath[T any] interface {
 	*T
-	// ConfigPath implementations should return the configuration file to
-	// be read as the first return-value, and true, or an empty string and
-	// false.
+	// ConfigPath implementations should return the path to the configuration file to
+	// be read as the first return-value, and true, otherwise, an empty string and
+	// false should be returned to indicate no config should be read.
 	ConfigPath() (string, bool)
 }
 
@@ -125,9 +125,9 @@ func fileSource(cfgPath string, decoder dials.Decoder, watch bool) (dials.Source
 	return fsrc, nil
 }
 
-// ConfigFileEnvFlag takes advantage of the ConfigWithConfigPath cfg to indicate
+// ConfigFileEnvFlag takes advantage of the [ConfigWithConfigPath] cfg to indicate
 // what file to read and uses the passed decoder.
-// Configuration values provided by the returned Dials are the result of
+// Configuration values provided by the returned [dials.Dials] are the result of
 // stacking the sources in the following order:
 //   - configuration file
 //   - environment variables
@@ -143,9 +143,10 @@ func ConfigFileEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 
 }
 
-// ConfigFileEnvFlagDecoderFactoryParams takes advantage of the ConfigWithConfigPath cfg to indicate
-// what file to read and uses the passed decoder.
-// Configuration values provided by the returned Dials are the result of
+// ConfigFileEnvFlagDecoderFactoryParams takes advantage of the [ConfigWithConfigPath] cfg to
+// indicate what file to read and uses the passed decoder.
+//
+// Configuration values provided by the returned [dials.Dials] are the result of
 // stacking the sources in the following order:
 //   - configuration file
 //   - environment variables
@@ -153,7 +154,9 @@ func ConfigFileEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, c
 //
 // The contents of cfg for the defaults
 // cfg.ConfigPath() is evaluated on the stacked config with the file-contents omitted (using a "blank" source)
-// It differs from ConfigFileEnvFlag by the signature of the decoder factory, (which requires a params struct in this function)
+//
+// It differs from [ConfigFileEnvFlag] by the signature of the decoder factory, (which requires a
+// [Params] struct in this function)
 func ConfigFileEnvFlagDecoderFactoryParams[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, df DecoderFactoryWithParams[T], params Params[T]) (*dials.Dials[T], error) {
 	blank := sourcewrap.Blank{}
 
@@ -271,40 +274,39 @@ func ConfigFileEnvFlagDecoderFactoryParams[T any, TP ConfigWithConfigPath[T]](ct
 	return d, nil
 }
 
-// YAMLConfigEnvFlag takes advantage of the ConfigWithConfigPath cfg, thinly
-// wraping ConfigFileEnvFlag with the decoder statically set to YAML.
+// YAMLConfigEnvFlag takes advantage of the [ConfigWithConfigPath] cfg, thinly
+// wrapping [ConfigFileEnvFlag] with the decoder statically set to YAML.
 func YAMLConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, params Params[T]) (*dials.Dials[T], error) {
 	return ConfigFileEnvFlag(ctx, cfg, func(string) dials.Decoder { return &yaml.Decoder{FlattenAnonymous: params.FlattenAnonymousFields} }, params)
 }
 
-// JSONConfigEnvFlag takes advantage of the ConfigWithConfigPath cfg, thinly
-// wraping ConfigFileEnvFlag with the decoder statically set to JSON.
+// JSONConfigEnvFlag takes advantage of the [ConfigWithConfigPath] cfg, thinly
+// wrapping [ConfigFileEnvFlag] with the decoder statically set to JSON.
 func JSONConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, params Params[T]) (*dials.Dials[T], error) {
 	return ConfigFileEnvFlag(ctx, cfg, func(string) dials.Decoder { return &json.Decoder{} }, params)
 }
 
-// CueConfigEnvFlag takes advantage of the ConfigWithConfigPath cfg, thinly
-// wraping ConfigFileEnvFlag with the decoder statically set to Cue.
+// CueConfigEnvFlag takes advantage of the [ConfigWithConfigPath] cfg, thinly
+// wrapping [ConfigFileEnvFlag] with the decoder statically set to Cue.
 func CueConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, params Params[T]) (*dials.Dials[T], error) {
 	return ConfigFileEnvFlag(ctx, cfg, func(string) dials.Decoder { return &cue.Decoder{} }, params)
 }
 
-// TOMLConfigEnvFlag takes advantage of the ConfigWithConfigPath cfg, thinly
-// wraping ConfigFileEnvFlag with the decoder statically set to TOML.
+// TOMLConfigEnvFlag takes advantage of the [ConfigWithConfigPath] cfg, thinly
+// wrapping [ConfigFileEnvFlag] with the decoder statically set to TOML.
 func TOMLConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, params Params[T]) (*dials.Dials[T], error) {
 	return ConfigFileEnvFlag(ctx, cfg, func(string) dials.Decoder { return &toml.Decoder{} }, params)
 }
 
-// DecoderFromExtension is a DecoderFactory that returns an appropriate decoder
+// DecoderFromExtension is a [DecoderFactory] that returns an appropriate decoder
 // based on the extension of the filename or nil if there is not an appropriate
 // mapping.
 func DecoderFromExtension(path string) dials.Decoder {
 	return DecoderFromExtensionWithParams(path, Params[struct{}]{})
 }
 
-// DecoderFromExtension is a DecoderFactory that returns an appropriate decoder
-// based on the extension of the filename or nil if there is not an appropriate
-// mapping.
+// DecoderFromExtensionWithParams is a [DecoderFactoryWithParams] that returns an appropriate
+// decoder based on the extension of the filename or nil if there is not an appropriate mapping.
 func DecoderFromExtensionWithParams[T any](path string, p Params[T]) dials.Decoder {
 	ext := filepath.Ext(path)
 	switch strings.ToLower(ext) {
@@ -322,9 +324,8 @@ func DecoderFromExtensionWithParams[T any](path string, p Params[T]) dials.Decod
 }
 
 // FileExtensionDecoderConfigEnvFlag takes advantage of the
-// ConfigWithConfigPath cfg and thinly wraps ConfigFileEnvFlag and and thinly
-// wraps ConfigFileEnvFlag choosing the dials.Decoder used when handling the
-// file contents based on the file extension (from the limited set of JSON,
+// [ConfigWithConfigPath] cfg and thinly wraps [ConfigFileEnvFlag] choosing the [dials.Decoder] used
+// when handling the file contents based on the file extension (from the limited set of JSON,
 // Cue, YAML and TOML).
 func FileExtensionDecoderConfigEnvFlag[T any, TP ConfigWithConfigPath[T]](ctx context.Context, cfg TP, params Params[T]) (*dials.Dials[T], error) {
 	return ConfigFileEnvFlagDecoderFactoryParams(ctx, cfg, DecoderFromExtensionWithParams[T], params)
