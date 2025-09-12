@@ -22,7 +22,7 @@ func newOverlayer() *overlayer {
 
 func (o *overlayer) overlayField(base, overlay reflect.Value) error {
 	switch overlay.Kind() {
-	case reflect.Slice, reflect.Ptr, reflect.Interface, reflect.Map:
+	case reflect.Slice, reflect.Pointer, reflect.Interface, reflect.Map:
 		if overlay.IsNil() {
 			return nil
 		}
@@ -32,7 +32,7 @@ func (o *overlayer) overlayField(base, overlay reflect.Value) error {
 		return errCanSetField
 	}
 	switch base.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		// if we're dealing with a pointer in the original field, and
 		// it's unset from lower layers, just set the pointer (after a deep-copy).
 		if base.IsNil() {
@@ -75,7 +75,7 @@ func (o *overlayer) overlayField(base, overlay reflect.Value) error {
 		if ptrify.IsTextUnmarshalerStruct(base.Type()) {
 			// base is not nil and we're not deep-copying, so we can shallow-copy
 			switch overlay.Kind() {
-			case reflect.Ptr:
+			case reflect.Pointer:
 				base.Set(overlay.Elem())
 			case reflect.Struct:
 				if !overlay.Type().AssignableTo(base.Type()) {
@@ -92,7 +92,7 @@ func (o *overlayer) overlayField(base, overlay reflect.Value) error {
 			//  we're done here
 			return nil
 		}
-		if overlay.Kind() == reflect.Ptr {
+		if overlay.Kind() == reflect.Pointer {
 			// it's a pointerified struct.
 			return o.overlayStruct(base, overlay.Elem())
 		}
@@ -103,7 +103,7 @@ func (o *overlayer) overlayField(base, overlay reflect.Value) error {
 		// values coming through interface values might not be
 		// pointer-ified (plus Sources can return whatever Value they
 		// want)
-		if overlay.Kind() == reflect.Ptr {
+		if overlay.Kind() == reflect.Pointer {
 			base.Set(overlay.Elem())
 		} else {
 			base.Set(overlay)
@@ -184,7 +184,7 @@ func (o *overlayer) overlayInterface(base, overlay reflect.Value) error {
 		// nil, treat it the same way as if base is nil, and just overlay.
 		base.Set(overlay.Elem())
 		return nil
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if overlay.IsNil() {
 			// if overlay is nil then we're done here
 			return nil
@@ -218,7 +218,7 @@ func (o *overlayer) overlayInterface(base, overlay reflect.Value) error {
 		return nil
 	case reflect.Struct:
 		if !base.IsNil() {
-			if base.Elem().Type() == overlay.Type() || base.Elem().Type() == reflect.PtrTo(overlay.Type()) {
+			if base.Elem().Type() == overlay.Type() || base.Elem().Type() == reflect.PointerTo(overlay.Type()) {
 				out := reflect.New(base.Elem().Type())
 				o.dc.deepCopy(base.Elem(), out.Elem())
 				if err := o.overlayField(out.Elem(), overlay); err != nil {
@@ -232,7 +232,7 @@ func (o *overlayer) overlayInterface(base, overlay reflect.Value) error {
 			base.Set(overlay)
 			return nil
 		}
-		if reflect.PtrTo(overlay.Type()).Implements(base.Type()) {
+		if reflect.PointerTo(overlay.Type()).Implements(base.Type()) {
 			out := reflect.New(overlay.Type())
 			if err := o.overlayStruct(out.Elem(), overlay); err != nil {
 				return fmt.Errorf("error overlaying struct(%s) onto interface(%s): %s",
@@ -275,7 +275,7 @@ func (o *overlayer) overlayInterface(base, overlay reflect.Value) error {
 				base.Set(out.Elem())
 				return nil
 			}
-			if base.Elem().Type() == reflect.PtrTo(overlay.Type()) {
+			if base.Elem().Type() == reflect.PointerTo(overlay.Type()) {
 				o.dc.deepCopyArray(overlay, out.Elem())
 				base.Set(out)
 				return nil
@@ -286,7 +286,7 @@ func (o *overlayer) overlayInterface(base, overlay reflect.Value) error {
 			base.Set(out.Elem())
 			return nil
 		}
-		if reflect.PtrTo(overlay.Type()).Implements(base.Type()) {
+		if reflect.PointerTo(overlay.Type()).Implements(base.Type()) {
 			o.dc.deepCopyArray(overlay, out.Elem())
 			base.Set(out)
 			return nil
@@ -299,7 +299,7 @@ func (o *overlayer) overlayInterface(base, overlay reflect.Value) error {
 
 func kindNilable(k reflect.Kind) bool {
 	switch k {
-	case reflect.Ptr, reflect.Interface, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func:
+	case reflect.Pointer, reflect.Interface, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func:
 		return true
 	default:
 		return false

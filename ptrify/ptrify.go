@@ -62,7 +62,7 @@ func pointerifyField(originalField reflect.StructField, tmplFieldVal reflect.Val
 	ft := originalField.Type
 	sf := reflect.StructField{
 		Name:      originalField.Name,
-		Type:      reflect.PtrTo(ft),
+		Type:      reflect.PointerTo(ft),
 		Tag:       originalField.Tag,
 		PkgPath:   originalField.PkgPath,
 		Anonymous: originalField.Anonymous,
@@ -90,20 +90,20 @@ func pointerifyField(originalField reflect.StructField, tmplFieldVal reflect.Val
 			return &sf
 		case reflect.Array:
 			// override the type to a pointer to the concrete type supplied.
-			sf.Type = reflect.PtrTo(impl.Type())
+			sf.Type = reflect.PointerTo(impl.Type())
 			return &sf
 		case reflect.Chan, reflect.Func:
 			// these are not useful types for config, but maybe
 			// there are some other implementations of the
 			// interface that Sources know about.
 			return &originalField
-		case reflect.Ptr, reflect.Struct:
+		case reflect.Pointer, reflect.Struct:
 			newSF := originalField
 			newSF.Type = impl.Type()
 			return pointerifyField(newSF, impl)
 		}
 		return &originalField
-	case reflect.Ptr:
+	case reflect.Pointer:
 		// These are already pointers or nil-able, so use the
 		// field rather than the pointer-ized field.
 		if ft.Elem().Kind() != reflect.Struct {
@@ -116,7 +116,7 @@ func pointerifyField(originalField reflect.StructField, tmplFieldVal reflect.Val
 		ft = ft.Elem()
 		// if it's a valid pointer that's non-nil, dereference it so it
 		// can be used in the fallthrough
-		if tmplFieldVal.Kind() == reflect.Ptr && !tmplFieldVal.IsNil() {
+		if tmplFieldVal.Kind() == reflect.Pointer && !tmplFieldVal.IsNil() {
 			tmplFieldVal = tmplFieldVal.Elem()
 		} else {
 			tmplFieldVal = reflect.Value{}
@@ -134,7 +134,7 @@ func pointerifyField(originalField reflect.StructField, tmplFieldVal reflect.Val
 		pointeredStruct := Pointerify(ft, tmplFieldVal)
 		return &reflect.StructField{
 			Name:      originalField.Name,
-			Type:      reflect.PtrTo(pointeredStruct),
+			Type:      reflect.PointerTo(pointeredStruct),
 			Tag:       originalField.Tag,
 			Anonymous: originalField.Anonymous,
 		}
@@ -157,5 +157,5 @@ func IsTextUnmarshalerStruct(t reflect.Type) bool {
 		return false
 	}
 	return (t.Implements(textUnmarshaler) ||
-		reflect.PtrTo(t).Implements(textUnmarshaler))
+		reflect.PointerTo(t).Implements(textUnmarshaler))
 }

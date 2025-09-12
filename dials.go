@@ -96,7 +96,7 @@ func (p Params[T]) Config(ctx context.Context, t *T, sources ...Source) (*Dials[
 	computed := make([]sourceValue, len(sources))
 
 	typeOfT := reflect.TypeOf(t)
-	if typeOfT.Kind() != reflect.Ptr {
+	if typeOfT.Kind() != reflect.Pointer {
 		return nil, fmt.Errorf("config type %T is not a pointer", t)
 	}
 
@@ -695,7 +695,7 @@ func compose(t any, sources []sourceValue) (any, error) {
 	for _, source := range sources {
 		// automatically dereference pointers that may be in the value
 		s := source.value
-		if s.Kind() == reflect.Ptr {
+		if s.Kind() == reflect.Pointer {
 			s = s.Elem()
 		}
 		o := newOverlayer()

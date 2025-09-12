@@ -52,7 +52,7 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 	// Make sure we're pointerized (or nilable). Should have called pointerify
 	// before calling this function
 	switch sf.Type.Kind() {
-	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Interface:
+	case reflect.Pointer, reflect.Map, reflect.Slice, reflect.Interface:
 	default:
 		return []reflect.StructField{}, fmt.Errorf("flattenMangler: programmer error: expected pointerized fields, got %s",
 			sf.Type)
@@ -72,7 +72,7 @@ func (f *FlattenMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, 
 	switch k {
 	case reflect.Struct:
 		// only flatten the struct if it doesn't implement TextUnmarshaler
-		if t.Implements(textMReflectType) || reflect.PtrTo(t).Implements(textMReflectType) {
+		if t.Implements(textMReflectType) || reflect.PointerTo(t).Implements(textMReflectType) {
 			break
 		}
 		fieldPrefix := []string{}
@@ -134,7 +134,7 @@ func (f *FlattenMangler) flattenStruct(fieldPrefix, tagPrefix, fieldPath []strin
 		switch nestedK {
 		case reflect.Struct:
 			// don't flatten if struct implements TextUnmarshaler
-			if nestedT.Implements(textMReflectType) || reflect.PtrTo(nestedT).Implements(textMReflectType) {
+			if nestedT.Implements(textMReflectType) || reflect.PointerTo(nestedT).Implements(textMReflectType) {
 				break
 			}
 			flattened, err := f.flattenStruct(flattenedNames, flattenedTags, flattenedPath, nestedsf)
@@ -309,7 +309,7 @@ func (f *FlattenMangler) ShouldRecurse(reflect.StructField) bool {
 // getUnderlyingKindType strips the pointer from the type to determine the underlying kind
 func getUnderlyingKindType(t reflect.Type) (reflect.Kind, reflect.Type) {
 	k := t.Kind()
-	for k == reflect.Ptr {
+	for k == reflect.Pointer {
 		t = t.Elem()
 		k = t.Kind()
 	}
@@ -319,7 +319,7 @@ func getUnderlyingKindType(t reflect.Type) (reflect.Kind, reflect.Type) {
 func stripPtrs(val reflect.Value) reflect.Value {
 	for val.IsValid() {
 		switch val.Kind() {
-		case reflect.Ptr, reflect.Interface:
+		case reflect.Pointer, reflect.Interface:
 			val = val.Elem()
 		default:
 			return val

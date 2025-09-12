@@ -20,7 +20,7 @@ type TextUnmarshalerMangler struct{}
 // StructField type implements encoding.TextUnmarshaler.  Otherwise, the type is
 // passed through unaltered.
 func (*TextUnmarshalerMangler) Mangle(sf reflect.StructField) ([]reflect.StructField, error) {
-	if sf.Type.Implements(textUnmarshalerType) || reflect.PtrTo(sf.Type).Implements(textUnmarshalerType) {
+	if sf.Type.Implements(textUnmarshalerType) || reflect.PointerTo(sf.Type).Implements(textUnmarshalerType) {
 		sf.Type = strPtrType
 	}
 	return []reflect.StructField{sf}, nil

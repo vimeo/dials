@@ -3,7 +3,6 @@ package file
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/vimeo/dials"
 	"github.com/vimeo/dials/decoders/json"
 )
@@ -39,7 +39,7 @@ type config struct {
 
 func tmpDir(t testing.TB) string {
 	t.Helper()
-	dir, dirErr := ioutil.TempDir("", "dials_file")
+	dir, dirErr := os.MkdirTemp("", "dials_file")
 	require.NoError(t, dirErr, "failed to create temporary directory")
 	return dir
 }
@@ -293,7 +293,7 @@ func TestWatchingFileWithK8SEmulatedAtomicWriter(t *testing.T) {
 
 	const fname = "fimbat.json"
 
-	wdir, tmpdirErr := ioutil.TempDir("", "dials_file_test-")
+	wdir, tmpdirErr := os.MkdirTemp("", "dials_file_test-")
 	require.NoError(t, tmpdirErr, "create tmpDir")
 	defer os.RemoveAll(wdir)
 
@@ -315,7 +315,7 @@ func TestWatchingFileWithK8SEmulatedAtomicWriter(t *testing.T) {
 		intermediateSymlinkPath,
 		configPath)
 
-	require.NoError(t, ioutil.WriteFile(firstConfigPath, []byte(`{
+	require.NoError(t, os.WriteFile(firstConfigPath, []byte(`{
         "secretOfLife": 42,
         "numBeatles": 4
     }`), 0400), "failed to write contents of first version of config file")
@@ -368,7 +368,7 @@ func TestWatchingFileWithK8SEmulatedAtomicWriter(t *testing.T) {
 			nextTSDir, fullSubdirTmpPath)
 
 		secondRealContentsPath := filepath.Join(nextRealContentsDir, fname)
-		require.NoError(t, ioutil.WriteFile(secondRealContentsPath, fmt.Appendf(nil, `{
+		require.NoError(t, os.WriteFile(secondRealContentsPath, fmt.Appendf(nil, `{
         "secretOfLife": %d,
         "numBeatles": 4
     }`, 9+i), 0400),
@@ -395,7 +395,7 @@ const watchingFilePattern = "watching-file"
 
 func writeTestConfig(t testing.TB, dir, data string) string {
 	t.Helper()
-	f, err := ioutil.TempFile(dir, watchingFilePattern)
+	f, err := os.CreateTemp(dir, watchingFilePattern)
 	assert.NoError(t, err)
 	defer f.Close()
 	f.WriteString(data)

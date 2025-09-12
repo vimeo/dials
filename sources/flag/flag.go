@@ -88,7 +88,7 @@ func DefaultFlagNameConfig() *NameConfig {
 
 func ptrified(template any) (reflect.Value, reflect.Type, error) {
 	val := reflect.ValueOf(template)
-	if val.Kind() != reflect.Ptr {
+	if val.Kind() != reflect.Pointer {
 		return reflect.Value{}, nil, fmt.Errorf("non-pointer-type passed: %s", val.Type())
 	}
 
@@ -214,7 +214,7 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 	t := val.Type()
 
 	k := t.Kind()
-	for k == reflect.Ptr {
+	for k == reflect.Pointer {
 		t = t.Elem()
 		k = t.Kind()
 	}
@@ -246,12 +246,12 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 		ft := sf.Type
 
 		k := ft.Kind()
-		for k == reflect.Ptr {
+		for k == reflect.Pointer {
 			ft = ft.Elem()
 			k = ft.Kind()
 		}
-		isValue := ft.Implements(flagReflectType) || reflect.PtrTo(ft).Implements(flagReflectType)
-		isTextM := ft.Implements(textMReflectType) || reflect.PtrTo(ft).Implements(textMReflectType)
+		isValue := ft.Implements(flagReflectType) || reflect.PointerTo(ft).Implements(flagReflectType)
+		isTextM := ft.Implements(textMReflectType) || reflect.PointerTo(ft).Implements(textMReflectType)
 
 		// get the concrete value of the field from the template
 		fieldVal := transform.GetField(sf, tmpl)
@@ -456,7 +456,7 @@ func (s *Set) Value(_ context.Context, t *dials.Type) (reflect.Value, error) {
 		}
 		cfval := fval.Convert(stripTypePtr(ffield.Type()))
 		switch ffield.Kind() {
-		case reflect.Ptr:
+		case reflect.Pointer:
 			// common case
 			ptrVal.Elem().Set(cfval)
 			ffield.Set(ptrVal)
@@ -473,7 +473,7 @@ func (s *Set) Value(_ context.Context, t *dials.Type) (reflect.Value, error) {
 
 func stripTypePtr(t reflect.Type) reflect.Type {
 	switch t.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return t.Elem()
 	default:
 		return t

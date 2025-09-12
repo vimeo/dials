@@ -671,7 +671,7 @@ func TestTransformer(t *testing.T) {
 						{
 							Name:      "Q",
 							PkgPath:   "",
-							Type:      reflect.PtrTo(strType),
+							Type:      reflect.PointerTo(strType),
 							Tag:       "bitterbattle",
 							Anonymous: false,
 						},
@@ -680,7 +680,7 @@ func TestTransformer(t *testing.T) {
 						{
 							Name:      "J",
 							PkgPath:   "",
-							Type:      reflect.PtrTo(reflect.TypeOf(struct{ L *string }{})),
+							Type:      reflect.PointerTo(reflect.TypeOf(struct{ L *string }{})),
 							Tag:       "bizzlebazzle",
 							Anonymous: false,
 						},
@@ -689,7 +689,7 @@ func TestTransformer(t *testing.T) {
 						{
 							Name:      "L",
 							PkgPath:   "",
-							Type:      reflect.PtrTo(strType),
+							Type:      reflect.PointerTo(strType),
 							Tag:       "'ellothere",
 							Anonymous: false,
 						},

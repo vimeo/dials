@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"reflect"
 	"testing"
 
@@ -19,7 +18,7 @@ import (
 type trivialJSONDecoder struct{}
 
 func (tjd *trivialJSONDecoder) Decode(r io.Reader, dt *dials.Type) (reflect.Value, error) {
-	jsonBytes, err := ioutil.ReadAll(r)
+	jsonBytes, err := io.ReadAll(r)
 	if err != nil {
 		return reflect.Value{}, fmt.Errorf("error reading JSON: %s", err)
 	}

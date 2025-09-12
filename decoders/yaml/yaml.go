@@ -3,7 +3,6 @@ package yaml
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"reflect"
 
 	"github.com/vimeo/dials"
@@ -26,7 +25,7 @@ type Decoder struct {
 // Decode reads from `r` and decodes what is read as YAML depositing the
 // relevant values into `t`.
 func (d *Decoder) Decode(r io.Reader, t *dials.Type) (reflect.Value, error) {
-	yamlBytes, err := ioutil.ReadAll(r)
+	yamlBytes, err := io.ReadAll(r)
 	if err != nil {
 		return reflect.Value{}, fmt.Errorf("error reading YAML: %s", err)
 	}

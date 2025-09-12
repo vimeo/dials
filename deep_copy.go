@@ -69,7 +69,7 @@ func (d *deepCopier) deepCopy(in, out reflect.Value) {
 	switch in.Kind() {
 	case reflect.Struct:
 		d.deepCopyStruct(in, out)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		d.deepCopyPtr(in, out)
 	case reflect.Interface:
 		d.deepCopyIface(in, out)
@@ -89,7 +89,7 @@ func (d *deepCopier) deepCopyIface(in, out reflect.Value) {
 	}
 	inElem := in.Elem()
 	switch inElem.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		newVal := reflect.New(inElem.Type().Elem())
 		out.Set(newVal)
 		d.deepCopy(inElem.Elem(), newVal.Elem())

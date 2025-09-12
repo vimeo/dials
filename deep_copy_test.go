@@ -352,7 +352,7 @@ func verifyDifferentPointers(t testing.TB, seenPtrs map[uintptr]struct{}, fname 
 	}
 
 	switch in.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if in.Pointer() == out.Pointer() {
 			t.Errorf("field %s pointer preserved", fname)
 		}
