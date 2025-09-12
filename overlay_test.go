@@ -16,9 +16,9 @@ func TestOverlay(t *testing.T) {
 
 	for name, inst := range map[string]struct {
 		// Note: base must be a pointer-type to make it mutable
-		base     interface{}
-		overlay  interface{}
-		expected interface{}
+		base     any
+		overlay  any
+		expected any
 	}{
 		"just_int_overlayed": {base: &sInt{J: 2},
 			overlay:  struct{ J *int }{J: &three},
@@ -29,9 +29,9 @@ func TestOverlay(t *testing.T) {
 		"bool_overlayed_nil_overlay": {base: &sBool{J: false},
 			overlay:  struct{ J *bool }{J: nil},
 			expected: sBool{J: false}},
-		"bool_overlayed_interface_bool_overlay": {base: &struct{ J interface{} }{J: false},
+		"bool_overlayed_interface_bool_overlay": {base: &struct{ J any }{J: false},
 			overlay:  struct{ J *bool }{J: nil},
-			expected: struct{ J interface{} }{J: false}},
+			expected: struct{ J any }{J: false}},
 		"bool_with_chan": {base: &struct {
 			J bool
 			C chan struct{}
@@ -147,42 +147,42 @@ func TestOverlay(t *testing.T) {
 				J: 3,
 			}, T: &now},
 		},
-		"empty_overlayed_interface_overlay": {base: &struct{ J interface{} }{J: false},
-			overlay:  struct{ J interface{} }{J: nil},
-			expected: struct{ J interface{} }{J: false}},
+		"empty_overlayed_interface_overlay": {base: &struct{ J any }{J: false},
+			overlay:  struct{ J any }{J: nil},
+			expected: struct{ J any }{J: false}},
 		"nested_with_iface_ptr_bool_base_int": {
-			base:     &struct{ K interface{} }{K: int(39)},
+			base:     &struct{ K any }{K: int(39)},
 			overlay:  struct{ K *struct{ J *bool } }{K: &struct{ J *bool }{J: &True}},
-			expected: struct{ K interface{} }{K: &struct{ J *bool }{J: &True}},
+			expected: struct{ K any }{K: &struct{ J *bool }{J: &True}},
 		},
 		"nested_with_iface_ptr_bool_base_nil": {
-			base:     &struct{ K interface{} }{K: nil},
+			base:     &struct{ K any }{K: nil},
 			overlay:  struct{ K *struct{ J *bool } }{K: &struct{ J *bool }{J: &True}},
-			expected: struct{ K interface{} }{K: &struct{ J *bool }{J: &True}},
+			expected: struct{ K any }{K: &struct{ J *bool }{J: &True}},
 		},
 		"nested_with_ifaces_ptr_bool_base_int": {
-			base:     &struct{ K interface{} }{K: int(39)},
-			overlay:  struct{ K interface{} }{K: &struct{ J *bool }{J: &True}},
-			expected: struct{ K interface{} }{K: &struct{ J *bool }{J: &True}},
+			base:     &struct{ K any }{K: int(39)},
+			overlay:  struct{ K any }{K: &struct{ J *bool }{J: &True}},
+			expected: struct{ K any }{K: &struct{ J *bool }{J: &True}},
 		},
 		"nested_with_iface_bool_base_int": {
-			base:     &struct{ K interface{} }{K: int(39)},
+			base:     &struct{ K any }{K: int(39)},
 			overlay:  struct{ K struct{ J bool } }{K: struct{ J bool }{J: true}},
-			expected: struct{ K interface{} }{K: struct{ J bool }{J: true}},
+			expected: struct{ K any }{K: struct{ J bool }{J: true}},
 		},
 		"nested_with_iface_bool_base_nil": {
-			base:     &struct{ K interface{} }{K: nil},
+			base:     &struct{ K any }{K: nil},
 			overlay:  struct{ K struct{ J bool } }{K: struct{ J bool }{J: true}},
-			expected: struct{ K interface{} }{K: struct{ J bool }{J: true}},
+			expected: struct{ K any }{K: struct{ J bool }{J: true}},
 		},
 		"nested_with_ifaces_bool_base_int": {
-			base:     &struct{ K interface{} }{K: int(39)},
-			overlay:  struct{ K interface{} }{K: sBool{J: true}},
-			expected: struct{ K interface{} }{K: sBool{J: true}},
+			base:     &struct{ K any }{K: int(39)},
+			overlay:  struct{ K any }{K: sBool{J: true}},
+			expected: struct{ K any }{K: sBool{J: true}},
 		},
 		"one_deep_with_iface_resolved_overlay_time": {
 			base: &struct {
-				I interface{}
+				I any
 				// time.Time implements TextUnmarshaler
 				T time.Time
 			}{I: sInt{
@@ -193,7 +193,7 @@ func TestOverlay(t *testing.T) {
 				T *time.Time
 			}{},
 			expected: struct {
-				I interface{}
+				I any
 				T time.Time
 			}{I: sInt{
 				J: 42,
@@ -201,18 +201,18 @@ func TestOverlay(t *testing.T) {
 		},
 		"one_deep_with_iface_overlay_time": {
 			base: &struct {
-				I interface{}
+				I any
 				// time.Time implements TextUnmarshaler
 				T time.Time
 			}{I: sInt{
 				J: 42,
 			}, T: now},
 			overlay: struct {
-				I interface{}
+				I any
 				T *time.Time
 			}{},
 			expected: struct {
-				I interface{}
+				I any
 				T time.Time
 			}{I: sInt{
 				J: 42,
@@ -221,19 +221,19 @@ func TestOverlay(t *testing.T) {
 		"one_deep_with_iface_overlay_time_alliface_nonnil": {
 			base: &struct {
 				I sInt
-				T interface{}
+				T any
 			}{I: sInt{
 				J: 42,
 			}},
 			overlay: struct {
 				I *struct{ J *int }
-				T interface{}
+				T any
 			}{I: &struct{ J *int }{
 				J: &three,
 			}, T: now},
 			expected: struct {
 				I sInt
-				T interface{}
+				T any
 			}{I: sInt{
 				J: 3,
 			}, T: now},
@@ -241,7 +241,7 @@ func TestOverlay(t *testing.T) {
 		"one_deep_with_iface_overlay_time_nonnil": {
 			base: &struct {
 				I sInt
-				T interface{}
+				T any
 			}{I: sInt{
 				J: 42,
 			}},
@@ -253,7 +253,7 @@ func TestOverlay(t *testing.T) {
 			}, T: &now},
 			expected: struct {
 				I sInt
-				T interface{}
+				T any
 			}{I: sInt{
 				J: 3,
 			}, T: &now},
@@ -261,7 +261,7 @@ func TestOverlay(t *testing.T) {
 		"one_deep_with_overlay_iface_pointer_time": {
 			base: &struct {
 				I sInt
-				T interface{}
+				T any
 			}{I: sInt{
 				J: 42,
 			}},
@@ -273,7 +273,7 @@ func TestOverlay(t *testing.T) {
 			}, T: &now},
 			expected: struct {
 				I sInt
-				T interface{}
+				T any
 			}{I: sInt{
 				J: 3,
 			}, T: &now},
@@ -281,19 +281,19 @@ func TestOverlay(t *testing.T) {
 		"overlay_pointer_time_iface_no_nil_ptr": {
 			base: &struct {
 				I sInt
-				T interface{}
+				T any
 			}{I: sInt{
 				J: 42,
 			}, T: &time.Time{}},
 			overlay: struct {
 				I *struct{ J *int }
-				T interface{}
+				T any
 			}{I: &struct{ J *int }{
 				J: &three,
 			}, T: &now},
 			expected: struct {
 				I sInt
-				T interface{}
+				T any
 			}{I: sInt{
 				J: 3,
 			}, T: &now},
@@ -310,14 +310,14 @@ func TestOverlay(t *testing.T) {
 			expected: struct{ K map[string]string }{K: map[string]string{"foo": "bar"}},
 		},
 		"map_iface_base_not_nil": {
-			base:     &struct{ K interface{} }{K: map[string]string{"foo": "baz"}},
+			base:     &struct{ K any }{K: map[string]string{"foo": "baz"}},
 			overlay:  struct{ K map[string]string }{K: map[string]string{"foo": "bar"}},
-			expected: struct{ K interface{} }{K: map[string]string{"foo": "bar"}},
+			expected: struct{ K any }{K: map[string]string{"foo": "bar"}},
 		},
 		"map_iface_base_nil": {
-			base:     &struct{ K interface{} }{K: nil},
+			base:     &struct{ K any }{K: nil},
 			overlay:  struct{ K map[string]string }{K: map[string]string{"foo": "bar"}},
-			expected: struct{ K interface{} }{K: map[string]string{"foo": "bar"}},
+			expected: struct{ K any }{K: map[string]string{"foo": "bar"}},
 		},
 		"slice_simple_base_nil": {
 			base:     &struct{ K []string }{K: nil},
@@ -331,14 +331,14 @@ func TestOverlay(t *testing.T) {
 			expected: struct{ K []string }{K: []string{"bar"}},
 		},
 		"slice_iface_base_not_nil": {
-			base:     &struct{ K interface{} }{K: []string{"baz"}},
+			base:     &struct{ K any }{K: []string{"baz"}},
 			overlay:  struct{ K []string }{K: []string{"bar"}},
-			expected: struct{ K interface{} }{K: []string{"bar"}},
+			expected: struct{ K any }{K: []string{"bar"}},
 		},
 		"slice_iface_base_nil": {
-			base:     &struct{ K interface{} }{K: nil},
+			base:     &struct{ K any }{K: nil},
 			overlay:  struct{ K []string }{K: []string{"bar"}},
-			expected: struct{ K interface{} }{K: []string{"bar"}},
+			expected: struct{ K any }{K: []string{"bar"}},
 		},
 		// We're not trying to merge arrays
 		"array_simple": {
@@ -347,34 +347,34 @@ func TestOverlay(t *testing.T) {
 			expected: struct{ K [1]string }{K: [...]string{"bar"}},
 		},
 		"array_iface_base_not_nil": {
-			base:     &struct{ K interface{} }{K: [...]string{"baz"}},
+			base:     &struct{ K any }{K: [...]string{"baz"}},
 			overlay:  struct{ K [1]string }{K: [...]string{"bar"}},
-			expected: struct{ K interface{} }{K: [...]string{"bar"}},
+			expected: struct{ K any }{K: [...]string{"bar"}},
 		},
 		"array_iface_base_nil": {
-			base:     &struct{ K interface{} }{K: nil},
+			base:     &struct{ K any }{K: nil},
 			overlay:  struct{ K [1]string }{K: [...]string{"bar"}},
-			expected: struct{ K interface{} }{K: [...]string{"bar"}},
+			expected: struct{ K any }{K: [...]string{"bar"}},
 		},
 		"array_iface_ptr_base_concrete_not_nil": {
-			base:     &struct{ K interface{} }{K: [...]string{"baz"}},
+			base:     &struct{ K any }{K: [...]string{"baz"}},
 			overlay:  struct{ K *[1]string }{K: &[...]string{"bar"}},
-			expected: struct{ K interface{} }{K: [...]string{"bar"}},
+			expected: struct{ K any }{K: [...]string{"bar"}},
 		},
 		"array_iface_ptr_base_not_nil": {
-			base:     &struct{ K interface{} }{K: &[...]string{"baz"}},
+			base:     &struct{ K any }{K: &[...]string{"baz"}},
 			overlay:  struct{ K *[1]string }{K: &[...]string{"bar"}},
-			expected: struct{ K interface{} }{K: &[...]string{"bar"}},
+			expected: struct{ K any }{K: &[...]string{"bar"}},
 		},
 		"array_iface_ptr_base_nil": {
-			base:     &struct{ K interface{} }{K: nil},
+			base:     &struct{ K any }{K: nil},
 			overlay:  struct{ K *[1]string }{K: &[...]string{"bar"}},
-			expected: struct{ K interface{} }{K: &[...]string{"bar"}},
+			expected: struct{ K any }{K: &[...]string{"bar"}},
 		},
 		"array_iface_ptr_base_nil_with_type": {
-			base:     &struct{ K interface{} }{K: (*[1]string)(nil)},
+			base:     &struct{ K any }{K: (*[1]string)(nil)},
 			overlay:  struct{ K *[1]string }{K: &[...]string{"bar"}},
-			expected: struct{ K interface{} }{K: &[...]string{"bar"}},
+			expected: struct{ K any }{K: &[...]string{"bar"}},
 		},
 	} {
 		entry := inst

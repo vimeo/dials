@@ -107,7 +107,7 @@ func isStructishTypedField(field reflect.StructField) bool {
 	switch field.Type.Kind() {
 	case reflect.Struct:
 		return true
-	case reflect.Ptr, reflect.Array, reflect.Slice:
+	case reflect.Pointer, reflect.Array, reflect.Slice:
 		if field.Type.Elem().Kind() == reflect.Struct {
 			return true
 		}
@@ -138,7 +138,7 @@ func (t *Transformer) maybeRecursivelyMangle(mangler Mangler, state *transformMa
 
 		// strip any outer pointerification, slice or array
 		switch ft.Kind() {
-		case reflect.Ptr, reflect.Array, reflect.Slice:
+		case reflect.Pointer, reflect.Array, reflect.Slice:
 			ft = ft.Elem()
 		}
 
@@ -155,8 +155,8 @@ func (t *Transformer) maybeRecursivelyMangle(mangler Mangler, state *transformMa
 		}
 		// Reinstate pointerification, etc.
 		switch field.Type.Kind() {
-		case reflect.Ptr:
-			mangledType = reflect.PtrTo(mangledType)
+		case reflect.Pointer:
+			mangledType = reflect.PointerTo(mangledType)
 		case reflect.Array:
 			mangledType = reflect.ArrayOf(field.Type.Len(), mangledType)
 		case reflect.Slice:
@@ -251,7 +251,7 @@ FIELDITER:
 		v := field.Value
 		origKind := v.Kind()
 		switch origKind {
-		case reflect.Ptr:
+		case reflect.Pointer:
 			if v.IsNil() {
 				// if it's nil, skip it, the unmangler isn't
 				// going to do anything useful on the field of
@@ -269,7 +269,7 @@ FIELDITER:
 					field.Field.Name, unmangleErr)}
 			}
 			mf[z].Value = unmangledVal
-			if origKind == reflect.Ptr {
+			if origKind == reflect.Pointer {
 				// if we fell-through, we need to fix the value
 				// to match the correct type
 				mf[z].Value = unmangledVal.Addr()

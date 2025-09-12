@@ -24,8 +24,8 @@ func TestSetSliceManglerMangle(t *testing.T) {
 func TestSetSliceManglerUnmangle(t *testing.T) {
 	cases := map[string]struct {
 		StructFieldType reflect.Type
-		SrcValue        interface{}
-		ExpectedMap     interface{}
+		SrcValue        any
+		ExpectedMap     any
 	}{
 		"stringSet": {
 			StructFieldType: reflect.TypeOf(map[string]struct{}{}),

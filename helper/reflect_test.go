@@ -13,19 +13,19 @@ func TestOnImplements(t *testing.T) {
 	textUnmarshalerType := reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
 
 	for testName, itbl := range map[string]struct {
-		seed          func() interface{}
+		seed          func() any
 		postAssert    func(t testing.TB, v reflect.Value, err error)
 		testTransform func(t testing.TB, input reflect.Value, v reflect.Value) (reflect.Value, error)
 	}{
 		"textUnmarshalerNonPointer": {
-			seed: func() interface{} { return net.ParseIP("10.1.1.1") },
+			seed: func() any { return net.ParseIP("10.1.1.1") },
 			testTransform: func(t testing.TB, input reflect.Value, v reflect.Value) (reflect.Value, error) {
 				inputIP, ok := input.Interface().(net.IP) // concrete net.IP
 				assert.True(t, ok)
 				assert.Equal(t, "10.1.1.1", inputIP.String())
 
 				newType := v.Type()
-				assert.Equal(t, reflect.PtrTo(reflect.TypeOf(net.IP{})), newType)
+				assert.Equal(t, reflect.PointerTo(reflect.TypeOf(net.IP{})), newType)
 
 				outputIP, ok := v.Interface().(*net.IP)
 				assert.True(t, ok)
@@ -41,7 +41,7 @@ func TestOnImplements(t *testing.T) {
 			},
 		},
 		"textUnmarshalerPointer": {
-			seed: func() interface{} {
+			seed: func() any {
 				ip := net.ParseIP("10.1.1.1")
 				return &ip
 			},
@@ -51,7 +51,7 @@ func TestOnImplements(t *testing.T) {
 				assert.Equal(t, "10.1.1.1", inputIP.String())
 
 				newType := v.Type()
-				assert.Equal(t, reflect.PtrTo(reflect.TypeOf(net.IP{})), newType)
+				assert.Equal(t, reflect.PointerTo(reflect.TypeOf(net.IP{})), newType)
 
 				outputIP, ok := v.Interface().(*net.IP)
 				assert.True(t, ok)
@@ -67,7 +67,7 @@ func TestOnImplements(t *testing.T) {
 			},
 		},
 		"nonTextUnmarshaler": {
-			seed: func() interface{} {
+			seed: func() any {
 				// something explicitly NOT implementing TextUnmarshaler
 				return net.UnixAddr{
 					Name: "foo",

@@ -36,7 +36,7 @@ func (w MarshalWrapper) Set(s string) error {
 }
 
 // Get implements flag.Value
-func (w MarshalWrapper) Get() interface{} {
+func (w MarshalWrapper) Get() any {
 	return w.v
 }
 

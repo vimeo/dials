@@ -40,7 +40,7 @@ func TestFill(t *testing.T) {
 }
 
 type fakeSource struct {
-	outVal interface{}
+	outVal any
 }
 
 func (f *fakeSource) Value(_ context.Context, t *Type) (reflect.Value, error) {
@@ -847,7 +847,7 @@ func TestConfigWithNewConfigCallbacksSaturate(t *testing.T) {
 		t.Error("unexpected call of config with zero-valued serial")
 	})(ctx), "unregister failed")
 
-	for z := 0; z < cfgCnt; z++ {
+	for z := range cfgCnt {
 		expFooVal := "fizzle" + strconv.Itoa(z)
 		fimConfig := ptrifiedConfig{
 			Foo: &expFooVal,
@@ -881,7 +881,7 @@ func TestConfigWithNewConfigCallbacksSaturate(t *testing.T) {
 		close(regUnregDone)
 	}()
 
-	for z := 0; z < cfgCnt; z++ {
+	for range cfgCnt {
 		c := <-newConf
 		expFooVal := "fizzle" + strconv.Itoa(int(c.Gen-1))
 		assert.Equal(t, expFooVal, c.Foo)

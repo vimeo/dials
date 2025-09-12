@@ -23,8 +23,8 @@ func TestDeepCopy(t *testing.T) {
 	}
 
 	for name, inst := range map[string]struct {
-		i     interface{}
-		check func(t testing.TB, in, out interface{})
+		i     any
+		check func(t testing.TB, in, out any)
 	}{
 		"just_int": {i: sInt{J: 3}},
 		"one_public_one_private_int": {i: struct {
@@ -82,15 +82,15 @@ func TestDeepCopy(t *testing.T) {
 		}{J: true, c: 0}},
 		"bool_with_interface_struct_ptr": {i: struct {
 			J bool
-			C interface{}
+			C any
 		}{J: true, C: &sInt{J: 3}}},
 		"bool_with_interface_int": {i: struct {
 			J bool
-			C interface{}
+			C any
 		}{J: true, C: 1}},
 		"bool_with_interface_map": {i: struct {
 			J bool
-			M interface{}
+			M any
 		}{J: true,
 			M: map[string]int{"foobarbaz": 123,
 				"baz": 2,
@@ -98,7 +98,7 @@ func TestDeepCopy(t *testing.T) {
 		}},
 		"bool_with_interface_slice": {i: struct {
 			J bool
-			S interface{}
+			S any
 		}{J: true,
 			S: []string{"foobarbaz",
 				"baz",
@@ -106,7 +106,7 @@ func TestDeepCopy(t *testing.T) {
 		}},
 		"bool_with_interface_array": {i: struct {
 			J bool
-			S interface{}
+			S any
 		}{J: true,
 			S: [...]string{"foobarbaz",
 				"baz",
@@ -114,38 +114,38 @@ func TestDeepCopy(t *testing.T) {
 		}},
 		"bool_with_interface_in_interface": {i: struct {
 			J bool
-			S interface{}
+			S any
 		}{J: true,
-			S: struct{ L interface{} }{L: &sInt{J: 42}},
+			S: struct{ L any }{L: &sInt{J: 42}},
 		}},
 		"bool_with_ptr_interface_in_interface": {i: struct {
 			J bool
-			S interface{}
+			S any
 		}{J: true,
-			S: &struct{ L interface{} }{L: &sInt{J: 42}},
+			S: &struct{ L any }{L: &sInt{J: 42}},
 		}},
 		"bool_with_interface_nested_slice": {i: struct {
 			J bool
-			S interface{}
+			S any
 		}{J: true,
 			S: []sInt{{1}, {2}, {3}, {4}, {5}},
 		}},
-		"nested_with_interface_ptr_bool": {i: struct{ K interface{} }{K: &sBool{J: true}}},
+		"nested_with_interface_ptr_bool": {i: struct{ K any }{K: &sBool{J: true}}},
 		"bool_with_interface_nested_array": {i: struct {
 			J bool
-			S interface{}
+			S any
 		}{J: true,
 			S: [...]sInt{{1}, {2}, {3}, {4}, {5}},
 		}},
 		"bool_with_interface_nested_ptr_array": {i: struct {
 			J bool
-			S interface{}
+			S any
 		}{J: true,
 			S: [...]*sInt{{1}, {2}, {3}, {4}, {5}},
 		}},
 		"bool_with_interface_nested_ptr_slice": {i: struct {
 			J bool
-			S interface{}
+			S any
 		}{J: true,
 			S: []*sInt{{1}, {2}, {3}, {4}, {5}},
 		}},
@@ -165,7 +165,7 @@ func TestDeepCopy(t *testing.T) {
 			b.Bs = &b.B
 			return b
 		}(),
-			check: func(t testing.TB, in, out interface{}) {
+			check: func(t testing.TB, in, out any) {
 				b := out.(*struct {
 					B  bool
 					Bs *bool
@@ -193,7 +193,7 @@ func TestDeepCopy(t *testing.T) {
 			}
 			return b
 		}(),
-			check: func(t testing.TB, in, out interface{}) {
+			check: func(t testing.TB, in, out any) {
 				b := out.(*struct {
 					B  *bool
 					Bs *bool
@@ -221,7 +221,7 @@ func TestDeepCopy(t *testing.T) {
 			}
 			return b
 		}(),
-			check: func(t testing.TB, in, out interface{}) {
+			check: func(t testing.TB, in, out any) {
 				b := out.(struct {
 					B  *bool
 					Bs *bool
@@ -232,7 +232,7 @@ func TestDeepCopy(t *testing.T) {
 				}
 			},
 		},
-		"struct_with_ptr_ref_cycle": {i: func() interface{} {
+		"struct_with_ptr_ref_cycle": {i: func() any {
 			b := &RefCycleJ{
 				B: true,
 			}
@@ -240,7 +240,7 @@ func TestDeepCopy(t *testing.T) {
 			b.J = b
 			return b
 		}(),
-			check: func(t testing.TB, in, out interface{}) {
+			check: func(t testing.TB, in, out any) {
 				b := out.(*RefCycleJ)
 				if &b.B != b.Bs {
 					t.Errorf("referential consistency violation: b.Bs: got %p; want: %p; at %p",
@@ -253,7 +253,7 @@ func TestDeepCopy(t *testing.T) {
 				}
 			},
 		},
-		"struct_with_ptr_ref_to_unexported_field": {i: func() interface{} {
+		"struct_with_ptr_ref_to_unexported_field": {i: func() any {
 			b := &struct {
 				r RefCycleJ
 				R *RefCycleJ
@@ -269,7 +269,7 @@ func TestDeepCopy(t *testing.T) {
 			b.R = &b.r
 			return b
 		}(),
-			check: func(t testing.TB, in, out interface{}) {
+			check: func(t testing.TB, in, out any) {
 				i := in.(*struct {
 					r RefCycleJ
 					R *RefCycleJ
@@ -291,7 +291,7 @@ func TestDeepCopy(t *testing.T) {
 				}
 			},
 		},
-		"struct_with_map_ref_cycle": {i: func() interface{} {
+		"struct_with_map_ref_cycle": {i: func() any {
 			b := &RefCycleMapJ{
 				B: true,
 			}
@@ -300,7 +300,7 @@ func TestDeepCopy(t *testing.T) {
 			b.Js = b.J
 			return b
 		}(),
-			check: func(t testing.TB, in, out interface{}) {
+			check: func(t testing.TB, in, out any) {
 				b := out.(*RefCycleMapJ)
 				if &b.B != b.Bs {
 					t.Errorf("referential consistency violation: b.Bs: got %p; want: %p; at %p",
@@ -352,7 +352,7 @@ func verifyDifferentPointers(t testing.TB, seenPtrs map[uintptr]struct{}, fname 
 	}
 
 	switch in.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if in.Pointer() == out.Pointer() {
 			t.Errorf("field %s pointer preserved", fname)
 		}

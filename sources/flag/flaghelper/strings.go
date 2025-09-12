@@ -2,6 +2,7 @@ package flaghelper
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 	"sort"
 	"strconv"
@@ -38,7 +39,7 @@ func (v *StringSliceFlag) Set(s string) error {
 }
 
 // Get implements flag.Value
-func (v *StringSliceFlag) Get() interface{} {
+func (v *StringSliceFlag) Get() any {
 	if v.s == nil {
 		return []string{}
 	}
@@ -89,7 +90,7 @@ func (v *StringSetFlag) Set(s string) error {
 }
 
 // Get implements flag.Value
-func (v *StringSetFlag) Get() interface{} {
+func (v *StringSetFlag) Get() any {
 	if v.s == nil {
 		return []string{}
 	}
@@ -153,7 +154,7 @@ func (v *MapStringStringSliceFlag) Set(s string) error {
 }
 
 // Get implements flag.Value
-func (v *MapStringStringSliceFlag) Get() interface{} {
+func (v *MapStringStringSliceFlag) Get() any {
 	return *v.s
 }
 
@@ -215,14 +216,12 @@ func (v *MapStringStringFlag) Set(s string) error {
 		v.defaulted = false
 		return nil
 	}
-	for k, val := range castParsed {
-		(*v.s)[k] = val
-	}
+	maps.Copy((*v.s), castParsed)
 	return nil
 }
 
 // Get implements flag.Value
-func (v *MapStringStringFlag) Get() interface{} {
+func (v *MapStringStringFlag) Get() any {
 	return *v.s
 }
 

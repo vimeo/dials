@@ -40,7 +40,7 @@ func (v *UnsignedIntegralSliceFlag[I]) Set(s string) error {
 }
 
 // Get implements flag.Value
-func (v *UnsignedIntegralSliceFlag[I]) Get() interface{} {
+func (v *UnsignedIntegralSliceFlag[I]) Get() any {
 	if v.s == nil {
 		return []string{}
 	}

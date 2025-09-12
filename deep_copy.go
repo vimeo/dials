@@ -7,7 +7,7 @@ import (
 )
 
 // takes a concrete value for in and returns a concrete deep copy Value
-func realDeepCopy(in interface{}) reflect.Value {
+func realDeepCopy(in any) reflect.Value {
 	v := reflect.ValueOf(in)
 	return deepCopyValue(v)
 }
@@ -69,7 +69,7 @@ func (d *deepCopier) deepCopy(in, out reflect.Value) {
 	switch in.Kind() {
 	case reflect.Struct:
 		d.deepCopyStruct(in, out)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		d.deepCopyPtr(in, out)
 	case reflect.Interface:
 		d.deepCopyIface(in, out)
@@ -89,7 +89,7 @@ func (d *deepCopier) deepCopyIface(in, out reflect.Value) {
 	}
 	inElem := in.Elem()
 	switch inElem.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		newVal := reflect.New(inElem.Type().Elem())
 		out.Set(newVal)
 		d.deepCopy(inElem.Elem(), newVal.Elem())

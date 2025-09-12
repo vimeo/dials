@@ -396,8 +396,8 @@ func (ws *WatchingSource) updateDirWatches(oldResolvedCfgDir, resolvedCfgDir str
 // stdlib `log.Logger`, and `github.com/rs/zerolog.Logger`, and should be trivial
 // enough to wrap in other cases.
 type StdLogger interface {
-	Printf(string, ...interface{})
-	Print(...interface{})
+	Printf(string, ...any)
+	Print(...any)
 }
 
 // logWrapper wraps a StdLogger implementation, and gracefully degrades to a
@@ -406,14 +406,14 @@ type logWrapper struct {
 	log StdLogger
 }
 
-func (l *logWrapper) Printf(format string, others ...interface{}) {
+func (l *logWrapper) Printf(format string, others ...any) {
 	if l.log == nil {
 		return
 	}
 	l.log.Printf(format, others...)
 }
 
-func (l *logWrapper) Print(args ...interface{}) {
+func (l *logWrapper) Print(args ...any) {
 	if l.log == nil {
 		return
 	}

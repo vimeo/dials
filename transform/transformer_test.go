@@ -12,7 +12,7 @@ import (
 type fakeMangler struct {
 	fieldNameMods map[string][]reflect.StructField
 	recurseField  map[string]bool
-	origFieldVals map[string]interface{}
+	origFieldVals map[string]any
 	// A couple maps to let tests return errors for certain fields.
 	unmangleErrs map[string]error
 	mangleErrs   map[string]error
@@ -53,7 +53,7 @@ func (f *fakeMangler) ShouldRecurse(field reflect.StructField) bool {
 
 type nameVal struct {
 	name string
-	val  interface{}
+	val  any
 }
 
 func strPtr(in string) *string {
@@ -65,8 +65,8 @@ func TestTransformer(t *testing.T) {
 	strType := reflect.TypeOf(string(""))
 	for _, itbl := range []struct {
 		name                        string
-		inStruct                    interface{}
-		unmangleVal                 interface{}
+		inStruct                    any
+		unmangleVal                 any
 		fm                          fakeMangler
 		expectedMangledFieldNames   []string
 		expectedUnmangledNameValues []nameVal
@@ -91,7 +91,7 @@ func TestTransformer(t *testing.T) {
 				},
 				// Don't recurse any fields
 				recurseField: map[string]bool{},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					// return a bool rather than an int
 					"I": bool(true),
 				},
@@ -123,7 +123,7 @@ func TestTransformer(t *testing.T) {
 				},
 				// Don't recurse any fields
 				recurseField: map[string]bool{},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					// return a bool rather than an int
 					"I": bool(true),
 				},
@@ -150,7 +150,7 @@ func TestTransformer(t *testing.T) {
 				},
 				// Don't recurse any fields
 				recurseField: map[string]bool{},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					"I": int(538),
 				},
 				unmangleErrs: map[string]error{"I": errors.New("fimbaz")},
@@ -176,7 +176,7 @@ func TestTransformer(t *testing.T) {
 				},
 				// Don't recurse any fields
 				recurseField: map[string]bool{},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					"I": 34,
 				},
 			},
@@ -196,7 +196,7 @@ func TestTransformer(t *testing.T) {
 				},
 				// Don't recurse any fields
 				recurseField: map[string]bool{},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					"I": 34,
 				},
 			},
@@ -220,7 +220,7 @@ func TestTransformer(t *testing.T) {
 				},
 				// Don't recurse any fields
 				recurseField: map[string]bool{},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					"I": 34,
 				},
 			},
@@ -255,7 +255,7 @@ func TestTransformer(t *testing.T) {
 				},
 				// Don't recurse any fields
 				recurseField: map[string]bool{},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					"I": 34,
 				},
 			},
@@ -295,7 +295,7 @@ func TestTransformer(t *testing.T) {
 				},
 				// Don't recurse any fields
 				recurseField: map[string]bool{"J": false},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					"I": 34,
 					"J": struct{ I int }{I: 255},
 				},
@@ -327,7 +327,7 @@ func TestTransformer(t *testing.T) {
 				},
 				// recurse into "I"
 				recurseField: map[string]bool{"I": true},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					"I": []int{34},
 				},
 			},
@@ -355,7 +355,7 @@ func TestTransformer(t *testing.T) {
 				},
 				// recurse into "I"
 				recurseField: map[string]bool{"I": true},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					"I": []int{34},
 				},
 			},
@@ -395,7 +395,7 @@ func TestTransformer(t *testing.T) {
 				},
 				// Don't recurse any fields
 				recurseField: map[string]bool{"J": true},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					"I": 34,
 					"J": struct{ I int }{I: 255},
 				},
@@ -460,7 +460,7 @@ func TestTransformer(t *testing.T) {
 				recurseField: map[string]bool{
 					"J": true,
 				},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					"I": 34,
 					"J": struct{ L int }{
 						L: 255,
@@ -545,7 +545,7 @@ func TestTransformer(t *testing.T) {
 				recurseField: map[string]bool{
 					"J": true,
 				},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					"I": 34,
 					"J": []struct{ L int }{
 						{L: 255},
@@ -622,7 +622,7 @@ func TestTransformer(t *testing.T) {
 				recurseField: map[string]bool{
 					"J": true,
 				},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					"I": 34,
 					"J": [1]struct{ L int }{
 						{L: 255},
@@ -671,7 +671,7 @@ func TestTransformer(t *testing.T) {
 						{
 							Name:      "Q",
 							PkgPath:   "",
-							Type:      reflect.PtrTo(strType),
+							Type:      reflect.PointerTo(strType),
 							Tag:       "bitterbattle",
 							Anonymous: false,
 						},
@@ -680,7 +680,7 @@ func TestTransformer(t *testing.T) {
 						{
 							Name:      "J",
 							PkgPath:   "",
-							Type:      reflect.PtrTo(reflect.TypeOf(struct{ L *string }{})),
+							Type:      reflect.PointerTo(reflect.TypeOf(struct{ L *string }{})),
 							Tag:       "bizzlebazzle",
 							Anonymous: false,
 						},
@@ -689,7 +689,7 @@ func TestTransformer(t *testing.T) {
 						{
 							Name:      "L",
 							PkgPath:   "",
-							Type:      reflect.PtrTo(strType),
+							Type:      reflect.PointerTo(strType),
 							Tag:       "'ellothere",
 							Anonymous: false,
 						},
@@ -698,7 +698,7 @@ func TestTransformer(t *testing.T) {
 				recurseField: map[string]bool{
 					"J": true,
 				},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					"I": strPtr("zilch"),
 					"J": &struct{ L *string }{
 						L: strPtr("fizzlebizzle"),
@@ -777,7 +777,7 @@ func TestTransformer(t *testing.T) {
 				recurseField: map[string]bool{
 					"J": true,
 				},
-				origFieldVals: map[string]interface{}{
+				origFieldVals: map[string]any{
 					"I": 34,
 					"J": struct{ L int }{
 						L: 255,
