@@ -3,7 +3,6 @@ package toml
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"reflect"
 
 	"github.com/vimeo/dials"
@@ -24,7 +23,7 @@ type Decoder struct {
 // Decode will read from `r` and parse it as TOML depositing the relevant values
 // in `t`.
 func (d *Decoder) Decode(r io.Reader, t *dials.Type) (reflect.Value, error) {
-	tomlBytes, err := ioutil.ReadAll(r)
+	tomlBytes, err := io.ReadAll(r)
 	if err != nil {
 		return reflect.Value{}, fmt.Errorf("error reading TOML: %s", err)
 	}

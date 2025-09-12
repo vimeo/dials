@@ -28,7 +28,7 @@ func (v *Complex128Var) Set(s string) error {
 }
 
 // Get implements flag.Value
-func (v *Complex128Var) Get() interface{} {
+func (v *Complex128Var) Get() any {
 	return v.c
 }
 
@@ -67,7 +67,7 @@ func (v *Complex64Var) Set(s string) error {
 }
 
 // Get implements flag.Value
-func (v *Complex64Var) Get() interface{} {
+func (v *Complex64Var) Get() any {
 	return v.c
 }
 

@@ -94,7 +94,7 @@ func DefaultFlagNameConfig() *NameConfig {
 	}
 }
 
-func ptrified(template interface{}) (reflect.Value, reflect.Type, error) {
+func ptrified(template any) (reflect.Value, reflect.Type, error) {
 	val := reflect.ValueOf(template)
 	if val.Kind() != reflect.Ptr {
 		return reflect.Value{}, nil, fmt.Errorf("non-pointer-type passed: %s", val.Type())
@@ -114,7 +114,7 @@ func ptrified(template interface{}) (reflect.Value, reflect.Type, error) {
 // configuration can play nicely with libraries that register flags with the
 // pflag library. (or libraries using dials can register flags and let the
 // actual process's Main() call Parse())
-func NewCmdLineSet(cfg *NameConfig, template interface{}) (*Set, error) {
+func NewCmdLineSet(cfg *NameConfig, template any) (*Set, error) {
 	fs := pflag.CommandLine
 	parseFunc := func() error { pflag.Parse(); return nil }
 
@@ -122,7 +122,7 @@ func NewCmdLineSet(cfg *NameConfig, template interface{}) (*Set, error) {
 }
 
 // NewSetWithArgs creates a new pflag FlagSet and registers flags in it
-func NewSetWithArgs(cfg *NameConfig, template interface{}, args []string) (*Set, error) {
+func NewSetWithArgs(cfg *NameConfig, template any, args []string) (*Set, error) {
 
 	fs := pflag.NewFlagSet("", pflag.ContinueOnError)
 	parseFunc := func() error { return fs.Parse(args) }
@@ -131,13 +131,13 @@ func NewSetWithArgs(cfg *NameConfig, template interface{}, args []string) (*Set,
 }
 
 // NewSetWithFlagSet uses the passed in pflag FlagSet and registers flags
-func NewSetWithFlagSet(cfg *NameConfig, template interface{}, flagset *pflag.FlagSet) (*Set, error) {
+func NewSetWithFlagSet(cfg *NameConfig, template any, flagset *pflag.FlagSet) (*Set, error) {
 	return newSet(cfg, template, flagset, nil)
 }
 
 // NewDefaultSetWithFlagSet uses the passedin pflag FlagSet and registers flags
 // with the DefaultFlagNameConfig
-func NewDefaultSetWithFlagSet(template interface{}, flagset *pflag.FlagSet) (*Set, error) {
+func NewDefaultSetWithFlagSet(template any, flagset *pflag.FlagSet) (*Set, error) {
 	return newSet(DefaultFlagNameConfig(), template, flagset, nil)
 }
 
@@ -154,7 +154,7 @@ func Must(s *Set, err error) *Set {
 }
 
 // newSet is a helper function to initialize Set and register flags
-func newSet(cfg *NameConfig, template interface{}, fs *pflag.FlagSet, parseFunc func() error) (*Set, error) {
+func newSet(cfg *NameConfig, template any, fs *pflag.FlagSet, parseFunc func() error) (*Set, error) {
 	pval, ptyp, ptrifyErr := ptrified(template)
 	if ptrifyErr != nil {
 		return nil, ptrifyErr
@@ -264,7 +264,7 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 		// get the concrete value of the field from the template
 		fieldVal := transform.GetField(sf, tmpl)
 		shorthand, _ := sf.Tag.Lookup(common.DialsPFlagShortTag)
-		var f interface{}
+		var f any
 
 		switch {
 		case isValue:

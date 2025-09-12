@@ -689,7 +689,7 @@ func (d *Dials[T]) monitor(
 	}
 }
 
-func compose(t interface{}, sources []sourceValue) (interface{}, error) {
+func compose(t any, sources []sourceValue) (any, error) {
 	copyValuePtr := realDeepCopy(t)
 	value := copyValuePtr.Elem()
 	for _, source := range sources {

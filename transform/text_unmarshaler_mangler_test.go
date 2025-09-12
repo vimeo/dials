@@ -23,27 +23,27 @@ func TestTextUnmarshalerManglerUnmangle(t *testing.T) {
 	cases := map[string]struct {
 		StructFieldType reflect.Type
 		StringValue     string
-		AssertFunc      func(testing.TB, interface{})
+		AssertFunc      func(testing.TB, any)
 		ExpectedErr     string
 	}{
 		"TextUnmarshaler": {
 			StructFieldType: reflect.TypeOf(net.IP{}),
 			StringValue:     "10.0.0.1",
-			AssertFunc: func(t testing.TB, i interface{}) {
+			AssertFunc: func(t testing.TB, i any) {
 				assert.Equal(t, net.ParseIP("10.0.0.1"), i)
 			},
 		},
 		"*TextUnmarshaler": {
 			StructFieldType: reflect.TypeOf(&net.IP{}),
 			StringValue:     "10.0.0.2",
-			AssertFunc: func(t testing.TB, i interface{}) {
+			AssertFunc: func(t testing.TB, i any) {
 				assert.Equal(t, net.ParseIP("10.0.0.2"), *(i.(*net.IP)))
 			},
 		},
 		"TextUnmarshalerNil": {
 			StructFieldType: reflect.TypeOf(net.IP{}),
 			StringValue:     "",
-			AssertFunc: func(t testing.TB, i interface{}) {
+			AssertFunc: func(t testing.TB, i any) {
 				var ip net.IP
 				assert.Equal(t, ip, i)
 			},
@@ -51,17 +51,17 @@ func TestTextUnmarshalerManglerUnmangle(t *testing.T) {
 		"CustomStructType": {
 			StructFieldType: reflect.TypeOf(simpleTextUnmarshaler{}),
 			StringValue:     "foo",
-			AssertFunc: func(t testing.TB, i interface{}) {
+			AssertFunc: func(t testing.TB, i any) {
 				stm, ok := i.(*simpleTextUnmarshaler)
 				require.True(t, ok)
 				assert.Equal(t, "foo", stm.Val)
 			},
 		},
 		"NotTextUnmarshaler": {
-			StructFieldType: reflect.TypeOf(map[string]interface{}{}),
+			StructFieldType: reflect.TypeOf(map[string]any{}),
 			StringValue:     "",
-			AssertFunc: func(t testing.TB, i interface{}) {
-				var m map[string]interface{}
+			AssertFunc: func(t testing.TB, i any) {
+				var m map[string]any
 				assert.Equal(t, m, i)
 			},
 		},

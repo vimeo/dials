@@ -40,7 +40,7 @@ func (v *SignedIntegralSliceFlag[I]) Set(s string) error {
 }
 
 // Get implements flag.Value
-func (v *SignedIntegralSliceFlag[I]) Get() interface{} {
+func (v *SignedIntegralSliceFlag[I]) Get() any {
 	if v.s == nil {
 		return []string{}
 	}

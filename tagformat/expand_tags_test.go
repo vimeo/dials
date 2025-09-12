@@ -35,7 +35,7 @@ func TestTagCopyingMangler(t *testing.T) {
 
 	testcases := []struct {
 		name       string
-		testStruct interface{}
+		testStruct any
 		tag        string
 		assertion  func(t testing.TB, val reflect.Value, tagName string)
 	}{

@@ -28,125 +28,125 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 	cases := map[string]struct {
 		StructFieldType reflect.Type
 		StringValue     string
-		AssertFunc      func(interface{})
+		AssertFunc      func(any)
 		ExpectedErr     string
 	}{
 		"string": {
 			StructFieldType: reflect.TypeOf(""),
 			StringValue:     "asdf",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, "asdf", *(i.(*string)))
 			},
 		},
 		"bool": {
 			StructFieldType: reflect.TypeOf(false),
 			StringValue:     "true",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, true, *(i.(*bool)))
 			},
 		},
 		"int": {
 			StructFieldType: reflect.TypeOf(0),
 			StringValue:     "1",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, 1, *(i.(*int)))
 			},
 		},
 		"int8": {
 			StructFieldType: reflect.TypeOf(int8(0)),
 			StringValue:     "1",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, int8(1), *(i.(*int8)))
 			},
 		},
 		"int16": {
 			StructFieldType: reflect.TypeOf(int16(0)),
 			StringValue:     "1",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, int16(1), *(i.(*int16)))
 			},
 		},
 		"int32": {
 			StructFieldType: reflect.TypeOf(int32(0)),
 			StringValue:     "1",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, int32(1), *(i.(*int32)))
 			},
 		},
 		"int64": {
 			StructFieldType: reflect.TypeOf(int64(0)),
 			StringValue:     "1",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, int64(1), *(i.(*int64)))
 			},
 		},
 		"uint": {
 			StructFieldType: reflect.TypeOf(uint(0)),
 			StringValue:     "1",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, uint(1), *(i.(*uint)))
 			},
 		},
 		"uint8": {
 			StructFieldType: reflect.TypeOf(uint8(0)),
 			StringValue:     "1",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, uint8(1), *(i.(*uint8)))
 			},
 		},
 		"uint16": {
 			StructFieldType: reflect.TypeOf(uint16(0)),
 			StringValue:     "1",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, uint16(1), *(i.(*uint16)))
 			},
 		},
 		"uint32": {
 			StructFieldType: reflect.TypeOf(uint32(0)),
 			StringValue:     "1",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, uint32(1), *(i.(*uint32)))
 			},
 		},
 		"uint64": {
 			StructFieldType: reflect.TypeOf(uint64(0)),
 			StringValue:     "1",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, uint64(1), *(i.(*uint64)))
 			},
 		},
 		"float32": {
 			StructFieldType: reflect.TypeOf(float32(1.0)),
 			StringValue:     "1.5",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, float32(1.5), *(i.(*float32)))
 			},
 		},
 		"float64": {
 			StructFieldType: reflect.TypeOf(1.0),
 			StringValue:     "1.9",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, 1.9, *(i.(*float64)))
 			},
 		},
 		"complex64": {
 			StructFieldType: reflect.TypeOf(complex64(10 + 3i)),
 			StringValue:     "10+3i",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, complex64(10+3i), *(i.(*complex64)))
 			},
 		},
 		"complex128": {
 			StructFieldType: reflect.TypeOf(complex128(10 + 3i)),
 			StringValue:     "10+3i",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, complex128(10+3i), *(i.(*complex128)))
 			},
 		},
 		"duration": {
 			StructFieldType: reflect.TypeOf(time.Duration(0)),
 			StringValue:     "1h",
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				assert.Equal(t, time.Duration(3600000000000), *(i.(*time.Duration)))
 			},
 		},
@@ -158,7 +158,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"string_slice": {
 			StructFieldType: reflect.TypeOf([]string{}),
 			StringValue:     `a,b,c`,
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				expected := []string{"a", "b", "c"}
 				actual := i.([]string)
 				assert.True(t, reflect.DeepEqual(expected, actual))
@@ -167,7 +167,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"int_slice": {
 			StructFieldType: reflect.TypeOf([]int{}),
 			StringValue:     `1,2,3`,
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				expected := []int{1, 2, 3}
 				actual := i.([]int)
 				assert.True(t, reflect.DeepEqual(expected, actual))
@@ -176,7 +176,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"int8_slice": {
 			StructFieldType: reflect.TypeOf([]int8{}),
 			StringValue:     `1,2,3`,
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				expected := []int8{1, 2, 3}
 				actual := i.([]int8)
 				assert.True(t, reflect.DeepEqual(expected, actual))
@@ -185,7 +185,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"float64_slice": {
 			StructFieldType: reflect.TypeOf([]float64{}),
 			StringValue:     `1.1, 2.1, 3.1`,
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				expected := []float64{1.1, 2.1, 3.1}
 				actual := i.([]float64)
 				assert.True(t, reflect.DeepEqual(expected, actual))
@@ -194,7 +194,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"complex128_slice": {
 			StructFieldType: reflect.TypeOf([]complex128{}),
 			StringValue:     `"10+3i", "5+2i", "3+3i"`,
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				expected := []complex128{10 + 3i, 5 + 2i, 3 + 3i}
 				actual := i.([]complex128)
 				assert.True(t, reflect.DeepEqual(expected, actual))
@@ -203,7 +203,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"string_string_map": {
 			StructFieldType: reflect.TypeOf(map[string]string{}),
 			StringValue:     `"Origin": "foobar", "Referer": "fimbat"`,
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				expected := map[string]string{
 					"Origin":  "foobar",
 					"Referer": "fimbat",
@@ -215,7 +215,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"string_string_slice_map": {
 			StructFieldType: reflect.TypeOf(map[string][]string{}),
 			StringValue:     `"Origin": "foobar", "Origin": "foobat", "Referer": "fimbat"`,
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				expected := map[string][]string{
 					"Origin":  {"foobar", "foobat"},
 					"Referer": {"fimbat"},
@@ -227,7 +227,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"int_int_map": {
 			StructFieldType: reflect.TypeOf(map[int]int{}),
 			StringValue:     `1: 1, 2: 3, 10: 8`,
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				expected := map[int]int{
 					1:  1,
 					2:  3,
@@ -240,7 +240,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"int_str_map": {
 			StructFieldType: reflect.TypeOf(map[int]string{}),
 			StringValue:     `1: "a", 2: "b", 10: "c"`,
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				expected := map[int]string{
 					1:  "a",
 					2:  "b",
@@ -253,7 +253,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"str_int_map": {
 			StructFieldType: reflect.TypeOf(map[string]int{}),
 			StringValue:     `"a": 1, "b": 2, "c": 10`,
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				expected := map[string]int{
 					"a": 1,
 					"b": 2,
@@ -267,7 +267,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"str_bool_map": {
 			StructFieldType: reflect.TypeOf(map[string]bool{}),
 			StringValue:     `"a": true, "b": false, "c": true`,
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				expected := map[string]bool{
 					"a": true,
 					"b": false,
@@ -280,7 +280,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"str_complex_map": {
 			StructFieldType: reflect.TypeOf(map[string]complex128{}),
 			StringValue:     `"asdf": "3+5i", "b": "3+5i", "c": "3+5i"`,
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				expected := map[string]complex128{
 					"asdf": complex128(3 + 5i),
 					"b":    complex128(3 + 5i),
@@ -293,7 +293,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"complex_bool_map": {
 			StructFieldType: reflect.TypeOf(map[complex64]bool{}),
 			StringValue:     `"3+5i": true, "10+5i": false, "1+2i": true`,
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				expected := map[complex64]bool{
 					complex64(3 + 5i):  true,
 					complex64(10 + 5i): false,
@@ -311,7 +311,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		"string_set": {
 			StructFieldType: reflect.TypeOf(map[string]struct{}{}),
 			StringValue:     `"a", "b"`,
-			AssertFunc: func(i interface{}) {
+			AssertFunc: func(i any) {
 				expected := map[string]struct{}{
 					"a": {},
 					"b": {},

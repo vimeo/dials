@@ -7,7 +7,7 @@ import (
 )
 
 // takes a concrete value for in and returns a concrete deep copy Value
-func realDeepCopy(in interface{}) reflect.Value {
+func realDeepCopy(in any) reflect.Value {
 	v := reflect.ValueOf(in)
 	return deepCopyValue(v)
 }

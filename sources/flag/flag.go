@@ -86,7 +86,7 @@ func DefaultFlagNameConfig() *NameConfig {
 	}
 }
 
-func ptrified(template interface{}) (reflect.Value, reflect.Type, error) {
+func ptrified(template any) (reflect.Value, reflect.Type, error) {
 	val := reflect.ValueOf(template)
 	if val.Kind() != reflect.Ptr {
 		return reflect.Value{}, nil, fmt.Errorf("non-pointer-type passed: %s", val.Type())
@@ -106,7 +106,7 @@ func ptrified(template interface{}) (reflect.Value, reflect.Type, error) {
 // configuration can play nicely with libraries that register flags with the
 // standard library. (or libraries using dials can register flags and let the
 // actual process's Main() call Parse())
-func NewCmdLineSet(cfg *NameConfig, template interface{}) (*Set, error) {
+func NewCmdLineSet(cfg *NameConfig, template any) (*Set, error) {
 	pval, ptyp, ptrifyErr := ptrified(template)
 	if ptrifyErr != nil {
 		return nil, ptrifyErr
@@ -129,7 +129,7 @@ func NewCmdLineSet(cfg *NameConfig, template interface{}) (*Set, error) {
 }
 
 // NewSetWithArgs creates a new FlagSet and registers flags in it
-func NewSetWithArgs(cfg *NameConfig, template interface{}, args []string) (*Set, error) {
+func NewSetWithArgs(cfg *NameConfig, template any, args []string) (*Set, error) {
 	pval, ptyp, ptrifyErr := ptrified(template)
 	if ptrifyErr != nil {
 		return nil, ptrifyErr

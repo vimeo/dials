@@ -13,8 +13,8 @@ func TestPointerify(t *testing.T) {
 	type sIntPtr struct{ J *int }
 
 	for name, inst := range map[string]struct {
-		i        interface{}
-		expected interface{}
+		i        any
+		expected any
 	}{
 		"shallow": {
 			i:        sInt{},
@@ -36,47 +36,47 @@ func TestPointerify(t *testing.T) {
 			expected: struct{ I *struct{ J *int } }{},
 		},
 		"one_deep_interface_empty": {
-			i:        struct{ I interface{} }{},
-			expected: struct{ I interface{} }{},
+			i:        struct{ I any }{},
+			expected: struct{ I any }{},
 		},
 		"one_deep_interface": {
-			i:        struct{ I interface{} }{I: sInt{}},
+			i:        struct{ I any }{I: sInt{}},
 			expected: struct{ I *struct{ J *int } }{},
 		},
 		"one_deep_interface_non_nil_val": {
-			i:        struct{ I interface{} }{I: &sInt{}},
+			i:        struct{ I any }{I: &sInt{}},
 			expected: struct{ I *struct{ J *int } }{},
 		},
 		"one_deep_interface_nil_val": {
-			i:        struct{ I interface{} }{I: (*sInt)(nil)},
+			i:        struct{ I any }{I: (*sInt)(nil)},
 			expected: struct{ I *struct{ J *int } }{},
 		},
 		"one_deep_interface_map": {
-			i: struct{ I interface{} }{I: map[string]string{}},
+			i: struct{ I any }{I: map[string]string{}},
 			expected: struct {
 				I map[string]string
 			}{},
 		},
 		"one_deep_interface_nil_map": {
-			i: struct{ I interface{} }{I: map[string]string(nil)},
+			i: struct{ I any }{I: map[string]string(nil)},
 			expected: struct {
 				I map[string]string
 			}{},
 		},
 		"one_deep_interface_slice": {
-			i: struct{ I interface{} }{I: []string{}},
+			i: struct{ I any }{I: []string{}},
 			expected: struct {
 				I []string
 			}{},
 		},
 		"one_deep_interface_nil_slice": {
-			i: struct{ I interface{} }{I: []string(nil)},
+			i: struct{ I any }{I: []string(nil)},
 			expected: struct {
 				I []string
 			}{},
 		},
 		"one_deep_interface_short_array": {
-			i: struct{ I interface{} }{I: [...]string{"foobar", "baz"}},
+			i: struct{ I any }{I: [...]string{"foobar", "baz"}},
 			expected: struct {
 				I *[2]string
 			}{},

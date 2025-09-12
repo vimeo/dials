@@ -22,12 +22,12 @@ type testStdLogger struct {
 	t testing.TB
 }
 
-func (t *testStdLogger) Printf(format string, others ...interface{}) {
+func (t *testStdLogger) Printf(format string, others ...any) {
 	t.t.Helper()
 	t.t.Logf(format, others...)
 }
 
-func (t *testStdLogger) Print(args ...interface{}) {
+func (t *testStdLogger) Print(args ...any) {
 	t.t.Helper()
 	t.t.Log(args...)
 }
@@ -368,10 +368,10 @@ func TestWatchingFileWithK8SEmulatedAtomicWriter(t *testing.T) {
 			nextTSDir, fullSubdirTmpPath)
 
 		secondRealContentsPath := filepath.Join(nextRealContentsDir, fname)
-		require.NoError(t, ioutil.WriteFile(secondRealContentsPath, []byte(fmt.Sprintf(`{
+		require.NoError(t, ioutil.WriteFile(secondRealContentsPath, fmt.Appendf(nil, `{
         "secretOfLife": %d,
         "numBeatles": 4
-    }`, 9+i)), 0400),
+    }`, 9+i), 0400),
 			"failed to write new config")
 
 		require.NoErrorf(t, os.Rename(fullSubdirTmpPath, symlinkPath), "failed to rename from %q to %q", fullSubdirTmpPath, symlinkPath)

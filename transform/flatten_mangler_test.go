@@ -79,10 +79,10 @@ func TestFlattenMangler(t *testing.T) {
 
 	testCases := []struct {
 		name       string
-		testStruct interface{}
+		testStruct any
 		// modify will fill the flatten struct value after Mangling
 		modify    func(t testing.TB, val reflect.Value)
-		assertion func(t testing.TB, i interface{})
+		assertion func(t testing.TB, i any)
 	}{
 		{
 			name:       "one member in struct of type int",
@@ -93,7 +93,7 @@ func TestFlattenMangler(t *testing.T) {
 				i := 32
 				val.Field(0).Set(reflect.ValueOf(&i))
 			},
-			assertion: func(t testing.TB, i interface{}) {
+			assertion: func(t testing.TB, i any) {
 				assert.Equal(t, 32, *i.(*int))
 			},
 		},
@@ -110,7 +110,7 @@ func TestFlattenMangler(t *testing.T) {
 				}
 				val.Field(0).Set(reflect.ValueOf(m))
 			},
-			assertion: func(t testing.TB, i interface{}) {
+			assertion: func(t testing.TB, i any) {
 				m := map[string]string{
 					"hello":   "world",
 					"flatten": "unflatten",
@@ -129,7 +129,7 @@ func TestFlattenMangler(t *testing.T) {
 				require.NoError(t, timeErr)
 				val.Field(0).Set(reflect.ValueOf(&curTime))
 			},
-			assertion: func(t testing.TB, i interface{}) {
+			assertion: func(t testing.TB, i any) {
 				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
 				require.NoError(t, timeErr)
 				assert.EqualValues(t, curTime, *i.(*time.Time))
@@ -147,7 +147,7 @@ func TestFlattenMangler(t *testing.T) {
 				testBool:   true,
 			},
 			modify: func(t testing.TB, val reflect.Value) {},
-			assertion: func(t testing.TB, i interface{}) {
+			assertion: func(t testing.TB, i any) {
 				if i == nil {
 					t.Error("nil Unmangle output")
 				}
@@ -199,7 +199,7 @@ func TestFlattenMangler(t *testing.T) {
 				val.Field(1).Set(reflect.ValueOf(&s))
 				val.Field(2).Set(reflect.ValueOf(&b))
 			},
-			assertion: func(t testing.TB, i interface{}) {
+			assertion: func(t testing.TB, i any) {
 				in := 42
 				s := "hello world"
 				b := true
@@ -255,7 +255,7 @@ func TestFlattenMangler(t *testing.T) {
 				val.Field(3).Set(reflect.Zero(reflect.TypeOf((*time.Duration)(nil))))
 				val.Field(4).Set(reflect.ValueOf(&i2))
 			},
-			assertion: func(t testing.TB, i interface{}) {
+			assertion: func(t testing.TB, i any) {
 				// all the fields are pointerified because of call to Pointerify
 				s1 := "test"
 				i2 := 42
@@ -315,7 +315,7 @@ func TestFlattenMangler(t *testing.T) {
 				val.Field(3).Set(reflect.ValueOf(&t1))
 				val.Field(4).Set(reflect.ValueOf(&i2))
 			},
-			assertion: func(t testing.TB, i interface{}) {
+			assertion: func(t testing.TB, i any) {
 				// all the fields are pointerified because of call to Pointerify
 				s1 := "test"
 				s2 := "here"
@@ -380,7 +380,7 @@ func TestFlattenMangler(t *testing.T) {
 					"ConfigField,DayTripper",
 				}
 
-				for i := 0; i < len(expectedTags); i++ {
+				for i := range expectedTags {
 					assert.EqualValues(t, expectedTags[i], val.Type().Field(i).Tag.Get(common.DialsTagName))
 					assert.EqualValues(t, expectedFieldPathTag[i], val.Type().Field(i).Tag.Get(dialsFieldPathTag))
 
@@ -400,7 +400,7 @@ func TestFlattenMangler(t *testing.T) {
 				val.Field(4).Set(reflect.ValueOf(&i3))
 				val.Field(5).Set(reflect.ValueOf(&b2))
 			},
-			assertion: func(t testing.TB, i interface{}) {
+			assertion: func(t testing.TB, i any) {
 				s1 := "The Beatles"
 				i1 := 4
 				i2 := 1900
@@ -491,7 +491,7 @@ func TestFlattenMangler(t *testing.T) {
 				val.Field(3).Set(reflect.ValueOf(&t1))
 				val.Field(4).Set(reflect.ValueOf(&i2))
 			},
-			assertion: func(t testing.TB, i interface{}) {
+			assertion: func(t testing.TB, i any) {
 				// embedded fields are hard to compare with defined structs because
 				// they are named but the Anonymous field is set to true. So use
 				// JSON marshaling/unmarshalling to compare values
@@ -552,7 +552,7 @@ func TestFlattenMangler(t *testing.T) {
 				val.Field(3).Set(reflect.ValueOf(&t1))
 				val.Field(4).Set(reflect.ValueOf(&i2))
 			},
-			assertion: func(t testing.TB, i interface{}) {
+			assertion: func(t testing.TB, i any) {
 				// assert.EqualValues doesn't work here with the embedded structs
 				// like it does for nested structs since the values are different
 				// with Anonymous set to true for embedded fields. So using JSON
@@ -588,7 +588,7 @@ func TestFlattenMangler(t *testing.T) {
 				val.Field(0).Set(reflect.ValueOf(&curTime))
 				val.Field(1).Set(reflect.ValueOf(&int1))
 			},
-			assertion: func(t testing.TB, i interface{}) {
+			assertion: func(t testing.TB, i any) {
 				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
 				require.NoError(t, timeErr)
 				int1 := 1
@@ -638,7 +638,7 @@ func TestFlattenMangler(t *testing.T) {
 				val.Field(1).Set(reflect.ValueOf(&int1))
 				val.Field(2).Set(reflect.ValueOf(&testtu))
 			},
-			assertion: func(t testing.TB, i interface{}) {
+			assertion: func(t testing.TB, i any) {
 				curTime, timeErr := time.Parse(time.Stamp, "May 18 15:04:05")
 				require.NoError(t, timeErr)
 				int1 := 1
@@ -754,8 +754,8 @@ func TestGetField(t *testing.T) {
 
 	testcases := []struct {
 		name       string
-		testStruct interface{}
-		expected   []interface{}
+		testStruct any
+		expected   []any
 	}{
 		{
 			name: "zero-valued struct",
@@ -763,7 +763,7 @@ func TestGetField(t *testing.T) {
 				Hello   string
 				Goodbye bool
 			}{},
-			expected: []interface{}{"", false},
+			expected: []any{"", false},
 		},
 		{
 			name: "simple_struct",
@@ -777,7 +777,7 @@ func TestGetField(t *testing.T) {
 			},
 			// only two values in the array because the unexposed field
 			// won't be iterated in reflect.Type.NumField()
-			expected: []interface{}{"HeyJude", true},
+			expected: []any{"HeyJude", true},
 		},
 		{
 			name: "pointerified fields",
@@ -788,8 +788,7 @@ func TestGetField(t *testing.T) {
 				Hello:   &pstring,
 				Goodbye: &pbool,
 			},
-			expected: []interface {
-			}{pstring, pbool},
+			expected: []any{pstring, pbool},
 		},
 		{
 			name: "empty_pointerified fields",
@@ -797,7 +796,7 @@ func TestGetField(t *testing.T) {
 				Hello   string
 				Goodbye *bool
 			}{},
-			expected: []interface{}{"", false},
+			expected: []any{"", false},
 		},
 		{
 			name: "nested_struct",
@@ -819,7 +818,7 @@ func TestGetField(t *testing.T) {
 					TheSun: "not the moon",
 				},
 			},
-			expected: []interface{}{"", true, pint, "not the moon"},
+			expected: []any{"", true, pint, "not the moon"},
 		},
 		{
 			name: "nested_empty_pointer_struct",
@@ -831,7 +830,7 @@ func TestGetField(t *testing.T) {
 					TheSun string
 				}
 			}{},
-			expected: []interface{}{"", false, 0, ""},
+			expected: []any{"", false, 0, ""},
 		},
 		{
 			name: "nested_struct_with_embedded_fields",
@@ -843,7 +842,7 @@ func TestGetField(t *testing.T) {
 					Foo: "Foobars",
 				},
 			},
-			expected: []interface{}{"", "Foobars", false},
+			expected: []any{"", "Foobars", false},
 		},
 	}
 	for _, testcase := range testcases {

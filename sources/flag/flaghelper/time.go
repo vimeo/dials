@@ -25,7 +25,7 @@ func (tw *TimeWrapper) Set(s string) error {
 }
 
 // Get implements flag.Value
-func (tw *TimeWrapper) Get() interface{} {
+func (tw *TimeWrapper) Get() any {
 	return tw.t
 }
 
