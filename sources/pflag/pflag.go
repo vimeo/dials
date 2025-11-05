@@ -210,6 +210,7 @@ func (s *Set) parse() error {
 
 func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 	fm := transform.NewFlattenMangler(common.DialsTagName, s.NameCfg.FieldNameEncodeCasing, s.NameCfg.TagEncodeCasing)
+	fm.AddPropogateTags(common.DialsPFlagTag, common.DialsPFlagShortTag, common.DialsHelpTextTag)
 	tfmr := transform.NewTransformer(ptyp, transform.NewAliasMangler(common.DialsTagName, common.DialsPFlagTag, common.DialsPFlagShortTag), fm)
 	val, TrnslErr := tfmr.Translate()
 	if TrnslErr != nil {

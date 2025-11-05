@@ -25,7 +25,7 @@ func (u tu) UnmarshalText(data []byte) error {
 
 func TestFlattenMangler(t *testing.T) {
 	type Foo struct {
-		Location    string `dials:"Location"`
+		Location    string `dials:"Location" littlebiddle:"boop"`
 		Coordinates int    `dials:"Coordinates"`
 		SomeTime    time.Duration
 	}
@@ -46,6 +46,11 @@ func TestFlattenMangler(t *testing.T) {
 		Name         string `dials:"Name"`
 		Foo          `dials:"embeddedFoo"`
 		AnotherField int `dials:"AnotherField"`
+	}
+
+	type intermediateLevel struct {
+		Name      string `dials:"Name"`
+		FizzleBit bar    `dials:"Bit" ooble:"ooops"`
 	}
 
 	b := bar{
@@ -78,8 +83,9 @@ func TestFlattenMangler(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name       string
-		testStruct any
+		name           string
+		testStruct     any
+		additionalTags []string
 		// modify will fill the flatten struct value after Mangling
 		modify    func(t testing.TB, val reflect.Value)
 		assertion func(t testing.TB, i any)
@@ -134,6 +140,69 @@ func TestFlattenMangler(t *testing.T) {
 				require.NoError(t, timeErr)
 				assert.EqualValues(t, curTime, *i.(*time.Time))
 			},
+		},
+		{
+			name: "intermediate level struct with an auxillary tag",
+			testStruct: intermediateLevel{
+				Name:      "foobar",
+				FizzleBit: b,
+			},
+			additionalTags: []string{"ooble"},
+			modify: func(t testing.TB, val reflect.Value) {
+				vt := val.Type()
+				for _, field := range []string{"ConfigFieldFizzleBitName", "ConfigFieldFizzleBitAnotherField",
+					"ConfigFieldFizzleBitFoobarLocation", "ConfigFieldFizzleBitFoobarCoordinates",
+					"ConfigFieldFizzleBitFoobarSomeTime"} {
+					if oobleField, ok := vt.FieldByName(field); ok {
+						if tagVal, tagOK := oobleField.Tag.Lookup("ooble"); tagOK {
+							if tagVal != "ooops" {
+								t.Errorf("unexpected tag value for field %q; got %q; want %q", field, tagVal, "ooops")
+							}
+						} else {
+							t.Errorf("missing ooble tag on %q; only %q", field, oobleField.Tag)
+						}
+					} else {
+						t.Errorf("missing field %q type %s", field, vt)
+					}
+				}
+			},
+			assertion: func(t testing.TB, i any) {},
+		},
+		{
+			name: "leaf auxilliary tag",
+			testStruct: Foo{
+				Location:    "boop",
+				Coordinates: 3333,
+			},
+			additionalTags: []string{"littlebiddle"},
+			modify: func(t testing.TB, val reflect.Value) {
+				vt := val.Type()
+				// check the fields we expect to see the littlebiddle tag on
+				for _, field := range []string{"ConfigFieldLocation"} {
+					if littlebiddleField, ok := vt.FieldByName(field); ok {
+						if tagVal, tagOK := littlebiddleField.Tag.Lookup("littlebiddle"); tagOK {
+							if tagVal != "boop" {
+								t.Errorf("unexpected tag value for field %q; got %q; want %q", field, tagVal, "ooops")
+							}
+						} else {
+							t.Errorf("missing littlebiddle tag on %q; only %q", field, littlebiddleField.Tag)
+						}
+					} else {
+						t.Errorf("missing field %q type %s", field, vt)
+					}
+				}
+				// check the ones that we don't expect to see the littlebiddle tag on
+				for _, field := range []string{"ConfigFieldCoordinates", "ConfigFieldSomeTime"} {
+					if oobleField, ok := vt.FieldByName(field); ok {
+						if tagVal, tagOK := oobleField.Tag.Lookup("littlebiddle"); tagOK {
+							t.Errorf("unexpectedly present littlebiddle tag on %q; only %q; with value %q", field, oobleField.Tag, tagVal)
+						}
+					} else {
+						t.Errorf("missing field %q type %s", field, vt)
+					}
+				}
+			},
+			assertion: func(t testing.TB, i any) {},
 		},
 		{
 			name: "one level nested struct unexposed fields",
@@ -671,6 +740,9 @@ func TestFlattenMangler(t *testing.T) {
 
 			ptrifiedConfigType := ptrify.Pointerify(configStructType, reflect.New(configStructType).Elem())
 			f := DefaultFlattenMangler()
+			if tc.additionalTags != nil {
+				f.AddPropogateTags(tc.additionalTags...)
+			}
 			tfmr := NewTransformer(ptrifiedConfigType, f)
 			val, err := tfmr.Translate()
 			require.NoError(t, err)

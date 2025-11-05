@@ -167,7 +167,7 @@ func Must(s *Set, err error) *Set {
 
 const (
 	// HelpTextTag is the name of the struct tags for flag descriptions
-	HelpTextTag = "dialsdesc"
+	HelpTextTag = common.DialsHelpTextTag
 	// DefaultFlagHelpText is the default help-text for fields with an
 	// unset dialsdesc tag.
 	DefaultFlagHelpText = "unset description (`" + HelpTextTag + "` struct tag)"
@@ -202,6 +202,7 @@ func (s *Set) parse() error {
 
 func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 	fm := transform.NewFlattenMangler(common.DialsTagName, s.NameCfg.FieldNameEncodeCasing, s.NameCfg.TagEncodeCasing)
+	fm.AddPropogateTags(common.DialsFlagTagName, HelpTextTag)
 	tfmr := transform.NewTransformer(ptyp, transform.NewAliasMangler(common.DialsTagName, common.DialsFlagTagName), fm)
 	val, TrnslErr := tfmr.Translate()
 	if TrnslErr != nil {
