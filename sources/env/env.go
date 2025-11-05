@@ -31,6 +31,7 @@ var _ dials.Source = (*Source)(nil)
 func (e *Source) Value(_ context.Context, t *dials.Type) (reflect.Value, error) {
 	// flatten the nested fields
 	flattenMangler := transform.NewFlattenMangler(common.DialsTagName, caseconversion.EncodeUpperCamelCase, caseconversion.EncodeUpperCamelCase)
+	flattenMangler.AddPropogateTags(common.DialsEnvTagName)
 	// reformat the tags so they are SCREAMING_SNAKE_CASE
 	reformatTagMangler := tagformat.NewTagReformattingMangler(common.DialsTagName, caseconversion.DecodeGoTags, caseconversion.EncodeUpperSnakeCase)
 	// copy tags from "dials" to "dialsenv" tag

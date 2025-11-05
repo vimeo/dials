@@ -39,6 +39,8 @@ func TestDirectBasic(t *testing.T) {
 
 	d, err := dials.Config(ctx, &Config{Hello: "nothing"}, src)
 	if err != nil {
+		t.Log(buf.String())
+		fs.PrintDefaults()
 		t.Fatal(err)
 	}
 	src.Flags.Usage()
