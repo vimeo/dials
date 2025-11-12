@@ -355,13 +355,20 @@ type CfgSerial[T any] struct {
 
 // Events returns a channel that will get a message every time the configuration
 // is updated.
+//
+// NOTE: In general, it is preferable to register a callback with
+// [Dials.RegisterCallback], due to a cleaner interface and the ability to
+// register multiple callbacks. Additionally, [NewConfigHandler]
+// implementations get both the old and new configs, reducing the amount of
+// state required to handle new events.
 func (d *Dials[T]) Events() <-chan *T {
 	return d.updatesChan
 }
 
 // Fill populates the passed struct with the current value of the configuration.
 // It is a thin wrapper around assignment
-// deprecated: assign return value from View() instead
+//
+// Deprecated: assign return value from View() instead. (this is a legacy method that predates generics)
 func (d *Dials[T]) Fill(blankConfig *T) {
 	*blankConfig = *d.View()
 }
