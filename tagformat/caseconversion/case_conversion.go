@@ -81,8 +81,10 @@ func (g *GoCaseConverter) AddInitialism(initialism ...string) {
 	g.SetInitialisms(append(g.initialisms, initialism...))
 }
 
-// SetAtoms replaces the set of atoms used by the GoCaseConverter with the
-// argument.  Atoms will specifically not be split at word boundaries and should
+// SetAtoms sets the atoms used by the GoCaseConverter with the argument.
+// If any atoms were previously set, SetAtoms replaces them. The set of atoms is
+// initially empty, unlike the set of initialisms.
+// Atoms will specifically not be split at word boundaries and should
 // be provided in the exported-name format as in "ABTest".  Attemping to add an
 // atom less than two characters in length will cause a panic.  Also, any
 // duplicates in the list of atoms will be removed.
