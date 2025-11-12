@@ -1,8 +1,6 @@
 module github.com/vimeo/dials
 
-go 1.23.0
-
-toolchain go1.24.4
+go 1.24.0
 
 require (
 	cuelang.org/go v0.13.0
@@ -11,7 +9,9 @@ require (
 	github.com/pelletier/go-toml v1.9.5
 	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/text v0.24.0
+	github.com/vimeo/go-status-page v0.0.0-20251112170003-7780d6931432
+	golang.org/x/net v0.46.0
+	golang.org/x/text v0.30.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -28,10 +28,9 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20250129171521-feedd8250727 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	golang.org/x/mod v0.24.0 // indirect
-	golang.org/x/net v0.39.0 // indirect
+	golang.org/x/mod v0.28.0 // indirect
 	golang.org/x/oauth2 v0.29.0 // indirect
-	golang.org/x/sync v0.13.0 // indirect
-	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
