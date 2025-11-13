@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 
 	"github.com/vimeo/dials/ptrify"
 )
@@ -70,6 +71,16 @@ type Params[T any] struct {
 	//  - DelayInitialVerification was set to true when Config was called
 	//  - EnableVerification has not been called (without it returning an error)
 	CallGlobalCallbacksAfterVerificationEnabled bool
+
+	// If enabled, Dials will retain the slice of reported source-values so
+	// it can render a status page using [github.com/vimeo/go-status-page]
+	//
+	// This feature is experimental and go-status-page may generate panics
+	// while rendering pages.
+	//
+	// It is heavily recommended that users of this functionality set
+	// `statuspage:"-"` tags on any sensitive fields with secrets/credentials, etc.
+	EnableStatusPage bool
 }
 
 // Config populates the passed in config struct by reading the values from the
@@ -138,9 +149,11 @@ func (p Params[T]) Config(ctx context.Context, t *T, sources ...Source) (*Dials[
 
 	nv, _ := newValue.(*T)
 
+	dumpStackCh := make(chan dumpSourceStack[T])
 	d := &Dials[T]{
 		updatesChan: make(chan *T, 1),
 		params:      p,
+		dumpStack:   dumpStackCh,
 	}
 	d.value.Store(&versionedConfig[T]{serial: 0, cfg: nv})
 
@@ -166,8 +179,15 @@ func (p Params[T]) Config(ctx context.Context, t *T, sources ...Source) (*Dials[
 
 		monCtl := make(chan verifyEnable[T], 3)
 		d.monCtl = monCtl
-		go d.monitor(ctx, tVal.Interface().(*T), computed, watcherChan, monCtl)
+		go d.monitor(ctx, tVal.Interface().(*T), computed, watcherChan, monCtl, dumpStackCh)
 	}
+	if p.EnableStatusPage {
+		if !someoneWatching {
+			d.sourceVals.Store(&computed)
+		}
+		d.defVal = tVal.Interface().(*T)
+	}
+
 	return d, nil
 }
 
@@ -210,6 +230,15 @@ type valueUpdate struct {
 }
 
 func (valueUpdate) isStatusReport() {}
+
+type dumpSourceStackResponse[T any] struct {
+	stack  []sourceValue
+	serial CfgSerial[T]
+}
+
+type dumpSourceStack[T any] struct {
+	resp chan<- dumpSourceStackResponse[T]
+}
 
 type watcherDone struct {
 	source Source
@@ -355,13 +384,20 @@ type CfgSerial[T any] struct {
 
 // Events returns a channel that will get a message every time the configuration
 // is updated.
+//
+// NOTE: In general, it is preferable to register a callback with
+// [Dials.RegisterCallback], due to a cleaner interface and the ability to
+// register multiple callbacks. Additionally, [NewConfigHandler]
+// implementations get both the old and new configs, reducing the amount of
+// state required to handle new events.
 func (d *Dials[T]) Events() <-chan *T {
 	return d.updatesChan
 }
 
 // Fill populates the passed struct with the current value of the configuration.
 // It is a thin wrapper around assignment
-// deprecated: assign return value from View() instead
+//
+// Deprecated: assign return value from View() instead. (this is a legacy method that predates generics)
 func (d *Dials[T]) Fill(blankConfig *T) {
 	*blankConfig = *d.View()
 }
@@ -634,12 +670,14 @@ func (d *Dials[T]) monitor(
 	sourceValues []sourceValue,
 	watcherChan chan watchStatusUpdate,
 	monCtl <-chan verifyEnable[T],
+	dumpStack <-chan dumpSourceStack[T],
 ) {
 	defer close(d.cbch)
 	skipVerify := d.params.DelayInitialVerification
 	for {
 		select {
 		case <-ctx.Done():
+			d.sourceVals.Store(&sourceValues)
 			return
 		case v := <-monCtl:
 			if !skipVerify {
@@ -654,6 +692,19 @@ func (d *Dials[T]) monitor(
 				continue
 			}
 			skipVerify = !d.monitorEnableVerify(v)
+		case v := <-dumpStack:
+			// fetch the serial from inside the monitor because it
+			// guarantees that we render a consistent view.
+			_, serial := d.ViewVersion()
+			select {
+			case v.resp <- dumpSourceStackResponse[T]{
+				stack:  slices.Clone(sourceValues),
+				serial: serial,
+			}:
+				close(v.resp)
+			default:
+				// besteffort response
+			}
 		case watchTab := <-watcherChan:
 			switch v := watchTab.(type) {
 			case *valueUpdate:
@@ -680,6 +731,7 @@ func (d *Dials[T]) monitor(
 			case *watcherDone:
 				if !d.markSourceDone(ctx, sourceValues, v) {
 					// if there are no watching sources, just exit.
+					d.sourceVals.Store(&sourceValues)
 					return
 				}
 			default:
