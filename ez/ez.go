@@ -88,6 +88,16 @@ type Params[T any] struct {
 	// things.
 	// (Currently only affects the yaml decoder)
 	FlattenAnonymousFields bool
+
+	// If enabled, Dials will retain the slice of reported source-values so
+	// it can render a status page using [github.com/vimeo/go-status-page]
+	//
+	// This feature is experimental and go-status-page may generate panics
+	// while rendering pages.
+	//
+	// It is heavily recommended that users of this functionality set
+	// `statuspage:"-"` tags on any sensitive fields with secrets/credentials, etc.
+	EnableStatusPage bool
 }
 
 // DecoderFactory should return the appropriate [dials.Decoder] based on the config file
@@ -185,6 +195,7 @@ func ConfigFileEnvFlagDecoderFactoryParams[T any, TP ConfigWithConfigPath[T]](ct
 		// provided we'll appropriately call Verify before returning.
 		DelayInitialVerification:                    true,
 		CallGlobalCallbacksAfterVerificationEnabled: true,
+		EnableStatusPage:                            params.EnableStatusPage,
 	}
 
 	d, err := dp.Config(ctx, (*T)(cfg), &blank, &env.Source{}, flagSrc)
