@@ -6,13 +6,13 @@ require (
 	cuelang.org/go v0.13.0
 	github.com/fatih/structtag v1.2.0
 	github.com/fsnotify/fsnotify v1.8.0
+	github.com/goccy/go-yaml v1.19.0
 	github.com/pelletier/go-toml v1.9.5
 	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.9.0
 	github.com/vimeo/go-status-page v0.0.0-20251112170003-7780d6931432
 	golang.org/x/net v0.46.0
 	golang.org/x/text v0.30.0
-	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
