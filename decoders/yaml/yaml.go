@@ -10,7 +10,7 @@ import (
 	"github.com/vimeo/dials/tagformat"
 	"github.com/vimeo/dials/transform"
 
-	"gopkg.in/yaml.v2"
+	"github.com/goccy/go-yaml"
 )
 
 // YAMLTagName is the name of the `"yaml"` tag
@@ -46,7 +46,7 @@ func (d *Decoder) Decode(r io.Reader, t *dials.Type) (reflect.Value, error) {
 	instance := val.Addr().Interface()
 	err = yaml.Unmarshal(yamlBytes, instance)
 	if err != nil {
-		return reflect.Value{}, err
+		return reflect.Value{}, fmt.Errorf("error unmarshalling YAML with instance %T: %w", instance, err)
 	}
 
 	unmangledVal, unmangleErr := tfmr.ReverseTranslate(val)
