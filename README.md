@@ -276,6 +276,78 @@ If you wish to watch the config file and make updates to your configuration, use
 	}
 ```
 
+### Using Enums
+Dials provides some helper types to deal with values that are part of defined
+enumerations.  All you need to do is have your enum implement the `dials.ValueMap`
+interface with `DialsValueMap()`, which provides a mapping from a string (your
+config value) to the enum value.  Further more, when using flags, Enums are
+integrated into those packages so that Usage text for each Enum value will
+include a list of all the possible values.
+
+Also, `FuzzyEnum` provides identical functionality to `Enum` except comparisons
+are done in a case-insensitive manner.
+
+For example:
+
+```go
+type Protocol int
+
+const (
+	HTTP Protocol = iota
+	HTTPS
+	Gopher
+	FTP
+)
+
+func (p Protocol) DialsValueMap() map[string]Protocol {
+	return map[string]Protocol{
+		"http":   HTTP,
+		"https":  HTTPS,
+		"gopher": Gopher,
+		"ftp":    FTP,
+	}
+}
+
+func (p Protocol) String() string {
+	switch p {
+	case HTTP:
+		return "HyperText Transfer Protocol"
+	case HTTPS:
+		return "Secure HyperText Transfer Protocol"
+	case Gopher:
+		return "Gopher"
+	case FTP:
+		return "File Transfer Protocol"
+	}
+	return "unknown"
+}
+
+type Config struct {
+	SelectedProto dials.Enum[Protocol]
+	Backup        dials.Enum[Protocol]
+}
+
+func main() {
+	source := &static.StringSource{
+		Data:    `{"selectedProto": "gopher"}`,
+		Decoder: &json.Decoder{},
+	}
+
+	c := &EnumConfig{
+		Backup: dials.EnumValue(HTTPS),
+	}
+
+	d, err := dials.Config(context.Background(), c, source)
+	if err != nil {
+		panic("something went wrong!")
+	}
+
+	v := d.View()
+	fmt.Printf("selected: %s, backup: %s", v.SelectedProto.Value, v.Backup.Value)
+	// Output: selected: Gopher, backup: Secure HyperText Transfer Protocol
+}
+```
+
 ### Aliased Configuration Values
 Dials supports aliases for fields where you want to change the name and support
 an orderly transition from an old name to a new name.  Just as there is a
