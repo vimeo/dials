@@ -1,7 +1,6 @@
 package sourcewrap
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -35,8 +34,7 @@ func (tjd *trivialJSONDecoder) Decode(r io.Reader, dt *dials.Type) (reflect.Valu
 }
 
 func TestTransformingDecoder(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	type conf struct {
 		Set map[string]struct{}

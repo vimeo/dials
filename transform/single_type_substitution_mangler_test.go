@@ -46,15 +46,15 @@ func TestSingleTypeSubstitutionMangler_Int64_Int8(t *testing.T) {
 		t.Fatalf("failed to construct substitution mangler: %s", constrErr)
 	}
 
-	itype := reflect.TypeOf(testStruct{})
+	itype := reflect.TypeFor[testStruct]()
 
 	tfmr := NewTransformer(itype, m)
 	val, trErr := tfmr.Translate()
 	if trErr != nil {
 		t.Fatalf("failed to translate type: %s", trErr)
 	}
-	int8T := reflect.TypeOf(int8(8))
-	strT := reflect.TypeOf("")
+	int8T := reflect.TypeFor[int8]()
+	strT := reflect.TypeFor[string]()
 
 	bazChanVal := int8(31)
 	checkFieldTypeAndSetVals(t, val, []checkFieldTypeAndSetValsFieldDesc{
@@ -142,15 +142,15 @@ func TestSingleTypeSubstitutionMangler_timeDuration_int64(t *testing.T) {
 		t.Fatalf("failed to construct substitution mangler: %s", constrErr)
 	}
 
-	itype := reflect.TypeOf(testStruct{})
+	itype := reflect.TypeFor[testStruct]()
 
 	tfmr := NewTransformer(itype, m)
 	val, trErr := tfmr.Translate()
 	if trErr != nil {
 		t.Fatalf("failed to translate type: %s", trErr)
 	}
-	int64T := reflect.TypeOf(int64(8))
-	strT := reflect.TypeOf("")
+	int64T := reflect.TypeFor[int64]()
+	strT := reflect.TypeFor[string]()
 
 	checkFieldTypeAndSetVals(t, val, []checkFieldTypeAndSetValsFieldDesc{
 		{fieldName: "Foo", expType: int64T, setVal: int64(8_000_023)},
@@ -203,15 +203,15 @@ func TestSingleTypeSubstitutionMangler_Int64_Int16_map_slice_fields(t *testing.T
 		t.Fatalf("failed to construct substitution mangler: %s", constrErr)
 	}
 
-	itype := reflect.TypeOf(testStruct{})
+	itype := reflect.TypeFor[testStruct]()
 
 	tfmr := NewTransformer(itype, m)
 	val, trErr := tfmr.Translate()
 	if trErr != nil {
 		t.Fatalf("failed to translate type: %s", trErr)
 	}
-	int16T := reflect.TypeOf(int16(8))
-	strT := reflect.TypeOf("")
+	int16T := reflect.TypeFor[int16]()
+	strT := reflect.TypeFor[string]()
 
 	checkFieldTypeAndSetVals(t, val, []checkFieldTypeAndSetValsFieldDesc{
 		{fieldName: "Foo", expType: reflect.MapOf(strT, int16T), setVal: map[string]int16{"abc": 8}},
@@ -275,15 +275,15 @@ func TestSingleTypeSubstitutionMangler_Int64_Int16_nested_fields(t *testing.T) {
 		t.Fatalf("failed to construct substitution mangler: %s", constrErr)
 	}
 
-	itype := reflect.TypeOf(testStruct{})
+	itype := reflect.TypeFor[testStruct]()
 
 	tfmr := NewTransformer(itype, m)
 	val, trErr := tfmr.Translate()
 	if trErr != nil {
 		t.Fatalf("failed to translate type: %s", trErr)
 	}
-	int16T := reflect.TypeOf(int16(8))
-	strT := reflect.TypeOf("")
+	int16T := reflect.TypeFor[int16]()
+	strT := reflect.TypeFor[string]()
 
 	iVal := val.FieldByName("I")
 	checkFieldTypeAndSetVals(t, iVal, []checkFieldTypeAndSetValsFieldDesc{

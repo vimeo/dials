@@ -61,8 +61,8 @@ func strPtr(in string) *string {
 }
 
 func TestTransformer(t *testing.T) {
-	intType := reflect.TypeOf(int(1))
-	strType := reflect.TypeOf(string(""))
+	intType := reflect.TypeFor[int]()
+	strType := reflect.TypeFor[string]()
 	for _, itbl := range []struct {
 		name                        string
 		inStruct                    any

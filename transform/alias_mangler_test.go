@@ -41,7 +41,7 @@ func TestAliasManglerMangle(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			sf := reflect.StructField{
 				Name: "Foo",
-				Type: reflect.TypeOf(""),
+				Type: reflect.TypeFor[string](),
 				Tag:  reflect.StructTag(tbl.tag),
 			}
 
@@ -77,7 +77,7 @@ func TestAliasManglerMangle(t *testing.T) {
 func TestAliasManglerUnmangle(t *testing.T) {
 	sf := reflect.StructField{
 		Name: "Foo",
-		Type: reflect.TypeOf(""),
+		Type: reflect.TypeFor[string](),
 	}
 
 	num := 42

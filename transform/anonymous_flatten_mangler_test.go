@@ -29,7 +29,7 @@ func TestTopLevelAnonymousFlatten(t *testing.T) {
 			World: "hello world",
 		},
 	}
-	typeOfC := reflect.TypeOf(c)
+	typeOfC := reflect.TypeFor[*Config]()
 	tVal := reflect.ValueOf(c)
 	typeInstance := ptrify.Pointerify(typeOfC.Elem(), tVal.Elem())
 
@@ -112,7 +112,7 @@ func TestTopLevelAnonymousFlattenWithNils(t *testing.T) {
 			World: "hello world",
 		},
 	}
-	typeOfC := reflect.TypeOf(c)
+	typeOfC := reflect.TypeFor[*Config]()
 	tVal := reflect.ValueOf(c)
 	typeInstance := ptrify.Pointerify(typeOfC.Elem(), tVal.Elem())
 

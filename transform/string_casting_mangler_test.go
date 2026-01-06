@@ -15,7 +15,7 @@ import (
 func TestStringCastingManglerMangle(t *testing.T) {
 	m := StringCastingMangler{}
 	sf := reflect.StructField{
-		Type: reflect.TypeOf(0),
+		Type: reflect.TypeFor[int](),
 	}
 	sfs, err := m.Mangle(sf)
 
@@ -32,131 +32,131 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 		ExpectedErr     string
 	}{
 		"string": {
-			StructFieldType: reflect.TypeOf(""),
+			StructFieldType: reflect.TypeFor[string](),
 			StringValue:     "asdf",
 			AssertFunc: func(i any) {
 				assert.Equal(t, "asdf", *(i.(*string)))
 			},
 		},
 		"bool": {
-			StructFieldType: reflect.TypeOf(false),
+			StructFieldType: reflect.TypeFor[bool](),
 			StringValue:     "true",
 			AssertFunc: func(i any) {
 				assert.Equal(t, true, *(i.(*bool)))
 			},
 		},
 		"int": {
-			StructFieldType: reflect.TypeOf(0),
+			StructFieldType: reflect.TypeFor[int](),
 			StringValue:     "1",
 			AssertFunc: func(i any) {
 				assert.Equal(t, 1, *(i.(*int)))
 			},
 		},
 		"int8": {
-			StructFieldType: reflect.TypeOf(int8(0)),
+			StructFieldType: reflect.TypeFor[int8](),
 			StringValue:     "1",
 			AssertFunc: func(i any) {
 				assert.Equal(t, int8(1), *(i.(*int8)))
 			},
 		},
 		"int16": {
-			StructFieldType: reflect.TypeOf(int16(0)),
+			StructFieldType: reflect.TypeFor[int16](),
 			StringValue:     "1",
 			AssertFunc: func(i any) {
 				assert.Equal(t, int16(1), *(i.(*int16)))
 			},
 		},
 		"int32": {
-			StructFieldType: reflect.TypeOf(int32(0)),
+			StructFieldType: reflect.TypeFor[int32](),
 			StringValue:     "1",
 			AssertFunc: func(i any) {
 				assert.Equal(t, int32(1), *(i.(*int32)))
 			},
 		},
 		"int64": {
-			StructFieldType: reflect.TypeOf(int64(0)),
+			StructFieldType: reflect.TypeFor[int64](),
 			StringValue:     "1",
 			AssertFunc: func(i any) {
 				assert.Equal(t, int64(1), *(i.(*int64)))
 			},
 		},
 		"uint": {
-			StructFieldType: reflect.TypeOf(uint(0)),
+			StructFieldType: reflect.TypeFor[uint](),
 			StringValue:     "1",
 			AssertFunc: func(i any) {
 				assert.Equal(t, uint(1), *(i.(*uint)))
 			},
 		},
 		"uint8": {
-			StructFieldType: reflect.TypeOf(uint8(0)),
+			StructFieldType: reflect.TypeFor[uint8](),
 			StringValue:     "1",
 			AssertFunc: func(i any) {
 				assert.Equal(t, uint8(1), *(i.(*uint8)))
 			},
 		},
 		"uint16": {
-			StructFieldType: reflect.TypeOf(uint16(0)),
+			StructFieldType: reflect.TypeFor[uint16](),
 			StringValue:     "1",
 			AssertFunc: func(i any) {
 				assert.Equal(t, uint16(1), *(i.(*uint16)))
 			},
 		},
 		"uint32": {
-			StructFieldType: reflect.TypeOf(uint32(0)),
+			StructFieldType: reflect.TypeFor[uint32](),
 			StringValue:     "1",
 			AssertFunc: func(i any) {
 				assert.Equal(t, uint32(1), *(i.(*uint32)))
 			},
 		},
 		"uint64": {
-			StructFieldType: reflect.TypeOf(uint64(0)),
+			StructFieldType: reflect.TypeFor[uint64](),
 			StringValue:     "1",
 			AssertFunc: func(i any) {
 				assert.Equal(t, uint64(1), *(i.(*uint64)))
 			},
 		},
 		"float32": {
-			StructFieldType: reflect.TypeOf(float32(1.0)),
+			StructFieldType: reflect.TypeFor[float32](),
 			StringValue:     "1.5",
 			AssertFunc: func(i any) {
 				assert.Equal(t, float32(1.5), *(i.(*float32)))
 			},
 		},
 		"float64": {
-			StructFieldType: reflect.TypeOf(1.0),
+			StructFieldType: reflect.TypeFor[float64](),
 			StringValue:     "1.9",
 			AssertFunc: func(i any) {
 				assert.Equal(t, 1.9, *(i.(*float64)))
 			},
 		},
 		"complex64": {
-			StructFieldType: reflect.TypeOf(complex64(10 + 3i)),
+			StructFieldType: reflect.TypeFor[complex64](),
 			StringValue:     "10+3i",
 			AssertFunc: func(i any) {
 				assert.Equal(t, complex64(10+3i), *(i.(*complex64)))
 			},
 		},
 		"complex128": {
-			StructFieldType: reflect.TypeOf(complex128(10 + 3i)),
+			StructFieldType: reflect.TypeFor[complex128](),
 			StringValue:     "10+3i",
 			AssertFunc: func(i any) {
 				assert.Equal(t, complex128(10+3i), *(i.(*complex128)))
 			},
 		},
 		"duration": {
-			StructFieldType: reflect.TypeOf(time.Duration(0)),
+			StructFieldType: reflect.TypeFor[time.Duration](),
 			StringValue:     "1h",
 			AssertFunc: func(i any) {
 				assert.Equal(t, time.Duration(3600000000000), *(i.(*time.Duration)))
 			},
 		},
 		"duration_error": {
-			StructFieldType: reflect.TypeOf(time.Duration(0)),
+			StructFieldType: reflect.TypeFor[time.Duration](),
 			StringValue:     "1",
 			ExpectedErr:     "missing unit in duration ",
 		},
 		"string_slice": {
-			StructFieldType: reflect.TypeOf([]string{}),
+			StructFieldType: reflect.TypeFor[[]string](),
 			StringValue:     `a,b,c`,
 			AssertFunc: func(i any) {
 				expected := []string{"a", "b", "c"}
@@ -165,7 +165,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			},
 		},
 		"int_slice": {
-			StructFieldType: reflect.TypeOf([]int{}),
+			StructFieldType: reflect.TypeFor[[]int](),
 			StringValue:     `1,2,3`,
 			AssertFunc: func(i any) {
 				expected := []int{1, 2, 3}
@@ -174,7 +174,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			},
 		},
 		"int8_slice": {
-			StructFieldType: reflect.TypeOf([]int8{}),
+			StructFieldType: reflect.TypeFor[[]int8](),
 			StringValue:     `1,2,3`,
 			AssertFunc: func(i any) {
 				expected := []int8{1, 2, 3}
@@ -183,7 +183,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			},
 		},
 		"float64_slice": {
-			StructFieldType: reflect.TypeOf([]float64{}),
+			StructFieldType: reflect.TypeFor[[]float64](),
 			StringValue:     `1.1, 2.1, 3.1`,
 			AssertFunc: func(i any) {
 				expected := []float64{1.1, 2.1, 3.1}
@@ -192,7 +192,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			},
 		},
 		"complex128_slice": {
-			StructFieldType: reflect.TypeOf([]complex128{}),
+			StructFieldType: reflect.TypeFor[[]complex128](),
 			StringValue:     `"10+3i", "5+2i", "3+3i"`,
 			AssertFunc: func(i any) {
 				expected := []complex128{10 + 3i, 5 + 2i, 3 + 3i}
@@ -201,7 +201,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			},
 		},
 		"string_string_map": {
-			StructFieldType: reflect.TypeOf(map[string]string{}),
+			StructFieldType: reflect.TypeFor[map[string]string](),
 			StringValue:     `"Origin": "foobar", "Referer": "fimbat"`,
 			AssertFunc: func(i any) {
 				expected := map[string]string{
@@ -213,7 +213,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			},
 		},
 		"string_string_slice_map": {
-			StructFieldType: reflect.TypeOf(map[string][]string{}),
+			StructFieldType: reflect.TypeFor[map[string][]string](),
 			StringValue:     `"Origin": "foobar", "Origin": "foobat", "Referer": "fimbat"`,
 			AssertFunc: func(i any) {
 				expected := map[string][]string{
@@ -225,7 +225,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			},
 		},
 		"int_int_map": {
-			StructFieldType: reflect.TypeOf(map[int]int{}),
+			StructFieldType: reflect.TypeFor[map[int]int](),
 			StringValue:     `1: 1, 2: 3, 10: 8`,
 			AssertFunc: func(i any) {
 				expected := map[int]int{
@@ -238,7 +238,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			},
 		},
 		"int_str_map": {
-			StructFieldType: reflect.TypeOf(map[int]string{}),
+			StructFieldType: reflect.TypeFor[map[int]string](),
 			StringValue:     `1: "a", 2: "b", 10: "c"`,
 			AssertFunc: func(i any) {
 				expected := map[int]string{
@@ -251,7 +251,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			},
 		},
 		"str_int_map": {
-			StructFieldType: reflect.TypeOf(map[string]int{}),
+			StructFieldType: reflect.TypeFor[map[string]int](),
 			StringValue:     `"a": 1, "b": 2, "c": 10`,
 			AssertFunc: func(i any) {
 				expected := map[string]int{
@@ -265,7 +265,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			},
 		},
 		"str_bool_map": {
-			StructFieldType: reflect.TypeOf(map[string]bool{}),
+			StructFieldType: reflect.TypeFor[map[string]bool](),
 			StringValue:     `"a": true, "b": false, "c": true`,
 			AssertFunc: func(i any) {
 				expected := map[string]bool{
@@ -278,7 +278,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			},
 		},
 		"str_complex_map": {
-			StructFieldType: reflect.TypeOf(map[string]complex128{}),
+			StructFieldType: reflect.TypeFor[map[string]complex128](),
 			StringValue:     `"asdf": "3+5i", "b": "3+5i", "c": "3+5i"`,
 			AssertFunc: func(i any) {
 				expected := map[string]complex128{
@@ -291,7 +291,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			},
 		},
 		"complex_bool_map": {
-			StructFieldType: reflect.TypeOf(map[complex64]bool{}),
+			StructFieldType: reflect.TypeFor[map[complex64]bool](),
 			StringValue:     `"3+5i": true, "10+5i": false, "1+2i": true`,
 			AssertFunc: func(i any) {
 				expected := map[complex64]bool{
@@ -304,7 +304,7 @@ func TestStringCastingManglerUnmangle(t *testing.T) {
 			},
 		},
 		"invalid_map": {
-			StructFieldType: reflect.TypeOf(map[string][]int{}),
+			StructFieldType: reflect.TypeFor[map[string][]int](),
 			StringValue:     `"asdf": 1, "asdf": 2, "zxcv": 3`,
 			ExpectedErr:     "unsupported map type",
 		},
@@ -360,51 +360,51 @@ func TestParseOverflow(t *testing.T) {
 		StringValue     string
 	}{
 		"int8": {
-			StructFieldType: reflect.TypeOf(int8(0)),
+			StructFieldType: reflect.TypeFor[int8](),
 			StringValue:     "128",
 		},
 		"int16": {
-			StructFieldType: reflect.TypeOf(int16(0)),
+			StructFieldType: reflect.TypeFor[int16](),
 			StringValue:     "32768",
 		},
 		"int32": {
-			StructFieldType: reflect.TypeOf(int32(0)),
+			StructFieldType: reflect.TypeFor[int32](),
 			StringValue:     "2147483648",
 		},
 		"int64": {
-			StructFieldType: reflect.TypeOf(int64(0)),
+			StructFieldType: reflect.TypeFor[int64](),
 			StringValue:     "9223372036854775808",
 		},
 		"uint8": {
-			StructFieldType: reflect.TypeOf(uint8(0)),
+			StructFieldType: reflect.TypeFor[uint8](),
 			StringValue:     "256",
 		},
 		"uint16": {
-			StructFieldType: reflect.TypeOf(uint16(0)),
+			StructFieldType: reflect.TypeFor[uint16](),
 			StringValue:     "65537",
 		},
 		"uint32": {
-			StructFieldType: reflect.TypeOf(uint32(0)),
+			StructFieldType: reflect.TypeFor[uint32](),
 			StringValue:     "4294967296",
 		},
 		"uint64": {
-			StructFieldType: reflect.TypeOf(uint64(0)),
+			StructFieldType: reflect.TypeFor[uint64](),
 			StringValue:     "18446744073709551616",
 		},
 		"float32": {
-			StructFieldType: reflect.TypeOf(float32(0.0)),
+			StructFieldType: reflect.TypeFor[float32](),
 			StringValue:     "1e+40",
 		},
 		"float64": {
-			StructFieldType: reflect.TypeOf(float64(0.0)),
+			StructFieldType: reflect.TypeFor[float64](),
 			StringValue:     "1e+400",
 		},
 		"complex64": {
-			StructFieldType: reflect.TypeOf(complex64(0)),
+			StructFieldType: reflect.TypeFor[complex64](),
 			StringValue:     "1e+400",
 		},
 		"complex128": {
-			StructFieldType: reflect.TypeOf(complex64(0)),
+			StructFieldType: reflect.TypeFor[complex64](),
 			StringValue:     "1e+400",
 		},
 	}

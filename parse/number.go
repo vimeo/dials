@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-var durationType = reflect.TypeOf(time.Duration(0))
+var durationType = reflect.TypeFor[time.Duration]()
 
 func parseNumber(strVal string, numberType reflect.Type) (reflect.Value, error) {
 	var castVal reflect.Value

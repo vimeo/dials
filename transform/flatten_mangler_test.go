@@ -319,9 +319,9 @@ func TestFlattenMangler(t *testing.T) {
 				i2 := 42
 
 				val.Field(0).Set(reflect.ValueOf(&s1))
-				val.Field(1).Set(reflect.Zero(reflect.TypeOf((*string)(nil))))
-				val.Field(2).Set(reflect.Zero(reflect.TypeOf((*int)(nil))))
-				val.Field(3).Set(reflect.Zero(reflect.TypeOf((*time.Duration)(nil))))
+				val.Field(1).Set(reflect.Zero(reflect.TypeFor[*string]()))
+				val.Field(2).Set(reflect.Zero(reflect.TypeFor[*int]()))
+				val.Field(3).Set(reflect.Zero(reflect.TypeFor[*time.Duration]()))
 				val.Field(4).Set(reflect.ValueOf(&i2))
 			},
 			assertion: func(t testing.TB, i any) {
@@ -787,7 +787,7 @@ func TestTopLevelEmbed(t *testing.T) {
 			World: "hello world",
 		},
 	}
-	typeOfC := reflect.TypeOf(c)
+	typeOfC := reflect.TypeFor[*Config]()
 	tVal := reflect.ValueOf(c)
 	typeInstance := ptrify.Pointerify(typeOfC.Elem(), tVal.Elem())
 

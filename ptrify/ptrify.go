@@ -11,7 +11,7 @@ import (
 // Note: this looks weird because it is, you need to call TypeOf on a nil
 // pointer here then take the element type, otherwise you get a nil type and
 // that's not useful (it actually generates a panic when it's used further down).
-var textUnmarshaler = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+var textUnmarshaler = reflect.TypeFor[encoding.TextUnmarshaler]()
 
 // Pointerify takes a type and returns another type with all its members
 // set to pointers of their respective types

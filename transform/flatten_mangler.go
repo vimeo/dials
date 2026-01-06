@@ -20,7 +20,7 @@ const (
 )
 
 // textMReflectType is a reflect.Type of TextUnmarshaler
-var textMReflectType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+var textMReflectType = reflect.TypeFor[encoding.TextUnmarshaler]()
 
 // FlattenMangler implements the Mangler interface
 type FlattenMangler struct {
@@ -369,8 +369,8 @@ func GetField(sf reflect.StructField, v reflect.Value) reflect.Value {
 	if fieldPath == "" {
 		panic(fmt.Errorf("dialsfieldpath tag not set for field %s", sf.Name))
 	}
-	fields := strings.Split(fieldPath, ",")
-	for _, fname := range fields {
+	fields := strings.SplitSeq(fieldPath, ",")
+	for fname := range fields {
 		v = stripPtrs(v)
 		// if the struct isn't populated, return the zero value
 		if !v.IsValid() {

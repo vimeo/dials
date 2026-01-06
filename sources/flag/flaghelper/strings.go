@@ -206,7 +206,7 @@ func NewMapStringStringFlag(m *map[string]string) *MapStringStringFlag {
 
 // Set implement pflag.Value and flag.Value
 func (v *MapStringStringFlag) Set(s string) error {
-	parsed, err := parse.Map(s, reflect.TypeOf(map[string]string{}))
+	parsed, err := parse.Map(s, reflect.TypeFor[map[string]string]())
 	if err != nil {
 		return err
 	}

@@ -8,7 +8,7 @@ import (
 
 var (
 	zeroStr    = ""
-	strPtrType = reflect.TypeOf(&zeroStr)
+	strPtrType = reflect.TypeFor[*string]()
 )
 
 // StringCastingMangler mangles config struct fields into string types, then

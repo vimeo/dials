@@ -86,8 +86,7 @@ func TestConfigWithoutVerifier(t *testing.T) {
 	}
 
 	// setup a cancelable context so the monitor goroutine gets shutdown.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	w := fakeWatchingSource{fakeSource: fakeSource{outVal: foozleConfig}}
 	d, err := Config(ctx, &base, &fakeSource{outVal: emptyConf}, &w)
@@ -150,8 +149,7 @@ func TestConfigWithFailVerifier(t *testing.T) {
 	}
 
 	// setup a cancelable context so the monitor goroutine gets shutdown.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	w := fakeWatchingSource{fakeSource: fakeSource{outVal: foozleConfig}}
 	_, err := Config(ctx, &base, &fakeSource{outVal: emptyConf}, &w)
@@ -184,8 +182,7 @@ func TestConfigWithSkippedInitialVerify(t *testing.T) {
 	}
 
 	// setup a cancelable context so the monitor goroutine gets shutdown.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	w := fakeWatchingSource{fakeSource: fakeSource{outVal: foozleConfig}}
 	_, err := Params[testConfig]{
@@ -218,8 +215,7 @@ func TestConfigWithDelayInitialVerifyFailNoWatch(t *testing.T) {
 	}
 
 	// setup a cancelable context so the monitor goroutine gets shutdown.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	s := fakeSource{outVal: foozleConfig}
 	d, err := Params[testConfig]{
@@ -257,8 +253,7 @@ func TestConfigWithDelayInitialVerifyFailWatchNoGlobalCBSuppress(t *testing.T) {
 	}
 
 	// setup a cancelable context so the monitor goroutine gets shutdown.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	globalCfgCh := make(chan *configurableVerifier, 1)
 	w := fakeWatchingSource{fakeSource: fakeSource{outVal: foozleConfig}}
@@ -313,8 +308,7 @@ func TestConfigWithDelayInitialVerifyFailWatchlobalCBSuppress(t *testing.T) {
 	}
 
 	// setup a cancelable context so the monitor goroutine gets shutdown.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	errCBCh := make(chan error, 1)
 	expglobalCBCall := make(chan struct{})
@@ -426,8 +420,7 @@ func TestConfigWithSuccessVerifier(t *testing.T) {
 	}
 
 	// setup a cancelable context so the monitor goroutine gets shutdown.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	w := fakeWatchingSource{fakeSource: fakeSource{outVal: foozleConfig}}
 	d, err := Config(ctx, &base, &fakeSource{outVal: emptyConf}, &w)
@@ -502,8 +495,7 @@ func TestConfigWithConfigureVerifier(t *testing.T) {
 	}
 
 	// setup a cancelable context so the monitor goroutine gets shutdown.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	errCh := make(chan error, 1)
 	params := Params[configurableVerifier]{
@@ -588,8 +580,7 @@ func TestWatcherWithDoneAndErrorCallback(t *testing.T) {
 	}
 
 	// setup a cancelable context so the monitor goroutine gets shutdown.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	reportedErrCh := make(chan error)
 	p := Params[testConfig]{
@@ -673,8 +664,7 @@ func TestConfigWithNewConfigCallbacks(t *testing.T) {
 	}
 
 	// setup a cancelable context so the monitor goroutine gets shutdown.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	oldConf := make(chan *testConfig, 1)
 	newConf := make(chan *testConfig)
@@ -792,8 +782,7 @@ func TestConfigWithNewConfigCallbacksSaturate(t *testing.T) {
 	}
 
 	// setup a cancelable context so the monitor goroutine gets shutdown.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// give oldConf a large capacity (we don't want to block on both)
 	oldConf := make(chan *testConfig, 128)
