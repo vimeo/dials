@@ -1059,8 +1059,7 @@ func TestMust(t *testing.T) {
 
 	fs := Must(NewSetWithArgs(DefaultFlagNameConfig(), &Config{}, []string{"-world", "-hello=foobar"}))
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	d, err := dials.Config(ctx, &Config{}, fs)
 	if err != nil {

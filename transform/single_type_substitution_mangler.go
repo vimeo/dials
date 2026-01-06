@@ -20,8 +20,8 @@ type SingleTypeSubstitutionMangler[F, T any] struct {
 // If T is not convertible to F, an error is returned. (only Unmangle converts
 // values back, so convertibility in the other direction is irrelevant)
 func NewSingleTypeSubstitutionMangler[F, T any]() (*SingleTypeSubstitutionMangler[F, T], error) {
-	from := reflect.TypeOf((*F)(nil)).Elem()
-	to := reflect.TypeOf((*T)(nil)).Elem()
+	from := reflect.TypeFor[F]()
+	to := reflect.TypeFor[T]()
 	if !to.ConvertibleTo(from) {
 		return nil, fmt.Errorf("type %s is not convertible to %s", to, from)
 	}

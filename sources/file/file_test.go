@@ -37,39 +37,28 @@ type config struct {
 	NumBeatles   int
 }
 
-func tmpDir(t testing.TB) string {
-	t.Helper()
-	dir, dirErr := os.MkdirTemp("", "dials_file")
-	require.NoError(t, dirErr, "failed to create temporary directory")
-	return dir
-}
-
 func TestWatchingFile(t *testing.T) {
 	t.Parallel()
 
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	firstConfig := writeTestConfig(t, dir, `{
         "secretOfLife": 42,
         "numBeatles": 4
     }`)
-	defer os.Remove(firstConfig)
 
 	secondConfig := writeTestConfig(t, dir, `{
         "secretOfLife": 47,
         "numBeatles": 4
     }`)
-	defer os.Remove(secondConfig)
 
 	myConfig := &config{}
 
 	watchingFile, watchingErr := NewWatchingSource(firstConfig, &json.Decoder{}, WithLogger(&testStdLogger{t}))
 	require.NoError(t, watchingErr, "construction failure")
-	defer watchingFile.WG.Wait()
+	t.Cleanup(watchingFile.WG.Wait)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	d, err := dials.Config(ctx, myConfig, watchingFile)
 	assert.NoError(t, err)
 
@@ -100,20 +89,17 @@ func TestWatchingFileWithRelativePathAndChdir(t *testing.T) {
 	defer os.Chdir(initWD)
 	t.Parallel()
 
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	firstConfig := writeTestConfig(t, dir, `{
         "secretOfLife": 42,
         "numBeatles": 4
     }`)
-	defer os.Remove(firstConfig)
 
 	secondConfig := writeTestConfig(t, dir, `{
         "secretOfLife": 47,
         "numBeatles": 4
     }`)
-	defer os.Remove(secondConfig)
 
 	myConfig := &config{}
 
@@ -124,10 +110,9 @@ func TestWatchingFileWithRelativePathAndChdir(t *testing.T) {
 
 	watchingFile, watchingErr := NewWatchingSource(relFname, &json.Decoder{}, WithLogger(&testStdLogger{t}))
 	require.NoError(t, watchingErr, "construction failure")
-	defer watchingFile.WG.Wait()
+	t.Cleanup(watchingFile.WG.Wait)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	d, err := dials.Config(ctx, myConfig, watchingFile)
 	assert.NoError(t, err)
 
@@ -159,20 +144,18 @@ func TestWatchingFileWithRelativePathAndChdir(t *testing.T) {
 func TestWatchingFileWithRemove(t *testing.T) {
 	t.Parallel()
 
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	firstConfig := writeTestConfig(t, dir, `{
         "secretOfLife": 42,
         "numBeatles": 4
     }`)
-	defer os.Remove(firstConfig)
 
 	myConfig := &config{}
 
 	watchingFile, watchingErr := NewWatchingSource(firstConfig, &json.Decoder{}, WithLogger(&testStdLogger{t}))
 	require.NoError(t, watchingErr, "construction failure")
-	defer watchingFile.WG.Wait()
+	t.Cleanup(watchingFile.WG.Wait)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -212,20 +195,18 @@ func TestWatchingFileWithRemove(t *testing.T) {
 func TestWatchingFileWithTrickle(t *testing.T) {
 	t.Parallel()
 
-	dir := tmpDir(t)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	firstConfig := writeTestConfig(t, dir, `{
         "secretOfLife": 42,
         "numBeatles": 4
     }`)
-	defer os.Remove(firstConfig)
 
 	myConfig := &config{}
 
 	watchingFile, watchingErr := NewWatchingSource(firstConfig, &json.Decoder{}, WithLogger(&testStdLogger{t}))
 	require.NoError(t, watchingErr, "construction failure")
-	defer watchingFile.WG.Wait()
+	t.Cleanup(watchingFile.WG.Wait)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -324,10 +305,9 @@ func TestWatchingFileWithK8SEmulatedAtomicWriter(t *testing.T) {
 
 	watchingFile, watchingErr := NewWatchingSource(configPath, &json.Decoder{}, WithLogger(&testStdLogger{t}))
 	require.NoError(t, watchingErr, "construction failure")
-	defer watchingFile.WG.Wait()
+	t.Cleanup(watchingFile.WG.Wait)
 
-	ctx, outerCancel := context.WithCancel(context.Background())
-	defer outerCancel()
+	ctx := t.Context()
 	d, err := dials.Config(ctx, myConfig, watchingFile)
 	assert.NoError(t, err)
 

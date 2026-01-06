@@ -18,7 +18,7 @@ func TestSetSliceManglerMangle(t *testing.T) {
 
 	require.NoError(t, err)
 
-	assert.Equal(t, reflect.TypeOf([]string{}), sfs[0].Type)
+	assert.Equal(t, reflect.TypeFor[[]string](), sfs[0].Type)
 }
 
 func TestSetSliceManglerUnmangle(t *testing.T) {

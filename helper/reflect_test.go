@@ -10,7 +10,7 @@ import (
 )
 
 func TestOnImplements(t *testing.T) {
-	textUnmarshalerType := reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	textUnmarshalerType := reflect.TypeFor[encoding.TextUnmarshaler]()
 
 	for testName, itbl := range map[string]struct {
 		seed          func() any
@@ -25,7 +25,7 @@ func TestOnImplements(t *testing.T) {
 				assert.Equal(t, "10.1.1.1", inputIP.String())
 
 				newType := v.Type()
-				assert.Equal(t, reflect.PointerTo(reflect.TypeOf(net.IP{})), newType)
+				assert.Equal(t, reflect.PointerTo(reflect.TypeFor[net.IP]()), newType)
 
 				outputIP, ok := v.Interface().(*net.IP)
 				assert.True(t, ok)
@@ -51,7 +51,7 @@ func TestOnImplements(t *testing.T) {
 				assert.Equal(t, "10.1.1.1", inputIP.String())
 
 				newType := v.Type()
-				assert.Equal(t, reflect.PointerTo(reflect.TypeOf(net.IP{})), newType)
+				assert.Equal(t, reflect.PointerTo(reflect.TypeFor[net.IP]()), newType)
 
 				outputIP, ok := v.Interface().(*net.IP)
 				assert.True(t, ok)

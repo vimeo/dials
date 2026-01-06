@@ -44,7 +44,7 @@ func String(str string, t reflect.Type) (reflect.Value, error) {
 
 	case reflect.Map:
 		switch t {
-		case reflect.TypeOf(map[string][]string{}):
+		case reflect.TypeFor[map[string][]string]():
 			converted, err := StringStringSliceMap(str)
 			if err != nil {
 				return reflect.Value{}, err

@@ -106,7 +106,7 @@ func (p Params[T]) Config(ctx context.Context, t *T, sources ...Source) (*Dials[
 	watcherChan := make(chan watchStatusUpdate)
 	computed := make([]sourceValue, len(sources))
 
-	typeOfT := reflect.TypeOf(t)
+	typeOfT := reflect.TypeFor[*T]()
 	if typeOfT.Kind() != reflect.Pointer {
 		return nil, fmt.Errorf("config type %T is not a pointer", t)
 	}
@@ -533,7 +533,6 @@ func (d *Dials[T]) updateSourceValue(
 }
 
 func (d *Dials[T]) markSourceDone(
-	ctx context.Context,
 	sourceValues []sourceValue,
 	watchTab *watcherDone,
 ) bool {
@@ -729,7 +728,7 @@ func (d *Dials[T]) monitor(
 					})
 				}
 			case *watcherDone:
-				if !d.markSourceDone(ctx, sourceValues, v) {
+				if !d.markSourceDone(sourceValues, v) {
 					// if there are no watching sources, just exit.
 					d.sourceVals.Store(&sourceValues)
 					return

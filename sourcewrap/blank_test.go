@@ -79,9 +79,7 @@ func (t *trivalErroringWatchingSource) Value(_ context.Context, typ *dials.Type)
 }
 
 func TestBlankSource(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	defer cancel()
+	ctx := t.Context()
 	b := Blank{}
 	type basicConf struct {
 		A int
@@ -120,9 +118,7 @@ func TestBlankSource(t *testing.T) {
 }
 
 func TestBlankSourceError(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	defer cancel()
+	ctx := t.Context()
 	b := Blank{}
 	type basicConf struct {
 		A int
@@ -169,9 +165,7 @@ func TestBlankSourceError(t *testing.T) {
 }
 
 func TestBlankSourceWatcher(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	defer cancel()
+	ctx := t.Context()
 	b := Blank{}
 	type basicConf struct {
 		A int
@@ -228,9 +222,7 @@ func TestBlankSourceWatcher(t *testing.T) {
 
 }
 func TestBlankSourceErrorWatcher(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	defer cancel()
+	ctx := t.Context()
 	b := Blank{}
 	type basicConf struct {
 		A int

@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
 )
 
 // TextUnmarshalerMangler changes types that implement encoding.TextUnmarshaler

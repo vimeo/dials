@@ -70,8 +70,7 @@ func TestShallowlyNestedYAML(t *testing.T) {
 	}`
 
 	myConfig := &testConfig{}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	d, err := dials.Config(
 		ctx,
 		myConfig,
@@ -127,8 +126,7 @@ func TestEmbedded(t *testing.T) {
 	}`
 
 	myConfig := &testConfig{}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	d, err := dials.Config(
 		ctx,
 		myConfig,
@@ -235,8 +233,7 @@ func TestAnonymousNestedYAML(t *testing.T) {
 	}`
 
 	myConfig := &testConfig{}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	d, err := dials.Config(
 		ctx,
 		myConfig,

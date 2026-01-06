@@ -33,8 +33,7 @@ func (c *config) ConfigPath() (string, bool) {
 // TestYAMLConfigEnvFlag cannot run concurrently with other tests because of
 // environment manipulation.
 func TestYAMLConfigEnvFlagWithValidConfig(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	t.Setenv("CONFIGPATH", "../testhelper/testconfig.yaml")
 
@@ -58,8 +57,7 @@ func TestYAMLConfigEnvFlagWithValidConfig(t *testing.T) {
 }
 
 func TestYAMLConfigEnvFlagWithValidConfigAndAlias(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	t.Setenv("ALTCONFIGPATH", "../testhelper/testconfig.yaml")
 
@@ -94,8 +92,7 @@ func (bc *beatlesConfig) ConfigPath() (string, bool) {
 }
 
 func TestYAMLConfigEnvFlagWithFileKeyNaming(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	c := &beatlesConfig{YAMLPath: "../testhelper/testconfig.yaml"}
 	view, dialsErr := YAMLConfigEnvFlag(ctx, c, Params[beatlesConfig]{
@@ -147,8 +144,7 @@ func (c *validatingConfig) Verify() error {
 }
 
 func TestYAMLConfigEnvFlagWithValidatingConfig(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	tmpFile, tmpErr := os.CreateTemp(t.TempDir(), "*")
 	require.NoError(t, tmpErr)
@@ -164,8 +160,7 @@ func TestYAMLConfigEnvFlagWithValidatingConfig(t *testing.T) {
 }
 
 func TestYAMLConfigEnvFlagWithValidatingConfigInitiallyValid(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "fim1.yaml")
@@ -204,8 +199,7 @@ func TestYAMLConfigEnvFlagWithValidatingConfigInitiallyValid(t *testing.T) {
 }
 
 func TestJSONConfigEnvFlagWithNewConfigCallback(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "fim1.json")
