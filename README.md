@@ -15,7 +15,7 @@ go get github.com/vimeo/dials@latest
 
 ## Prerequisites
 
-Dials requires Go 1.18 or later.
+Dials requires Go 1.24 or later.
 
 ## What is Dials?
 
