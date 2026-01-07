@@ -28,6 +28,8 @@ var (
 	mapStringStringSlice = reflect.MapOf(reflect.TypeFor[string](), stringSlice)
 	mapStringString      = reflect.MapOf(reflect.TypeFor[string](), reflect.TypeFor[string]())
 	stringSet            = reflect.MapOf(reflect.TypeFor[string](), reflect.TypeOf(struct{}{}))
+	enumValuableType     = reflect.TypeFor[dials.EnumValuable]()
+	fuzzyEnumComparer    = reflect.TypeFor[dials.FuzzyEnumComparer]()
 
 	stringType = reflect.TypeFor[string]()
 
@@ -266,6 +268,16 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 		fieldVal := transform.GetField(sf, tmpl)
 		shorthand, _ := sf.Tag.Lookup(common.DialsPFlagShortTag)
 		var f any
+
+		if ft.Implements(enumValuableType) {
+			vals := fieldVal.Interface().(dials.EnumValuable).AllowedEnumValues()
+			help += fmt.Sprintf(" (allowed %+v", vals)
+
+			if ft.Implements(fuzzyEnumComparer) {
+				help += ", case-insensitive"
+			}
+			help += ")"
+		}
 
 		switch {
 		case isValue:

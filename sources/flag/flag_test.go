@@ -1051,6 +1051,44 @@ func TestTable(t *testing.T) {
 	}
 }
 
+type protocol string
+
+const (
+	http protocol = "http"
+	ssh  protocol = "ssh"
+	smtp protocol = "smtp"
+)
+
+func (p protocol) DialsValueMap() map[string]protocol {
+	return dials.StringValueMap(ssh, http, smtp)
+}
+
+func TestEnum(t *testing.T) {
+	type Config struct {
+		Proto dials.FuzzyEnum[protocol] `dialsdesc:"the protocol"`
+	}
+
+	fs := Must(NewSetWithArgs(DefaultFlagNameConfig(), &Config{}, []string{"-proto=ssh"}))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d, err := dials.Config(ctx, &Config{}, fs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := d.View()
+
+	if got.Proto.Value != ssh {
+		t.Errorf("expected \"ssh\" for Proto, got %q", got.Proto)
+	}
+
+	f := fs.Flags.Lookup("proto")
+	if f.Usage != "the protocol (allowed [http smtp ssh], case-insensitive)" {
+		t.Errorf("expected `the protocol (allowed [http smtp ssh], case-insensitive)` got %s", f.Usage)
+	}
+}
+
 func TestMust(t *testing.T) {
 	type Config struct {
 		Hello string

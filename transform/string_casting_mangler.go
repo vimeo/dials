@@ -7,7 +7,6 @@ import (
 )
 
 var (
-	zeroStr    = ""
 	strPtrType = reflect.TypeFor[*string]()
 )
 

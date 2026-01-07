@@ -131,15 +131,16 @@ func (t *Transformer) maybeRecursivelyMangle(mangler Mangler, state *transformMa
 
 		ft := field.Type
 
-		// also don't recurse into TextUnarshaler types
-		if ft.Implements(textMReflectType) || reflect.PointerTo(ft).Implements(textMReflectType) {
-			continue
-		}
-
 		// strip any outer pointerification, slice or array
 		switch ft.Kind() {
 		case reflect.Pointer, reflect.Array, reflect.Slice:
 			ft = ft.Elem()
+		}
+
+		// also don't recurse into TextUnmarshaler types, and notably do this
+		// after we've stripped pointerification and/or array/slice wrapping.
+		if ft.Implements(textMReflectType) || reflect.PointerTo(ft).Implements(textMReflectType) {
+			continue
 		}
 
 		fieldTransformer := Transformer{

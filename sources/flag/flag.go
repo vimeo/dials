@@ -26,6 +26,8 @@ var (
 	mapStringString      = reflect.MapOf(reflect.TypeFor[string](), reflect.TypeFor[string]())
 	stringSet            = reflect.MapOf(reflect.TypeFor[string](), reflect.TypeOf(struct{}{}))
 	textMReflectType     = reflect.TypeFor[encoding.TextUnmarshaler]()
+	enumValuableType     = reflect.TypeFor[dials.EnumValuable]()
+	fuzzyEnumComparer    = reflect.TypeFor[dials.FuzzyEnumComparer]()
 
 	stringType = reflect.TypeFor[string]()
 
@@ -256,6 +258,16 @@ func (s *Set) registerFlags(tmpl reflect.Value, ptyp reflect.Type) error {
 
 		// get the concrete value of the field from the template
 		fieldVal := transform.GetField(sf, tmpl)
+
+		if ft.Implements(enumValuableType) {
+			vals := fieldVal.Interface().(dials.EnumValuable).AllowedEnumValues()
+			help += fmt.Sprintf(" (allowed %+v", vals)
+
+			if ft.Implements(fuzzyEnumComparer) {
+				help += ", case-insensitive"
+			}
+			help += ")"
+		}
 
 		switch {
 		case fieldVal.Type() == timeTime:
